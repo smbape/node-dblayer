@@ -1,0 +1,29 @@
+{
+  "name": "smStore",
+  "version": "1.0.0",
+  "description": "Database layer",
+  "dependencies": {
+    "mysql": "*",
+    "prepend-listener": "*",
+    "once": "*",
+    "squel": "*",
+    "pg": "*",
+    "pg-query-stream": "*",
+    "generic-pool": "*",
+    "lodash": "*",
+    "async": "*",
+    "squel": "*",
+    "log4js": "*",
+    "moment": "*",
+    "backbone": "*"
+  },
+  "main": "./index.js",
+  "scripts": {
+    "test": "node ./test/sm-store.test.js"
+  },
+  "devDependencies": {
+    "nodeunit": "*",
+    "sql": "*"
+    },
+  "readmeFilename": "readme.md"
+}

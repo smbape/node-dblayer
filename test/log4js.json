@@ -1,0 +1,13 @@
+{
+    "appenders": [
+        {
+            "type": "console",
+            "layout": {
+                "type": "colored"
+            }
+        }
+    ],
+    "levels": {
+        "[all]": "DEBUG"
+    }
+}
