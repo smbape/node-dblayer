@@ -114,10 +114,10 @@ module.exports = class AdapterPool
                     obj.pool[method].apply obj.pool, arguments
             )(@, method)
 
-        @_check(next) if typeof next is 'function'
+        @check(next) if typeof next is 'function'
         return
 
-    _check: (next)->
+    check: (next)->
         throw new Error('next is not a function') if typeof next isnt 'function'
         @pool.acquire (err, connection)=>
             throw err if err
