@@ -1,4 +1,4 @@
-log4js = require 'log4js'
+log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'ConnectorTest'
 async = require 'async'
 _ = require 'lodash'
