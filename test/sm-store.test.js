@@ -50,13 +50,23 @@ for (dbms in config) {
     }
 }
 
-function destroyPools() {
-    var i, dbms, options, items = ['poolRead', 'poolWrite', 'poolAdmin'];
+function destroyPools(next) {
+    var i, dbms, options, items = ['poolRead', 'poolWrite', 'poolAdmin'],
+        count = 0,
+        length = 6;
     for (i = 0; i < items.length; i++) {
         for (dbms in pools) {
             (function(pool) {
                 pool.drain(function() {
                     pool.destroyAllNow();
+                    ++count;
+                    if (count === length) {
+                        if ('function' === typeof next) {
+                            next();
+                        } else if ('undefined' !== typeof next) {
+                            next.done();
+                        }
+                    }
                 });
             }(pools[dbms][items[i]]));
         }
@@ -68,6 +78,24 @@ var assert, prop, reporter, tests;
 var testSuite = module.exports;
 
 var isNodeunit = /\bnodeunit$/.test(process.argv[1]);
+var isRequire = __filename !== process.argv[1];
+
+function run(next) {
+    var _next;
+    if ('function' === typeof next) {
+        _next = function() {
+            destroyPools(next);
+        }
+    } else {
+        _next = destroyPools;
+    }
+
+    // Launch nodeunit if not used
+    reporter = require('nodeunit').reporters.default;
+    reporter.run({
+        'testSuite': testSuite
+    }, null, _next);
+}
 
 if (false) {
     // For debugging purpose
@@ -82,10 +110,10 @@ if (false) {
         })(testSuite[prop]);
     }
     async.series(tests, destroyPools);
-} else if (!isNodeunit) {
-    // Launch nodeunit if not used
-    reporter = require('nodeunit').reporters.default;
-    reporter.run({
-        'testSuite': testSuite
-    }, null, destroyPools);
+} else if (isNodeunit) {
+    module.exports.end = destroyPools;
+} else if (isRequire) {
+    module.exports = {run: run};
+} else {
+    run();
 }

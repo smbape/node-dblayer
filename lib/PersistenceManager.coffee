@@ -765,7 +765,8 @@ class UpdateQuery
         definition = @getDefinition()
         model = @getModel()
         options = @getOptions()
-        where = [@lockCondition]
+        # where = [@lockCondition]
+        where = []
 
         query = pMgr.decorateInsert options.dialect, query, definition.id.column
         connector.query query, (err, res)->
