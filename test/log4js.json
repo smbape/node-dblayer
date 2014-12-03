@@ -8,6 +8,6 @@
         }
     ],
     "levels": {
-        "[all]": "DEBUG"
+        "[all]": "TRACE"
     }
 }

@@ -9,14 +9,14 @@ log4js.configure(path.join(dirname, 'log4js.json'));
 // do test for each dbms
 var config = {
     postgres: {
-        read: "postgres://user_read:zulu@localhost:5432/exbam?schema=testschema&minConnection=0&maxConnection=10&idleTimeout=3600",
-        write: "postgres://user_write:zulu@localhost:5432/exbam?schema=testschema&minConnection=0&maxConnection=10&idleTimeout=3600",
-        admin: "postgres://user_admin:zulu@localhost:5432/exbam?schema=testschema&minConnection=0&maxConnection=1&idleTimeout=3600"
+        read: "postgres://user_read:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
+        write: "postgres://user_write:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
+        admin: "postgres://user_admin:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=1&idleTimeout=3600"
     },
     mysql: {
-        read: "mysql://user_read:zulu@localhost:3306/testschema?minConnection=0&maxConnection=10&idleTimeout=3600",
-        write: "mysql://user_write:zulu@localhost:3306/testschema?minConnection=0&maxConnection=10&idleTimeout=3600",
-        admin: "mysql://user_admin:zulu@localhost:3306/testschema?minConnection=0&maxConnection=1&idleTimeout=3600"
+        read: "mysql://user_read:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
+        write: "mysql://user_write:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
+        admin: "mysql://user_admin:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=1&idleTimeout=3600"
     }
 };
 
@@ -109,7 +109,12 @@ if (false) {
             });
         })(testSuite[prop]);
     }
-    async.series(tests, destroyPools);
+    
+    module.exports.run = function (next) {
+        async.series(tests, function() {
+            destroyPools(next);
+        });
+    };
 } else if (isNodeunit) {
     module.exports.end = destroyPools;
 } else if (isRequire) {
