@@ -115,6 +115,7 @@ module.exports = class Connector extends EventEmitter
             return
 
     _acquire: (callback)->
+        # check if connection has already been acquired
         return callback() if @savepoints > 0
 
         @pool.acquire (err, connection)=>
@@ -136,6 +137,7 @@ module.exports = class Connector extends EventEmitter
             , @timeout
             logger.trace 'acquire connection'
             callback()
+        return
 
     query: (query, callback, options)->
         ret = =>
