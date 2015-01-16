@@ -27,10 +27,13 @@ module.exports = class Connector extends EventEmitter
             error = new Error 'pool is not defined'
             error.code = 'POOL_UNDEFINED'
             throw error
-        options = {} if not _.isPlainObject options
 
-        @options = options
-        @timeout = options.timeout or MAX_ACQUIRE_TIME
+        if _.isPlainObject options
+            @options = _.clone options
+        else
+            @options = {}
+
+        @timeout = @options.timeout or MAX_ACQUIRE_TIME
         @resourceSem = semLib.semCreate 1, true
         @pool = pool
         @savepoints = 0

@@ -13,11 +13,11 @@ var config = {
         write: "postgres://user_write:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
         admin: "postgres://user_admin:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=1&idleTimeout=3600"
     }
-    //, mysql: {
-    //     read: "mysql://user_read:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
-    //     write: "mysql://user_write:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
-    //     admin: "mysql://user_admin:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=1&idleTimeout=3600"
-    // }
+    , mysql: {
+        read: "mysql://user_read:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
+        write: "mysql://user_write:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
+        admin: "mysql://user_admin:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=1&idleTimeout=3600"
+    }
 };
 
 var testSubtasks = ['ConnectorTest', 'PersistenceManagerTest'],

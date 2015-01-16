@@ -801,6 +801,7 @@ class UpdateQuery
                         extended = 'no-update'
                 callback err, id, extended
         , options.executeOptions
+        return
 
 class DeleteQuery
     constructor: (pMgr, model, options = {})->
@@ -814,7 +815,7 @@ class DeleteQuery
         connector = options.connector
         className = options.className or model.className
         definition = pMgr.getDefinition className
-        remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId(definition.table)
+        remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId definition.table
         remove.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getId className
 
         # optimistic lock
@@ -877,9 +878,12 @@ class DeleteQuery
             return callback(err) if err
             async.series tasks, callback
 
+        return
+
     _execute: (connector, callback)->
         query = @oriToString()
         connector.query query, callback, @getOptions().executeOptions
+        return
 
 _assertClassHasMapping = (sanitized, className)->
     if not sanitized.classes.hasOwnProperty className
