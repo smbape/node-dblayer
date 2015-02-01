@@ -754,24 +754,25 @@ class UpdateQuery
             return callback(err) if err
 
             # Check if parent mixin has been updated
-            if results instanceof Array and results.length > 0
+            if (results instanceof Array) and results.length > 0
                 for result in results
-                    if result instanceof Array and result.length > 0
+                    if (result instanceof Array) and result.length > 0
                         id = result[0]
                         extended = result[1]
                         if not extended
+                            logger.trace '[' + @getDefinition().className + '] - UPDATE: has update ' + id
                             hasUpdate = true
                             break
                 if results[results.length - 1] instanceof Array
                     id = results[results.length - 1][0]
 
             if not @hasData
-                callback err, id, hasUpdate
+                callback err, id, not hasUpdate
                 return
 
             # If parent mixin has been update, child must be considered as being updated
-            if not @hasData
-                console.log 'has no data', @getDefinition().className
+            if not hasUpdate
+                logger.trace '[' + @getDefinition().className + '] - UPDATE: has no update ' + id
                 @setChangeCondition()
 
             @_execute connector, (err, id, extended)->
@@ -815,6 +816,7 @@ class UpdateQuery
                     if models.length is 0
                         err = new Error 'id or lock condition'
                         err.code = 'NO_UPDATE'
+                        logger.trace '[' + definition.className + '] - NO UPDATE ' + id
                     else
                         extended = 'no-update'
                 callback err, id, extended
