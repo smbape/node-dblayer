@@ -615,21 +615,17 @@ class SelectQuery
 
 class UpdateQuery
     constructor: (pMgr, model, options = {})->
-        @getModel = ->
-            model
-        @getManager = ->
-            pMgr
-        @getOptions = ->
-            options
+        @getModel = -> model
+        @getManager = -> pMgr
+        @getOptions = -> options
 
-        @toParam = ->
-            update.toParam()
-        @toString = @oriToString = ->
-            update.toString()
-        @getClassName = ->
-            className
-        @getDefinition = ->
-            definition
+        @toParam = -> update.toParam()
+        @toString = @oriToString = -> update.toString()
+        @getClassName = -> className
+        @getDefinition = -> definition
+        @setChangeCondition = ->
+            update.where changeCondition
+            @
 
         connector = options.connector
         if connector
@@ -643,20 +639,6 @@ class UpdateQuery
         definition = pMgr.getDefinition className
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
         update.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getId className
-
-        # update mixin properties
-        if definition.mixins.length > 0
-            @toString = ->
-                update.toString()
-
-            @toParam = ->
-                params = update.toParam()
-                for mixin, index in definition.mixins
-                    params.values.push new UpdateQuery pMgr, model,
-                        className: mixin.className
-                        dialect: options.dialect
-                        connector: connector
-                return params
 
         # condition to track changes
         changeCondition = squel.expr()
@@ -718,13 +700,33 @@ class UpdateQuery
                 continue
 
             update.set @escapeId(column), value
+            @hasData = true
             
             if not propDef.lock
                 changeCondition.or connector.exprNotEqual value, connector.escapeId column
 
         update.where lockCondition
-        update.where changeCondition
         
+        # update mixin properties
+        if definition.mixins.length > 0
+            if @hasData
+                @toString = -> update.toString()
+            else
+                @toString = -> ''
+
+            @toParam = ->
+                if @hasData
+                    params = update.toParam()
+                else
+                    params = values: []
+
+                for mixin, index in definition.mixins
+                    params.values.push new UpdateQuery pMgr, model,
+                        className: mixin.className
+                        dialect: options.dialect
+                        connector: connector
+                return params
+
         # check
         query = @toString()
         return
@@ -739,25 +741,45 @@ class UpdateQuery
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
             if value instanceof UpdateQuery
-                tasks.push ((query)->
-                    (next)->
+                ((query, connector)->
+                    tasks.push (next)->
                         query.execute connector, next
-                )(value)
+                    return
+                )(value, connector)
             else
                 break
 
         hasUpdate = false
-        async.series tasks, (err, args)=>
-            if args instanceof Array and args.length > 0
-                args = args[args.length - 1]
-                if args instanceof Array and args.length > 0
-                    id = args[0]
-                    extended = args[1]
-                    hasUpdate = true if not extended
+        async.series tasks, (err, results)=>
             return callback(err) if err
+
+            # Check if parent mixin has been updated
+            if results instanceof Array and results.length > 0
+                for result in results
+                    if result instanceof Array and result.length > 0
+                        id = result[0]
+                        extended = result[1]
+                        if not extended
+                            hasUpdate = true
+                            break
+                if results[results.length - 1] instanceof Array
+                    id = results[results.length - 1][0]
+
+            if not @hasData
+                callback err, id, hasUpdate
+                return
+
+            # If parent mixin has been update, child must be considered as being updated
+            if not @hasData
+                console.log 'has no data', @getDefinition().className
+                @setChangeCondition()
+
             @_execute connector, (err, id, extended)->
                 hasUpdate = true if not extended
                 callback err, id, not hasUpdate and extended
+
+            return
+        return
 
     _execute: (connector, callback)->
         pMgr = @getManager()
@@ -765,7 +787,6 @@ class UpdateQuery
         definition = @getDefinition()
         model = @getModel()
         options = @getOptions()
-        # where = [@lockCondition]
         where = []
 
         query = pMgr.decorateInsert options.dialect, query, definition.id.column
@@ -777,13 +798,10 @@ class UpdateQuery
                 if res.hasOwnProperty 'affectedRows'
                     # assume it's mysql connector
                     if res.affectedRows is 0
-                        _exit = true
+                        hasNoUpdate = true
                 else if res.rows 
                     if res.rows.length is 0
-                        _exit = true
-                if _exit
-                    # Nothing has been updated
-                    hasNoUpdate = true
+                        hasNoUpdate = true
 
             logger.trace '[' + definition.className + '] - UPDATE ' + id
 
@@ -800,6 +818,8 @@ class UpdateQuery
                     else
                         extended = 'no-update'
                 callback err, id, extended
+                return
+            return
         , options.executeOptions
         return
 

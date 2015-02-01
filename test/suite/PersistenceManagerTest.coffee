@@ -2228,6 +2228,7 @@ task = (config, assert)->
                         next()
                     , true
 
+    # issue: test update on subclass with no properties
     # testOtherStream with committed transactions
     # test optimistic lock
     #   update
