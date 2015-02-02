@@ -1,17 +1,16 @@
 mysql = require 'mysql'
-Connection = require 'mysql/lib/Connection'
+MySQLLibConnection = require 'mysql/lib/Connection'
 ConnectionConfig = require 'mysql/lib/ConnectionConfig'
 prependListener = require 'prepend-listener'
 once = require 'once'
 _ = require 'lodash'
 path = require 'path'
 GenericUtil = require '../GenericUtil'
+HWM = Math.pow 2, 7
 
 adapter =
     name: 'mysql'
     createQuery: (text, values, callback)->
-        return text if typeof text is 'undefined' or (GenericUtil.isObject(text) and text.query)
-        highWaterMark = Math.pow 2, 10
         if typeof callback is 'undefined' and typeof values is 'function'
             callback = values
             values = undefined
@@ -19,7 +18,7 @@ adapter =
         values = values or []
         query = mysql.createQuery text, values
 
-        stream = query.stream highWaterMark: highWaterMark
+        stream = query.stream highWaterMark: HWM
         emitClose = once stream.emit.bind stream, 'close'
         prependListener query, 'end', emitClose
 
@@ -35,10 +34,10 @@ adapter =
                 lastInsertId: 0
                 fields: null
 
-            errored = false
+            hasError = false
             stream.on 'error', (err)->
                 emitClose()
-                errored = true
+                hasError = true
                 @callback err
                 return
             stream.on 'fields', (fields) ->
@@ -51,10 +50,11 @@ adapter =
                     result.changedRows = row.changedRows
                     result.lastInsertId = row.insertId
                 else
-                    result.rowCount = result.rows.push(row)
+                    ++result.rowCount
+                    result.rows.push(row)
                 return
             stream.on 'end', ->
-                @callback null, result unless errored
+                @callback null, result unless hasError
                 return
 
         stream.once 'end', ->
@@ -69,31 +69,47 @@ adapter =
             return callback(err) if err
             callback err, client
 
-class MySQLConnection extends Connection
+class MySQLConnection extends MySQLLibConnection
     adapter: adapter
     constructor: (options)->
         @options = _.clone options
         super config: new ConnectionConfig(options)
     getConnectionName: ->
         @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database
-    query: (text, params, callback)->
-        stream = adapter.createQuery text, params, callback
+    query: (query, params, callback)->
+        stream = adapter.createQuery query, params, callback
         super stream.query
         stream
-    stream: (text, callback, done)->
+    stream: (query, params, callback, done)->
+        if arguments.length is 3
+            done = callback
+            callback = params
+            params = []
+        params = [] if not (params instanceof Array)
         done = (->) if typeof done isnt 'function'
-        highWaterMark = Math.pow 2, 10
-        stream = Connection::query.call(@, text).stream highWaterMark: highWaterMark
+        stream = MySQLLibConnection::query.call(@, query, params).stream highWaterMark: HWM
         hasError = false
-        _fields = undefined
+        result = rowCount: 0
         stream.once 'error', (err)->
             hasError = err
-            done(err)
+            done err
+            return
         stream.on 'fields', (fields) ->
-            _fields = fields
-        stream.on 'data', callback
+            result.fields = fields
+            return
+        stream.on 'data', (row)->
+            if row.constructor.name is 'OkPacket'
+                result.fieldCount = row.fieldCount
+                result.affectedRows = row.affectedRows
+                result.changedRows = row.changedRows
+                result.lastInsertId = row.insertId
+            else
+                ++result.rowCount
+                callback row
+            return
         stream.once 'end', ->
-            done undefined, _fields unless hasError
+            done undefined, result unless hasError
+            return
         stream
     getModel: (callback)->
         callback = (->) if typeof callback isnt 'function'

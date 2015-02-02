@@ -243,12 +243,12 @@ task = (config, assert)->
         connector.acquire (err)->
             connector.stream statement, (row)->
                 rowCount++ if row.constructor.name isnt 'OkPacket'
-            , (err, fields)->
+            , (err, result)->
                 connector.release()
                 assert.ifError err
-                assert.ok fields instanceof Array
-                assert.strictEqual 1, fields.length
-                assert.strictEqual 'num', fields[0].name
+                assert.ok result.fields instanceof Array
+                assert.strictEqual 1, result.fields.length
+                assert.strictEqual 'num', result.fields[0].name
                 assert.strictEqual rowCount, num
                 next()
 

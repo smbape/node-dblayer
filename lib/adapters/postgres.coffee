@@ -11,27 +11,37 @@ class PostgresClient extends pg.Client
         @options = _.clone options
         @options.schema = @options.schema or 'public'
         super
-    query: (text, params, callback)->
-        query = @adapter.createQuery text, params, callback
-        @emit 'query', query
+    query: (query, params, callback)->
+        query = @adapter.createQuery query, params, callback
+        # @emit 'query', query
         super query
     getConnectionName: ->
         @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database + '/' + @options.schema
-    stream: (query, callback, done)->
+    stream: (query, params, callback, done)->
+        if arguments.length is 3
+            done = callback
+            callback = params
+            params = []
+        params = [] if not (params instanceof Array)
         done = (->) if typeof done isnt 'function'
+
         query = new PostgresQueryStream query
-        stream = pg.Client::query.call @, query
+        stream = pg.Client::query.call @, query, params
         hasError = false
-        _fields = undefined
+        result = rowCount: 0
         stream.once 'error', (err)->
             hasError = err
             done err
         stream.on 'fields', (fields)->
-            _fields = fields
+            result.fields = fields
+            return
         stream.on 'data', ->
+            ++result.rowCount
             callback.apply null, arguments
+            return
         stream.once 'end', ->
-            done undefined, _fields unless hasError
+            done undefined, result unless hasError
+            return
         stream
     getModel: (callback)->
         callback = (->) if typeof callback isnt 'function'
@@ -99,10 +109,10 @@ class PostgresQueryStream extends QueryStream
         @emit 'fields', message.fields
         return
     handleReadyForQuery: ->
-        @emit 'close'
+        # @emit 'close'
         super
     handleError: (err) ->
-        @emit 'close'
+        # @emit 'close'
         @push null
         super
 
@@ -118,11 +128,10 @@ _.extend adapter,
                     connection.end()
                     return callback(err)
                 callback err, connection
-        client.once 'connect', client.emit.bind(client, 'open')
+        # client.once 'connect', client.emit.bind(client, 'open')
         client
     createQuery: (text, params, callback)->
-        return new PostgresQueryStream(text, params, callback) if typeof text is 'string'
-        text
+        new PostgresQueryStream text, params, callback
     escape: (str)->
         type = typeof str
         if type is 'number'

@@ -23,7 +23,7 @@ internal.getAdapter = (options)->
     else if _.isPlainObject options.adapter
         adapter = options.adapter
 
-    if typeof adapter is 'undefined'
+    if typeof adapter isnt 'object' or adapter is null
         err = new Error 'adapter "' + options.adapter + '" is not define'
         err.code = 'BAD_adapter'
         throw err
@@ -123,6 +123,7 @@ module.exports = class AdapterPool
             throw err if err
             @pool.release connection
             next()
+        return
     getDialect: ->
         return @config.adapter
     createConnector: (options)->

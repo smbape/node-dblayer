@@ -14,6 +14,53 @@ factory = (require)->
         notEmptyString: (str)->
             typeof str is 'string' and str.length > 0
 
+    class GenericUtil.Timer
+        constructor: ->
+            @data = {}
+
+        set: (s, fn, ms)->
+            @clear s
+            
+            _fn = =>
+                @clear s
+                fn()
+
+            @data[s] = setTimeout _fn, ms
+            return
+
+        clear: (s) ->
+            t = @data
+            if t[s]
+                clearTimeout t[s]
+                delete t[s]
+            return
+
+        clearAll: ->
+            for s of @data
+                @clear s
+            return
+
+    class GenericUtil.Interval
+        constructor: ->
+            @data = {}
+
+        set: (s, fn, ms)->
+            @clear s
+            @data[s] = setInterval fn, ms
+            return
+
+        clear: (s) ->
+            t = @data
+            if t[s]
+                clearInterval t[s]
+                delete t[s]
+            return
+
+        clearAll: ->
+            for s of @data
+                @clear s
+            return
+
     GenericUtil.StringUtil =
         capitalize: (str) ->
             str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
@@ -54,7 +101,7 @@ factory = (require)->
             "'": '&#39;'
             "/": '&#x2F;'
         
-        StringUtil.escape = (html) ->
+        StringUtil.escapeHTML = (html) ->
             if typeof html is 'string'
                 html.replace /[&<>"'\/]/g, (s) ->
                     _entityMap[s]
@@ -127,29 +174,94 @@ factory = (require)->
                     '\b': '\\b'
 
         _escape = (str, map)->
-            if /^(?:numeric|boolean)$/.test typeof str
-                return ('' + str).toUpperCase()
-            else if str instanceof Array
+            type = typeof str
+            if type is 'number'
+                return str
+            if type is 'boolean'
+                return if type then '1' else '0'
+            if Array.isArray str
                 ret = []
                 for iStr in str
                     ret[ret.length] = _escape iStr, map
                 return '(' + ret.join(', ') + ')'
-            else if 'string' isnt typeof str
+            
+            if 'string' isnt type
                 # console.warn("escape - Bad string", str)
                 str = '' + str
             str = str.replace map.matcher, (match, char, index, str)->
                 map.replace[char]
             return map.quote + str + map.quote
 
-        sql.escapeId = (str, dialect = 'postgres')->
+        sql.escapeId = (str, dialect = STATIC.POSTGRES)->
             return _escape str, _escapeMap[dialect].id
 
-        sql.escape = (str, dialect = 'postgres')->
+        sql.escape = (str, dialect = STATIC.POSTGRES)->
             return _escape str, _escapeMap[dialect].literal
 
         return
     )(GenericUtil.sql = {})
     
+    GenericUtil.Algorithm = {}
+
+    # compare(a, b) return true if a < b
+
+    GenericUtil.Algorithm.findBinarySearch = (item, array, compare, context) ->
+        low = 0
+        high = array.length
+
+        while compare low, high
+            mid = (low + high) >>> 1
+            if compare.call(context, array[mid], item) then low = mid + 1 else high = mid
+
+        low
+
+    GenericUtil.Algorithm.findLinearSearch = (item, array, compare, context) ->
+        i = 0
+        len = array.length
+
+        while i < len and compare.call context, array[i], item
+            i++
+        i
+
+    GenericUtil.Algorithm.findLinearExSearch = (item, array, compare, context) ->
+        low = 0
+        high = array.length
+        i = low
+        while low < high
+            res = compare.call context, array[i], item
+            if res is -1
+                high = i--
+            else if res is 1
+                low = ++i
+            else
+                low = ++i
+
+        high
+
+    GenericUtil.DataStructure = {}
+    class GenericUtil.DataStructure.SortedArray extends Array
+        constructor: (length, compare, context)->
+            if typeof length is 'function' and arguments.length is 2
+                context = compare
+                compare = length
+                length = 0
+
+            if compare and typeof compare isnt 'function'
+                throw new Error 'If compare param is given, it must be a function'
+
+            @compare = compare
+            @context = context
+
+            super length
+        push: (item)->
+            index = GenericUtil.Algorithm.findLinearSearch item, @, @compare, @context
+            @splice index, 0, item
+        pushAll: (items)->
+            for item in items
+                @push item
+            @
+
+
     return GenericUtil
 
 module.exports = factory require
