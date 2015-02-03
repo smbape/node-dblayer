@@ -45,74 +45,76 @@ defaultOptions =
     idleTimeout: 10 * 60 #idle for 10 minutes
 
 module.exports = class AdapterPool
-    constructor: (connectionUrl, config, next)->
+    constructor: (connectionUrl, options, next)->
         if typeof connectionUrl isnt 'string'
             throw new Error "'connectionUrl' must be a String"
 
         @connectionUrl = connectionUrl
         url = require 'url'
         parsed = url.parse connectionUrl, true, true
-        @config = {}
-        @config.adapter = parsed.protocol.replace ':', ''
-        @config.database = parsed.pathname.substring(1)
-        @config.host = parsed.hostname
-        @config.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
+        @options = {}
+        @options.adapter = parsed.protocol.replace ':', ''
+        @options.database = parsed.pathname.substring(1)
+        @options.host = parsed.hostname
+        @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
         if parsed.auth
             auth = parsed.auth.split(':')
-            @config.user = auth[0]
-            @config.password = auth[1]
+            @options.user = auth[0]
+            @options.password = auth[1]
 
         for k of parsed.query
-            @config[k] = decodeURIComponent parsed.query[k]
+            @options[k] = decodeURIComponent parsed.query[k]
 
-        if typeof @config.adapter isnt 'string' or @config.adapter.length is 0
-            throw new Error "'adapter' is required in config objects"
+        if typeof @options.adapter isnt 'string' or @options.adapter.length is 0
+            throw new Error "'adapter' is required in options objects"
 
         properties = ['name']
         for prop in properties
-            @config[prop] = config[prop] if typeof config[prop] isnt 'undefined'
+            @options[prop] = options[prop] if typeof options[prop] isnt 'undefined'
 
-        if GenericUtil.isNumeric @config.maxConnection
-            @config.maxConnection = parseInt @config.maxConnection, 10
+        if GenericUtil.isNumeric @options.maxConnection
+            @options.maxConnection = parseInt @options.maxConnection, 10
         else
-            @config.maxConnection = defaultOptions.maxConnection
+            @options.maxConnection = defaultOptions.maxConnection
 
-        if GenericUtil.isNumeric @config.minConnection
-            @config.minConnection = parseInt @config.minConnection, 10
+        if GenericUtil.isNumeric @options.minConnection
+            @options.minConnection = parseInt @options.minConnection, 10
         else
-            @config.minConnection = defaultOptions.minConnection
+            @options.minConnection = defaultOptions.minConnection
         
-        if GenericUtil.isNumeric @config.idleTimeout
-            @config.idleTimeout = parseInt @config.idleTimeout, 10
+        if GenericUtil.isNumeric @options.idleTimeout
+            @options.idleTimeout = parseInt @options.idleTimeout, 10
         else
-            @config.idleTimeout = defaultOptions.idleTimeout
+            @options.idleTimeout = defaultOptions.idleTimeout
         
-        @adapter = internal.getAdapter @config
+        @adapter = internal.getAdapter @options
 
         GenericPool = require 'generic-pool'
         @pool = GenericPool.Pool
-            name: @config.name
+            name: @options.name
 
             create: (callback)=>
-                logger.debug "create #{@config.name}"
-                @adapter.createConnection @config, callback
+                logger.debug "create #{@options.name}"
+                @adapter.createConnection @options, callback
                 return
 
             destroy: (client)=>
-                logger.debug "destroy #{@config.name}"
+                logger.debug "destroy #{@options.name}"
                 client.end()
                 return
 
-            max: @config.maxConnection
-            min: @config.minConnection
-            idleTimeoutMillis: @config.idleTimeout * 1000
+            max: @options.maxConnection
+            min: @options.minConnection
+            idleTimeoutMillis: @options.idleTimeout * 1000
 
+        # Proxy all pool methods
         for method of @pool
             continue if typeof @pool[method] isnt 'function'
-            @[method] = ((obj, method)->
+
+            @[method] = ((pool, method)->
                 =>
-                    obj.pool[method].apply obj.pool, arguments
-            )(@, method)
+                    pool[method].apply pool, arguments
+            )(@pool, method)
 
         @check(next) if typeof next is 'function'
         return
@@ -125,12 +127,12 @@ module.exports = class AdapterPool
             next()
         return
     getDialect: ->
-        return @config.adapter
+        return @options.adapter
     createConnector: (options)->
         Connector = require './Connector'
         new Connector @, options
     getMaxConnection: ->
-        @config.maxConnection
+        @options.maxConnection
     escape: ->
         @adapter.escape.apply @adapter, arguments
     escapeId: ->
