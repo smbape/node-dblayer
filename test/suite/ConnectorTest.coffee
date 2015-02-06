@@ -18,6 +18,13 @@ queryCreateTable =
            constraint "PK_TEST" primary key ("id")
         )
     """
+    sqlite3: """
+        create table if not exists "test" (
+            "id" INTEGER,
+            "name" varchar(255),
+            constraint "PK_TEST" PRIMARY KEY ("id")
+        )
+    """
 
 sql = require 'sql'
 testTable = sql.define
@@ -31,7 +38,7 @@ STATES = Connector::STATES
 DBUtil = (->
     dialects = 
         postgres: new (require 'sql/lib/dialect/postgres')
-        sqlite: new (require 'sql/lib/dialect/sqlite')
+        sqlite3: new (require 'sql/lib/dialect/sqlite')
         mysql : new (require 'sql/lib/dialect/mysql')
 
     # Return sql query string
@@ -71,8 +78,9 @@ task = (config, assert)->
 
     setUp = (next)->
         pool = poolAdmin
-        query = queryCreateTable[pool.getDialect()]
-        dropQuery = DBUtil.getQueryString testTable.drop().ifExists(), pool.getDialect()
+        dialect = pool.getDialect()
+        query = queryCreateTable[dialect]
+        dropQuery = DBUtil.getQueryString testTable.drop().ifExists(), dialect
         pool.acquire (err, connection)->
             assert.ifError err
             connection.query dropQuery, (err, res)->
@@ -81,6 +89,10 @@ task = (config, assert)->
                     assert.ifError err
                     pool.release connection
                     next()
+                    return
+                return
+            return
+        return
     
     tearDown = (next)->
         pool = poolAdmin
@@ -99,11 +111,13 @@ task = (config, assert)->
         assert.ok connector
         assert.throws ->
             new Connector()
+            return
         next()
+        return
 
     testAcquire = (next)->
         pool = poolRead
-        connector = new Connector pool
+        connector = poolRead.createConnector()
         connector.release (err)->
             assert.ifError err
             assert.strictEqual 0, connector.getSavepointsSize()
@@ -123,11 +137,17 @@ task = (config, assert)->
                                 assert.ifError err
                                 assert.strictEqual 0, connector.getSavepointsSize()
                                 next()
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testAcquireTimeout = (next)->
-        pool = poolRead
-        timeout = Math.pow(2, 6)
-        connector = new Connector pool, {timeout: timeout / 2}
+        timeout = Math.pow 2, 6
+        connector = poolRead.createConnector timeout: timeout / 2
         connector.acquire (err)->
             assert.ifError err
             setTimeout ->
@@ -153,7 +173,16 @@ task = (config, assert)->
                                             assert.ok !!err
                                             assert.strictEqual connector.getState(), STATES.INVALID
                                             next()
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
             , timeout
+        return
 
     assertInsert = (connector, id, name, next)->
         query = testTable.insert {id: id, name: name}
@@ -161,6 +190,8 @@ task = (config, assert)->
         connector.query query, (err, res)->
             assert.ifError err
             next()
+            return
+        return
 
     assertExist = (connector, id, name, next)->
         query = testTable.select(testTable.star()).where testTable.id.equal(id)
@@ -171,6 +202,8 @@ task = (config, assert)->
             assert.equal res.rows[0].id, id
             assert.equal res.rows[0].name, name
             next()
+            return
+        return
 
     assertNotExist = (connector, id, name, next)->
         query = testTable.select(testTable.star()).where testTable.id.equal(id)
@@ -181,10 +214,11 @@ task = (config, assert)->
             assert.ok res.rows instanceof Array
             assert.strictEqual res.rows.length, 0
             next()
+            return
+        return
 
     testTransaction = (next)->
-        pool = poolWrite
-        connector = new Connector pool
+        connector = poolWrite.createConnector()
         name = 'name'
         connector.begin (err)->
             assert.ok !!err
@@ -230,27 +264,54 @@ task = (config, assert)->
                                                                             assert.ifError err
                                                                             assert.strictEqual 0, connector.getSavepointsSize()
                                                                             next()
+                                                                            return
+                                                                        return
+                                                                    return
+                                                                return
+                                                            return
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
+
     testStream = (next)->
-        pool = poolRead
-        connector = new Connector pool
+        connector = poolWrite.createConnector()
         rowCount = 0
         num = Math.pow 2, 8
-        switch pool.getDialect()
-            when 'postgres'
-                statement = "SELECT generate_series(1, #{num}) as \"num\""
-            when 'mysql'
-                statement = "call generate_series(#{num}, 'num')"
+        treshold = 1000
+
         connector.acquire (err)->
-            connector.stream statement, (row)->
-                rowCount++ if row.constructor.name isnt 'OkPacket'
-            , (err, result)->
-                connector.release()
+            query = []
+            for i in [0...num] by 1
+                query.push "(#{i + treshold}, 'name_#{i}')"
+
+            query = "INSERT INTO test (id, name) values " + query.join ', '
+            connector.query query, (err, res)->
                 assert.ifError err
-                assert.ok result.fields instanceof Array
-                assert.strictEqual 1, result.fields.length
-                assert.strictEqual 'num', result.fields[0].name
-                assert.strictEqual rowCount, num
-                next()
+                statement = "SELECT id as \"num\" FROM test WHERE id >= #{treshold}"
+                connector.stream statement, (row)->
+                    rowCount++ if row.constructor.name isnt 'OkPacket'
+                , (err, result)->
+                    connector.release()
+                    assert.ifError err
+                    assert.ok result.fields instanceof Array
+                    assert.strictEqual 1, result.fields.length
+                    assert.strictEqual 'num', result.fields[0].name
+                    assert.strictEqual rowCount, num
+                    next()
+                    return
+                return
+            return
+        return
 
     # test autoRollback also with stream
     # Connection timeout + stream, stream must end.

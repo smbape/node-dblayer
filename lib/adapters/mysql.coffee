@@ -7,6 +7,7 @@ _ = require 'lodash'
 path = require 'path'
 GenericUtil = require '../GenericUtil'
 HWM = Math.pow 2, 7
+logger = log4js.getLogger 'MySQLAdapter'
 
 adapter =
     name: 'mysql'
@@ -29,10 +30,11 @@ adapter =
 
         if typeof callback is 'function'
             result =
-                rowCount: 0
                 rows: []
+                rowCount: 0
                 lastInsertId: 0
                 fields: null
+                fieldCount: 0
 
             hasError = false
             stream.on 'error', (err)->

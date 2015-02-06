@@ -465,7 +465,7 @@ class InsertQuery
                 if res.hasOwnProperty 'lastInsertId'
                     id = res.lastInsertId or fields[definition.id.column]
                 else
-                    id = res.rows[0][definition.id.column]
+                    id = (res.rows instanceof Array) and res.rows.length > 0 and res.rows[0][definition.id.column]
 
             logger.trace '[' + definition.className + '] - INSERT ' + id
 

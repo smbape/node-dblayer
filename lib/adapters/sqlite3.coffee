@@ -1,21 +1,30 @@
+path = require 'path'
 _ = require 'lodash'
 GenericUtil = require '../GenericUtil'
 sqlite3 = require 'sqlite3'
 EventEmitter = require('events').EventEmitter
+log4js = global.log4js or (global.log4js = require 'log4js')
+logger = log4js.getLogger 'SQLite3Adapter'
 
 MODES =
-    READ: [Math.pow 2, 0, sqlite3.OPEN_READONLY]
-    WRITE: [Math.pow 2, 1, sqlite3.OPEN_READWRITE]
-    CREATE: [Math.pow 2, 2, sqlite3.OPEN_CREATE]
+    READ: [Math.pow(2, 0), sqlite3.OPEN_READONLY]
+    WRITE: [Math.pow(2, 1), sqlite3.OPEN_READWRITE]
+    CREATE: [Math.pow(2, 2), sqlite3.OPEN_CREATE]
 
 adapter = module.exports
-_.extend adapter, require './common', GenericUtil.sql,
+
+_.extend adapter,
     name: 'sqlite3'
     createConnection: (options, callback)->
+        database = options.database or ''
         if options.host
-            filename = options.host + (options.database or '')
+            filename = path.join options.host, database
         else
-            filename = options.database
+            filename = database
+
+        if options.workdir
+            filename = path.join options.workdir, filename
+
         if not filename or filename is '/:memory'
             filename = ':memory:'
 
@@ -24,21 +33,23 @@ _.extend adapter, require './common', GenericUtil.sql,
             opt_mode = parseInt options.mode, 10
             for name of MODES
                 value = MODES[name]
-                if value[0] is value[0] & opt_mode
+                if value[0] is (value[0] & opt_mode)
                     mode |= value[1]
 
         if not mode
             mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
 
         new SQLite3Connection filename, mode, callback
-    createQuery: (text, values, callback)->
-        new SQLite3Query text, values, callback
+, require('./common'), GenericUtil.sql
 
 class SQLite3Connection extends EventEmitter
     adapter: adapter
     constructor: (filename, mode, callback)->
         super()
         
+        mkdirp = require 'mkdirp'
+        mkdirp.sync path.dirname filename
+        logger.debug 'SQLite3Connection', filename
         @db = new sqlite3.Database filename, mode
 
         # parallel read write may lead to errors if not well controlled
@@ -47,7 +58,9 @@ class SQLite3Connection extends EventEmitter
         @db.on 'error', (err)=>
             @emit 'error', err
             return
+
         @db.once 'error', callback
+
         @db.once 'open', =>
             @db.removeListener 'error', callback
             callback null, @
@@ -56,29 +69,42 @@ class SQLite3Connection extends EventEmitter
             @emit 'end'
             return
 
-    query: (query, values, callback)->
-        query = adapter.createQuery query, params, callback
+        return
+
+    query: ->
+        query = new SQLite3Query arguments
         query.execute @db
         query
 
     stream: (query, values, callback, done)->
-        stream = new SQLite3Stream query, values, callback, done
+        stream = new SQLite3Stream arguments
         stream.execute @db
         stream
     end:->
+        logger.debug 'close connection'
+        @db.close()
+        return
 
 class SQLite3Query extends EventEmitter
-    constructor: (query, values, callback)->
-        if typeof callback is 'undefined' and typeof values is 'function'
-            callback = values
-            values = []
-        values or (values = [])
-        @text = query
-        @values = values
+    constructor: (args)->
+        @init.apply @, args
+
+    init: (@text, values, callback)->
+        if Array.isArray values
+            @values = values
+        else
+            @values = []
+            if arguments.length is 2 and 'function' is typeof values
+                callback = values
+
+        @callback = if 'function' is typeof callback then callback else ->
+        return
 
     execute: (db)->
         query = @text
         values = @values
+        callback = @callback
+        logger.trace 'query', query, values
 
         # Quick falsy test to determine if insert|update|delete or else
         # falsy because (insert toto ...) will not be recognise as insert because of bracket
@@ -124,6 +150,64 @@ class SQLite3Query extends EventEmitter
 
 ArrayStream = require 'sm-array-stream'
 class SQLite3Stream extends ArrayStream
-    constructor: (query, values, callback, done)->
-        super null, {duplex: true}
+    constructor: (args)->
+        super [], duplex: true
+        @init.apply @, args
+
+    init: (@text, values, callback, done)->
+        if Array.isArray values
+            @values = values
+        else
+            @values = []
+            if arguments.length is 2
+                done = values if 'function' is typeof values
+            else if arguments.length is 3
+                done = callback if 'function' is typeof callback
+                callback = values if 'function' is typeof values
+
+        @callback = if 'function' is typeof callback then callback else ->
+        @done = if 'function' is typeof done then done else ->
+        return
+
+    _onData: (row)=>
+        @callback row
+        return
+
+    execute: (db)->
+        query = @text
+        values = @values
+        done = @done
+
+        logger.trace 'stream', query, values
+
+        result = {}
+        hasError = false
+
+        @on 'data', @_onData
+        @once 'end', =>
+            @removeListener 'data', @_onData
+            return
+
+        db.each query, values, (err, row)=>
+            if err
+                hasError = true
+                done err
+                return
+
+            if not result.fields
+                result.fields = Object.keys(row).map (name)-> name: name
+                @emit 'fields', result.fields
+
+            @write row, 'item'
+            return
+        , (err, rowCount)->
+            return if hasError
+            return done(err) if err
+            if not result.fields
+                result.fields = []
+            done err, result
+            return
+        return
+
+
 # Stream: error, fields, data, end

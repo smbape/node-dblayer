@@ -51,6 +51,7 @@ module.exports = class AdapterPool
 
         @connectionUrl = connectionUrl
         url = require 'url'
+        
         parsed = url.parse connectionUrl, true, true
         @options = {}
         @options.adapter = parsed.protocol.replace ':', ''

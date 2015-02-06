@@ -1,6 +1,7 @@
 pg = require 'pg'
 QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
+logger = log4js.getLogger 'PostgresAdapter'
 
 adapter = module.exports
 _.extend adapter, require './common'
@@ -106,6 +107,8 @@ class PostgresQueryStream extends QueryStream
                 return
     handleRowDescription: (message) ->
         QueryStream::handleRowDescription.call this, message
+        # @_result.fieldCount = (message.fields instanceof Array) and message.fields.length
+        # @_result.fields = message.fields
         @emit 'fields', message.fields
         return
     handleReadyForQuery: ->

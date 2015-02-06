@@ -12,11 +12,16 @@ var config = {
         read: "postgres://user_read:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
         write: "postgres://user_write:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
         admin: "postgres://user_admin:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=1&idleTimeout=3600"
-    }
-    , mysql: {
+    },
+    mysql: {
         read: "mysql://user_read:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
         write: "mysql://user_write:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
         admin: "mysql://user_admin:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=1&idleTimeout=3600"
+    },
+    sqlite3: {
+        read: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=1&workdir=#{encodeURIComponent(__dirname)}",
+        write: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=2&workdir=#{encodeURIComponent(__dirname)}",
+        admin: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=6&workdir=#{encodeURIComponent(__dirname)}"
     }
 };
 
@@ -53,9 +58,13 @@ for (dbms in config) {
 function destroyPools(next) {
     var i, dbms, options, items = ['poolRead', 'poolWrite', 'poolAdmin'],
         count = 0,
-        length = 6;
+        length = Object.keys(pools).length,
+        hasPool = false;
     for (i = 0; i < items.length; i++) {
         for (dbms in pools) {
+            if (!hasPool) {
+                hasPool = true;
+            }
             (function(pool) {
                 pool.drain(function() {
                     pool.destroyAllNow();
@@ -70,6 +79,10 @@ function destroyPools(next) {
                 });
             }(pools[dbms][items[i]]));
         }
+    }
+
+    if (!hasPool) {
+        next();
     }
 }
 
@@ -102,12 +115,13 @@ if (false) {
     assert = require('assert');
     tests = [];
     for (prop in testSuite) {
-        (function(fn) {
+        (function(fn, prop) {
             tests.push(function(next) {
+                console.log('test', prop);
                 assert.done = next;
                 fn(assert);
             });
-        })(testSuite[prop]);
+        })(testSuite[prop], prop);
     }
     
     module.exports.run = function (next) {
