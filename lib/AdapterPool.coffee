@@ -54,8 +54,8 @@ module.exports = class AdapterPool
         
         parsed = url.parse connectionUrl, true, true
         @options = {}
-        @options.adapter = parsed.protocol.replace ':', ''
-        @options.database = parsed.pathname.substring(1)
+        @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
+        @options.database = parsed.pathname and parsed.pathname.substring(1)
         @options.host = parsed.hostname
         @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
         if parsed.auth
@@ -64,7 +64,7 @@ module.exports = class AdapterPool
             @options.password = auth[1]
 
         for k of parsed.query
-            @options[k] = decodeURIComponent parsed.query[k]
+            @options[k] = parsed.query[k]
 
         if typeof @options.adapter isnt 'string' or @options.adapter.length is 0
             throw new Error "'adapter' is required in options objects"

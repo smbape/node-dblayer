@@ -5,6 +5,8 @@ var log4js = require('log4js');
 var path = require('path');
 var dirname = path.dirname(__filename);
 log4js.configure(path.join(dirname, 'log4js.json'));
+var path = require('path');
+var workdir = encodeURIComponent(path.join(__dirname, '../../../databases'));
 
 // do test for each dbms
 var config = {
@@ -18,10 +20,10 @@ var config = {
         write: "mysql://user_write:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=10&idleTimeout=3600",
         admin: "mysql://user_admin:zulu@localhost:3306/buma_test?minConnection=0&maxConnection=1&idleTimeout=3600"
     },
-    sqlite3: {
-        read: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=1&workdir=#{encodeURIComponent(__dirname)}",
-        write: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=2&workdir=#{encodeURIComponent(__dirname)}",
-        admin: "sqlite3://databases/buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=6&workdir=#{encodeURIComponent(__dirname)}"
+    sqlite: {
+        read: "sqlite3://buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=1&workdir=" + workdir,
+        write: "sqlite3://buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=2&workdir=" + workdir,
+        admin: "sqlite3://buma_test.sqlite?minConnection=0&maxConnection=1&idleTimeout=3600&mode=6&workdir=" + workdir
     }
 };
 
