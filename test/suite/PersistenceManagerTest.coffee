@@ -1683,8 +1683,10 @@ task = (config, assert)->
                                         modelF.set 'propC1', newF1Value
                                         pMgr.save modelD, {connector: connector}, (err, id)->
                                             assert.ifError err
+                                            assert.strictEqual newD1Value, modelD.get 'propA1'
                                             pMgr.save modelE, {connector: connector}, (err, id)->
                                                 assert.ifError err
+                                                assert.strictEqual newE1Value, modelE.get 'propA1'
                                                 pMgr.save modelF, {connector: connector}, (err, id)->
                                                     assert.ifError err
                                                     options =

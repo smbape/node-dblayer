@@ -47,8 +47,10 @@ class SQLite3Connection extends EventEmitter
     constructor: (filename, mode, callback)->
         super()
         
-        mkdirp = require 'mkdirp'
-        mkdirp.sync path.dirname filename
+        # mkdirp do not throw on invalid path
+        # mkdirp = require 'mkdirp'
+        # mkdirp.sync path.dirname filename
+        
         logger.debug 'SQLite3Connection', filename
         @db = new sqlite3.Database filename, mode
 

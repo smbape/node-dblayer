@@ -1,6 +1,8 @@
 _ = require 'lodash'
 path = require 'path'
 GenericUtil = require './GenericUtil'
+log4js = global.log4js or (global.log4js = require 'log4js')
+logger = log4js.getLogger 'RowMap'
 
 STATIC =
     PROP_SEP: ':'
@@ -75,11 +77,12 @@ module.exports = class RowMap
                 str
 
         @_initRootElement @className, @_getUniqueId()
+
+        return
      
     _initRootElement: (className, id, options = {})->
         if @_tables.hasOwnProperty id
             return
-
 
         if not className
             if not @options.hasOwnProperty('join') or not @options.join.hasOwnProperty id
@@ -170,15 +173,15 @@ module.exports = class RowMap
                 if opt instanceof Array
                     _replaceField opt[0], (field)=>
                         @_getSetColumn field
+                        return
                     select[optionName].apply select, opt
                 else
                     _replaceField opt.toString(), (field)=>
                         @_getSetColumn field
+                        return
                     select[optionName] opt
         
         return
-
-    _processGroups: ->
 
     _getSetColumn: (field)->
         allAncestors = @_getAncestors field
@@ -241,6 +244,8 @@ module.exports = class RowMap
                 # parentInfo.properties[id] = true
 
             @_joinProp id
+
+        return
 
     # set column alias as field of prop
     # must be called step by step
@@ -387,7 +392,8 @@ module.exports = class RowMap
 
         @_set info, 'column', connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
         # info.column = connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
-        return info.column
+        
+        info.column
 
     # Return the model initialized using row,
     initModel: (row, model, tasks = [])->
@@ -513,7 +519,7 @@ module.exports = class RowMap
             err.code = 'FIELDS'
             throw err
 
-        return ancestors or []
+        ancestors or []
 
     # # replace fields by corresponding column
     parse: (query)->

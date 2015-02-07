@@ -49,15 +49,13 @@ PersistenceManager::dialects =
             nameQuoteCharacter: '`'
             fieldAliasQuoteCharacter: '`'
             tableAliasQuoteCharacter: '`'
-        decorateInsert: (query, column)->
-            query
 
 PersistenceManager::getSquelOptions = (dialect)->
     if @dialects.hasOwnProperty dialect
         _.clone @dialects[dialect].squelOptions
 
 PersistenceManager::decorateInsert = (dialect, query, column)->
-    if @dialects.hasOwnProperty dialect
+    if @dialects.hasOwnProperty(dialect) and 'function' is typeof @dialects[dialect].decorateInsert
         @dialects[dialect].decorateInsert query, column
     else
         query
@@ -88,6 +86,12 @@ PersistenceManager::insert = (model, options, callback)->
                             args[0] = err
                     connector.release (err)->
                         callback.apply null, args
+                        return
+                    return
+                return
+            return
+        return
+    return
 
 PersistenceManager::getInsertQuery = (model, options)->
     new InsertQuery @, model, options
@@ -137,6 +141,12 @@ PersistenceManager::update = (model, options, callback)->
                             args[0] = err
                     connector.release (err)->
                         callback.apply null, args
+                        return
+                    return
+                return
+            return
+        return
+    return
 
 PersistenceManager::getUpdateQuery = (model, options)->
     new UpdateQuery @, model, options
@@ -148,48 +158,79 @@ PersistenceManager::delete = (model, options, callback)->
     catch err
         return callback err
     query.execute connector, callback
+    return
 
 PersistenceManager::getDeleteQuery = (model, options)->
     new DeleteQuery @, model, options
 
 PersistenceManager::save = (model, options, callback)->
-    className = options.className or model.className
-    id = model.get @getId className
+    if arguments.length is 2
+        callback = options if 'function' is typeof options
+    options = {} if not _.isPlainObject options
+    (callback = ->) if 'function' isnt typeof callback
 
-    if typeof id is 'undefined'
-        @insert model, _.extend({}, options, reflect: true), callback
-    else
-        @update model, options, callback
-
-PersistenceManager::initialize = (model, options, callback)->
     className = options.className or model.className
     definition = @getDefinition className
-    connector = options.connector
+    if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
+        attributes = {}
+        attributes[definition.id.name] = value
+        oriAttributes = _.clone model.toJSON()
+        @initialize model, _.extend({attributes: attributes}, options), (err, models)=>
+            return callback(err) if err
+            if models.length > 0
+                for attr of oriAttributes
+                    model.set attr, oriAttributes[attr]
+                @update model, options, callback
+            else
+                @insert model, _.extend({}, options, reflect: true), callback
+            return
+    else
+        @insert model, _.extend({}, options, reflect: true), callback
+    return
+
+PersistenceManager::initialize = (model, options, callback)->
+    if arguments.length is 2
+        callback = options if 'function' is typeof options
+    options = {} if not _.isPlainObject options
+    (callback = ->) if 'function' isnt typeof callback
+
     if not GenericUtil.isObject model
-        return next 'No model'
+        return callback 'No model'
+    
+    className = options.className or model.className
+    definition = @getDefinition className
+    options = _.extend {}, options,
+        where: _getInitializeCondition @, model, className, definition, options
+        models: [model]
+    @list className, options, callback
+
+# return where condition to be parsed by RowMap
+_getInitializeCondition = (pMgr, model, className, definition, options)->
+    connector = options.connector
 
     if typeof options.where is 'undefined'
-        attributes = options.attributes or model.toJSON()
+        if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
+            attributes = {}
+            attributes[definition.id.name] = value
+        else
+            attributes = options.attributes or model.toJSON()
         where = []
         try
             if _.isPlainObject attributes
                 for attr, value of attributes
-                    _addWhereCondition @, model, attr, value, definition, connector, where
+                    _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
             else if attributes instanceof Array
                 for attr in attributes
                     value = model.get attr
-                    _addWhereCondition @, model, attr, value, definition, connector, where
+                    _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
         catch err
             return callback err
     else
         where = options.where
 
-    options = _.extend {}, options,
-        where: where
-        models: [model]
-    @list className, options, callback
+    where
 
-_addWhereCondition = (pMgr, model, attr, value, definition, connector, where = [])->
+_addWhereCondition = (pMgr, model, attr, value, definition, connector, where, options)->
     if typeof value is 'undefined' or not definition.available.properties.hasOwnProperty attr
         return
 
@@ -208,6 +249,8 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where = [
                 where.push '{' + attr + '} IS NULL'
             else if /^(?:string|boolean|number)$/.test typeof value
                 where.push '{' + attr + '} = ' + connector.escape value
+
+    return
 
 class SanitizedMapping
     constructor: ->
@@ -234,6 +277,7 @@ class SanitizedMapping
     markResolved: (className)->
         delete @unresolved[className]
         @resolved[className] = true
+        return
 
     hasResolved: (className)->
         @resolved.hasOwnProperty className
@@ -255,6 +299,7 @@ class SanitizedMapping
     setDepResolved: (className, dependency)->
         definition = @classes[className]
         definition.dependencies.resolved[dependency] = true
+        return
 
     hasDepResolved: (className, dependency)->
         definition = @classes[className]
@@ -267,6 +312,7 @@ class SanitizedMapping
             err.code = 'DUP_TABLE'
             throw err
         @tables[definition.table] = true
+        return
 
     addColumn: (className, column, prop)->
         definition = @classes[className]
@@ -281,6 +327,7 @@ class SanitizedMapping
             err = new Error "[#{definition.className}] column must be a not empty string"
             err.code = 'COLUMN'
             throw err
+        return
 
     addNormalize: (className, mixin)->
         definition = @classes[className]
@@ -295,10 +342,12 @@ class SanitizedMapping
             
             if @hasDepResolved dep.className, dependency
                 # if dependency is a parent of another normalized dependency, ignore it
+                # depending on child => depending on parent
                 return
             
             if @hasDepResolved dependency, dep.className
                 # if dependency is a child of another normalized dependency, mark it
+                # it is not allowed to depend on parent and child, you must depend on child => parent
                 parents.push dep.className
 
         obj = className: dependency
@@ -422,11 +471,11 @@ class InsertQuery
 
         # check
         @toString()
-        return
 
     execute: (connector, callback)->
         if @toString is @oriToString
-            return @_execute connector, callback
+            @_execute connector, callback
+            return
 
         params = @toParam()
         idIndex = 0
@@ -448,6 +497,8 @@ class InsertQuery
         async.series tasks, (err)=>
             return callback(err) if err
             @_execute connector, callback
+            return
+        return
 
     _execute: (connector, callback)->
         pMgr = @getManager()
@@ -478,7 +529,11 @@ class InsertQuery
                     callback err, id
             else
                 callback err, id
+
+            return
         , options.executeOptions
+
+        return
 
 class SelectQuery
     constructor: (pMgr, className, options = {})->
@@ -498,7 +553,6 @@ class SelectQuery
 
         # check
         query = @toString()
-        return
 
     stream: (streamConnector, listConnector, callback, done)->
         rowMap = @getRowMap()
@@ -522,6 +576,8 @@ class SelectQuery
                         else
                             err = hasError
                     done err, fields
+                    return
+            return
 
         streamConnector.stream query, (row, stream)=>
             tasks = []
@@ -553,6 +609,8 @@ class SelectQuery
                             err.code = 'UNKNOWN'
                             return next err
                         next()
+                        return
+                    return
                 , (err)->
                     doneSem.semGive()
                     stream.resume()
@@ -561,9 +619,12 @@ class SelectQuery
                         stream.emit 'error', err
                     else
                         callback model, stream
+                    return
+
                 return
 
             callback model, stream
+            return
         , ret, options.executeOptions
 
     list: (connector, callback)->
@@ -585,7 +646,6 @@ class SelectQuery
                     err.extend = [models.length, rows.length]
                     err.code = 'UNKNOWN'
                     return callback err
-
             else
                 models= []
             tasks = []
@@ -602,14 +662,18 @@ class SelectQuery
                             err = new Error 'database is corrupted or there is bug'
                             err.code = 'UNKNOWN'
                             return next err
-                        # task.done()
                         next()
+                        return
+                    return
                 , (err)->
                     return callback(err) if err
                     callback null, ret
+                    return
                 return
 
             callback null, ret
+
+            return
         , options, options.executeOptions
         query
 
@@ -638,6 +702,8 @@ class UpdateQuery
         className = options.className or model.className
         definition = pMgr.getDefinition className
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
+
+        # where = _getInitializeCondition pMgr, model, className, definition, options
         update.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getId className
 
         # condition to track changes
@@ -648,6 +714,7 @@ class UpdateQuery
         for prop, propDef of definition.properties
 
             if propDef.hasOwnProperty('className') and typeof (parentModel = model.get prop) isnt 'undefined'
+                # Class property
                 if parentModel is null or typeof parentModel is 'number'
                     # assume it is the id
                     value = parentModel
@@ -655,6 +722,7 @@ class UpdateQuery
                     if parentModel.length is 0
                         value = null
                     else
+                        # assume it is the id
                         value = parentModel
                 else
                     prop = pMgr.getDefinition propDef.className
@@ -729,7 +797,6 @@ class UpdateQuery
 
         # check
         query = @toString()
-        return
 
     execute: (connector, callback)->
         if @toString is @oriToString
@@ -744,6 +811,7 @@ class UpdateQuery
                 ((query, connector)->
                     tasks.push (next)->
                         query.execute connector, next
+                        return
                     return
                 )(value, connector)
             else
@@ -778,7 +846,7 @@ class UpdateQuery
             @_execute connector, (err, id, extended)->
                 hasUpdate = true if not extended
                 callback err, id, not hasUpdate and extended
-
+                return
             return
         return
 
@@ -877,7 +945,7 @@ class DeleteQuery
 
         # check
         query = @toString()
-        return
+
     execute: (connector, callback)->
         if @toString is @oriToString
             return @_execute connector, callback
@@ -888,10 +956,13 @@ class DeleteQuery
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
             if value instanceof DeleteQuery
-                tasks.push ((query)->
-                    (next)->
+                ((query)->
+                    tasks.push (next)->
                         query.execute connector, (err, id)->
                             next err
+                            return
+                        return
+                    return
                 )(value)
             else
                 break
@@ -899,6 +970,7 @@ class DeleteQuery
         @_execute connector, (err)->
             return callback(err) if err
             async.series tasks, callback
+            return
 
         return
 
@@ -912,6 +984,7 @@ _assertClassHasMapping = (sanitized, className)->
         err = new Error "No mapping were found for class '#{className}'"
         err.code = 'UNDEF_CLASS'
         throw err
+    return
 
 _resolve = (mapping)->
     sanitized = new SanitizedMapping()
@@ -976,7 +1049,7 @@ _depResolve = (className, mapping, sanitized)->
             name: definition.id
             column: definition.id
     else if typeof definition.id isnt 'undefined' and not _.isPlainObject definition.id
-        err = new Error "[#{sanDef.className}] id property must be a not null object"
+        err = new Error "[#{sanDef.className}] id property must be a not null plain object"
         err.code = 'ID'
         throw err
 
@@ -1061,6 +1134,8 @@ _depResolve = (className, mapping, sanitized)->
         # optimistic lock definition
         if value.hasOwnProperty 'lock'
             sanDef.properties[prop].lock = typeof value.lock is 'boolean' and value.lock
+
+        return
 
     # =============================================================================
     #  Properties checking
@@ -1191,6 +1266,7 @@ _depResolve = (className, mapping, sanitized)->
         _setConstructor sanDef.className, definition.ctor, sanDef
 
     sanitized.markResolved sanDef.className
+    return
 
 _getValidOptions = (validOptions, options)->
     _options = {}
@@ -1210,6 +1286,7 @@ _setConstructor = (className, Ctor, definition)->
         err.code = 'CTOR'
         throw err
     definition.ctor = Ctor
+    return
 
 _coerce = (value, connector)->
     if value instanceof Array
