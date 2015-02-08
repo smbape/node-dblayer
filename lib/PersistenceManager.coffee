@@ -5,27 +5,11 @@ GenericUtil = require './GenericUtil'
 _ = require 'lodash'
 squel = require './SquelPatch'
 RowMap = require './RowMap'
+CompiledMapping = require './CompiledMapping'
 async = require 'async'
 semLib = require 'sem-lib'
 
-module.exports = class PersistenceManager
-    constructor: (mapping)->
-        sanitized = _resolve mapping
-        @getId = (className)->
-            _assertClassHasMapping sanitized, className
-            sanitized.classes[className].id.name
-        @getDefinition = (className)->
-            _assertClassHasMapping sanitized, className
-            _.cloneDeep sanitized.classes[className]
-        @getMapping = ->
-            _.cloneDeep sanitized.classes
-        @getColumn = (className, prop)->
-            _assertClassHasMapping sanitized, className
-            definition = sanitized.classes[className]
-            if definition.id.name is prop
-                definition.id.column
-            else if definition.properties.hasOwnProperty prop
-                definition.properties[prop].column
+module.exports = class PersistenceManager extends CompiledMapping
 
 PersistenceManager::dialects =
     postgres:
@@ -172,10 +156,8 @@ PersistenceManager::save = (model, options, callback)->
     className = options.className or model.className
     definition = @getDefinition className
     if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
-        attributes = {}
-        attributes[definition.id.name] = value
         oriAttributes = _.clone model.toJSON()
-        @initialize model, _.extend({attributes: attributes}, options), (err, models)=>
+        @initialize model, _.extend({attributes: [definition.id.name]}, options), (err, models)=>
             return callback(err) if err
             if models.length > 0
                 for attr of oriAttributes
@@ -231,17 +213,17 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
     where
 
 _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, options)->
-    if typeof value is 'undefined' or not definition.available.properties.hasOwnProperty attr
+    if typeof value is 'undefined' or not definition.availableProperties.hasOwnProperty attr
         return
 
-    propDef = definition.available.properties[attr].definition
+    propDef = definition.availableProperties[attr].definition
     if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
         value = propDef.handlers.write value, model, options
     if  /^(?:string|boolean|number)$/.test typeof value
         where.push '{' + attr + '} = ' + connector.escape value
     else if GenericUtil.isObject value
-        propClassName = definition.available.properties[attr].definition.className
-        value = value.get pMgr.getId propClassName
+        propClassName = definition.availableProperties[attr].definition.className
+        value = value.get pMgr.getIdName propClassName
         if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
             value = propDef.handlers.write value, model, options
         if typeof value isnt 'undefined'
@@ -251,113 +233,6 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
                 where.push '{' + attr + '} = ' + connector.escape value
 
     return
-
-class SanitizedMapping
-    constructor: ->
-        _.extend @,
-            classes: {}
-            resolved: {}
-            unresolved: {}
-            tables: {}
-
-    startResolving: (className)->
-        @unresolved[className] = true
-        @classes[className] =
-            className: className
-            available:
-                properties: {}
-                mixins: {}
-            columns: {}
-            dependencies:
-                resolved: {}
-                normalized: []
-
-        return @classes[className]
-
-    markResolved: (className)->
-        delete @unresolved[className]
-        @resolved[className] = true
-        return
-
-    hasResolved: (className)->
-        @resolved.hasOwnProperty className
-
-    isResolving: (className)->
-        @unresolved.hasOwnProperty className
-
-    hasTable: (table)->
-        @tables.hasOwnProperty table
-
-    hasColumn: (className, column)->
-        definition = @classes[className]
-        definition.columns.hasOwnProperty column
-
-    getDepResolved: (className)->
-        definition = @classes[className]
-        definition.dependencies.resolved
-
-    setDepResolved: (className, dependency)->
-        definition = @classes[className]
-        definition.dependencies.resolved[dependency] = true
-        return
-
-    hasDepResolved: (className, dependency)->
-        definition = @classes[className]
-        definition.dependencies.resolved[dependency]
-
-    addTable: (className)->
-        definition = @classes[className]
-        if @hasTable definition.table
-            err = new Error "[#{definition.className}] table '#{definition.table}' already exists"
-            err.code = 'DUP_TABLE'
-            throw err
-        @tables[definition.table] = true
-        return
-
-    addColumn: (className, column, prop)->
-        definition = @classes[className]
-        if @hasColumn className, column
-            err = new Error "[#{definition.className}] column '#{column}' already exists"
-            err.code = 'DUP_COLUMN'
-            throw err
-
-        if GenericUtil.notEmptyString column
-            definition.columns[column] = prop
-        else
-            err = new Error "[#{definition.className}] column must be a not empty string"
-            err.code = 'COLUMN'
-            throw err
-        return
-
-    addNormalize: (className, mixin)->
-        definition = @classes[className]
-        normalized = definition.dependencies.normalized
-        dependency = mixin.className
-        parents = []
-        for index in [(normalized.length - 1)..0] by -1
-            dep = normalized[index]
-            if dep.className is dependency
-                # if dependency already exists
-                return
-            
-            if @hasDepResolved dep.className, dependency
-                # if dependency is a parent of another normalized dependency, ignore it
-                # depending on child => depending on parent
-                return
-            
-            if @hasDepResolved dependency, dep.className
-                # if dependency is a child of another normalized dependency, mark it
-                # it is not allowed to depend on parent and child, you must depend on child => parent
-                parents.push dep.className
-
-        obj = className: dependency
-        if GenericUtil.notEmptyString mixin.column
-            obj.column = mixin.column
-        else
-            obj.column = @classes[dependency].id.column
-
-        normalized.push obj
-        return parents
 
 class InsertQuery
     constructor: (pMgr, model, options = {})->
@@ -522,7 +397,7 @@ class InsertQuery
 
             if options.reflect
                 if definition.id.hasOwnProperty 'column'
-                    where = '{' + pMgr.getId(definition.className) + '} = ' + id
+                    where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
                 options = _.extend {}, options,
                     where: where
                 pMgr.initialize model, options, (err, models)->
@@ -704,7 +579,7 @@ class UpdateQuery
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
 
         # where = _getInitializeCondition pMgr, model, className, definition, options
-        update.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getId className
+        update.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getIdName className
 
         # condition to track changes
         changeCondition = squel.expr()
@@ -875,7 +750,7 @@ class UpdateQuery
             logger.trace '[' + definition.className + '] - UPDATE ' + id
 
             if definition.id.hasOwnProperty 'column'
-                where[where.length] = '{' + pMgr.getId(definition.className) + '} = ' + id
+                where[where.length] = '{' + pMgr.getIdName(definition.className) + '} = ' + id
             options = _.extend {}, options,
                 where: where
             pMgr.initialize model, options, (err, models)->
@@ -906,7 +781,7 @@ class DeleteQuery
         className = options.className or model.className
         definition = pMgr.getDefinition className
         remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId definition.table
-        remove.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getId className
+        remove.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getIdName className
 
         # optimistic lock
         for prop, propDef of definition.properties
@@ -978,321 +853,3 @@ class DeleteQuery
         query = @oriToString()
         connector.query query, callback, @getOptions().executeOptions
         return
-
-_assertClassHasMapping = (sanitized, className)->
-    if not sanitized.classes.hasOwnProperty className
-        err = new Error "No mapping were found for class '#{className}'"
-        err.code = 'UNDEF_CLASS'
-        throw err
-    return
-
-_resolve = (mapping)->
-    sanitized = new SanitizedMapping()
-
-    for className of mapping
-        _depResolve className, mapping, sanitized
-
-    for className, map of sanitized.classes
-        for prop, value of map.properties
-            if value.hasOwnProperty('className') and not value.hasOwnProperty 'column'
-                _assertClassHasMapping sanitized, value.className
-                map = sanitized.classes[value.className]
-                value.column = map.id.column
-            sanitized.addColumn className, value.column, prop
-
-    sanitized.resolved = true
-    return sanitized
-
-_depResolve = (className, mapping, sanitized)->
-    if typeof className isnt 'string' or className.length is 0
-        err = new Error 'class is undefined'
-        err.code = 'UNDEF_CLASS'
-        throw err
-
-    return if sanitized.hasResolved className
-    
-    definition = mapping[className]
-    if not _.isPlainObject definition
-        err = new Error "Class '#{className}'' is undefined"
-        err.code = 'UNDEF_CLASS'
-        throw err
-
-    # className if computed be reading given definition and peeking relevant properties of given definition
-    # Peeking and not copying properties allows to have only what is needed and modify our definition without
-    # altering (corrupting) given properties
-
-    # Mark this className as being resolved, for circular reference check
-    sanDef = sanitized.startResolving className
-    
-    if not definition.hasOwnProperty 'table'
-        # default table name is className
-        sanDef.table = className
-    else if GenericUtil.notEmptyString definition.table
-        sanDef.table = definition.table
-    else
-        err = new Error "[#{sanDef.className}] table is not a string"
-        err.code = 'TABLE'
-        throw err
-
-    # check duplicate table
-    sanitized.addTable sanDef.className
-
-    # All class definition must have an id column for performant read, join, update
-    # update: Collection are nn-tables that may not have id's
-    # if not definition.hasOwnProperty 'id'
-    #     err = new Error "[#{sanDef.className}] id property must be defined"
-    #     err.code = 'NO_ID'
-    #     throw err
-
-    if typeof definition.id is 'string'
-        sanDef.id =
-            name: definition.id
-            column: definition.id
-    else if typeof definition.id isnt 'undefined' and not _.isPlainObject definition.id
-        err = new Error "[#{sanDef.className}] id property must be a not null plain object"
-        err.code = 'ID'
-        throw err
-
-    hasId = true
-    if sanDef.hasOwnProperty 'id'
-        id = sanDef.id
-    else if definition.hasOwnProperty 'id'
-        id = definition.id
-    else
-        hasId = false
-        id = {}
-
-    if not _.isPlainObject id
-        err = new Error "[#{sanDef.className}] name xor className must be defined as a not empty string for id"
-        err.code = 'ID'
-        throw err
-
-    sanDef.id = {}
-    if GenericUtil.notEmptyString id.column
-        sanDef.id.column = id.column
-
-    if id.hasOwnProperty('name') and id.hasOwnProperty('className')
-        err = new Error "[#{sanDef.className}] name and className are incompatible properties for id"
-        err.code = 'INCOMP_ID'
-        throw err
-
-    if GenericUtil.notEmptyString id.name
-        sanDef.id.name = id.name
-        if not id.hasOwnProperty 'column'
-            # default id column is id name
-            sanDef.id.column = id.name
-        else if not GenericUtil.notEmptyString id.column
-            err = new Error "[#{sanDef.className}] column must be a not empty string for id"
-            err.code = 'ID_COLUMN'
-            throw err
-
-        sanitized.addColumn className, sanDef.id.column, sanDef.id.name
-        
-    else if GenericUtil.notEmptyString id.className
-        sanDef.id.className = id.className
-    else if hasId
-        err = new Error "[#{sanDef.className}] name xor className must be defined as a not empty string for id"
-        err.code = 'ID'
-        throw err
-
-    _addProperty = (prop, value)->
-        if typeof value is 'string'
-            value = column: value
-
-        if not _.isPlainObject value
-            err = new Error "[#{sanDef.className}] property '#{prop}' must be an object"
-            err.code = 'PROP'
-            throw err
-
-        sanDef.properties[prop] = {}
-        if GenericUtil.notEmptyString value.column
-            sanDef.properties[prop].column = value.column
-
-        # add this property as available properties for this className
-        # Purposes:
-        #   - Fastly get property definition
-        sanDef.available.properties[prop] =
-            definition: sanDef.properties[prop]
-
-        # composite element definition
-        if value.hasOwnProperty 'className'
-            sanDef.properties[prop].className = value.className
-
-        if value.hasOwnProperty 'handlers'
-            sanDef.properties[prop].handlers = handlers = {}
-
-            # insert: default value if undefined
-            # update: automatic value, don't care about setted one
-            # read: from database to value. Ex: Date, Json
-            # write: from value to database. Ex: Data, Json
-            for type in ['insert', 'update', 'read', 'write']
-                handler = value.handlers[type]
-                if typeof handler is 'function'
-                    handlers[type] = handler
-
-
-        # optimistic lock definition
-        if value.hasOwnProperty 'lock'
-            sanDef.properties[prop].lock = typeof value.lock is 'boolean' and value.lock
-
-        return
-
-    # =============================================================================
-    #  Properties checking
-    # =============================================================================
-    sanDef.properties = {}
-    if _.isPlainObject definition.properties
-        properties = definition.properties
-    else
-        properties = {}
-
-    for prop, value of properties
-        _addProperty prop, value
-    # =============================================================================
-    #  Properties checking - End
-    # =============================================================================
-
-    # =============================================================================
-    #  Mixins checking
-    # =============================================================================
-    if not definition.hasOwnProperty 'mixins'
-        mixins = []
-    else if typeof definition.mixins is 'string' and definition.mixins.length > 0
-        mixins = [definition.mixins]
-    else if definition.mixins instanceof Array
-        mixins = definition.mixins.slice 0
-    else
-        err = new Error "[#{sanDef.className}] mixins property can only be a string or an array of strings"
-        err.code = 'MIXINS'
-        throw err
-
-    sanDef.mixins = []
-    if GenericUtil.notEmptyString id.className
-        mixins.unshift id.className
-    seenMixins = {}
-    
-    for mixin in mixins
-        if typeof mixin is 'string'
-            mixin = className: mixin
-
-        if not _.isPlainObject mixin
-            err = new Error "[#{sanDef.className}] mixin can only be a string or a not null object"
-            err.code = 'MIXIN'
-            throw err
-
-        if not mixin.hasOwnProperty 'className'
-            err = new Error "[#{sanDef.className}] mixin has no className property"
-            err.code = 'MIXIN'
-            throw err
-
-        className = mixin.className
-
-        if seenMixins[className]
-            err = new Error "[#{sanDef.className}] mixin [#{mixin.className}]: duplicate mixin. Make sure it's not also and id className"
-            err.code = 'DUP_MIXIN'
-            throw err
-
-        seenMixins[className] = true
-        _mixin = className: className
-        if GenericUtil.notEmptyString mixin.column
-            _mixin.column = mixin.column
-        else if mixin.hasOwnProperty 'column'
-            err = new Error "[#{sanDef.className}] mixin [#{mixin.className}]: Column is not a string or is empty"
-            err.code = 'MIXIN_COLUMN'
-            throw err
-        sanDef.mixins.push _mixin
-
-        if not sanitized.hasResolved className
-            if sanitized.isResolving className
-                err = new Error "[#{sanDef.className}] mixin [#{mixin.className}]: Circular reference detected: -> '#{className}'"
-                err.code = 'CIRCULAR_REF'
-                throw err
-            _depResolve className, mapping, sanitized
-
-        # Mark this mixin as dependency resolved
-        sanitized.setDepResolved sanDef.className, className
-
-        # mixin default column if miin className id column
-        if not _mixin.hasOwnProperty 'column'
-            _mixin.column = sanitized.classes[_mixin.className].id.column
-
-        # id column of mixins that are not class parent have not been added as column,
-        # add them to avoid duplicate columns
-        if sanDef.id.className isnt _mixin.className
-            sanitized.addColumn sanDef.className, _mixin.column, sanitized.classes[_mixin.className].id.name
-
-        # Mark all resolved dependencies,
-        # Used to check circular references and related mixin
-        resolved = sanitized.getDepResolved className
-        for className of resolved
-            sanitized.setDepResolved sanDef.className, className
-
-        # check related mixin
-        parents = sanitized.addNormalize sanDef.className, mixin
-        if (parents instanceof Array) and parents.length > 0
-            err = new Error "[#{sanDef.className}] mixin '#{mixin}' depends on mixins #{parents}. Add only mixins with no relationship or you have a problem in your design"
-            err.code = 'RELATED_MIXIN'
-            err.extend = parents
-            throw err
-
-        # add this mixin available properties as available properties for this className
-        # Purposes:
-        #   - On read, to fastly check if join on this mixin is required
-        mixinDef = sanitized.classes[_mixin.className]
-        sanDef.available.mixins[_mixin.className] = _mixin
-        for prop of mixinDef.available.properties
-            if not sanDef.available.properties.hasOwnProperty prop
-                sanDef.available.properties[prop] =
-                    mixin: _mixin
-                    definition: mixinDef.available.properties[prop].definition
-
-    # =============================================================================
-    #  Mixins checking - End
-    # =============================================================================
-
-    if typeof sanDef.id.className is 'string'
-        map = sanitized.classes[sanDef.id.className]
-        sanDef.id.name = map.id.name
-
-        if not sanDef.id.hasOwnProperty 'column'
-            sanDef.id.column = map.id.column
-            sanitized.addColumn sanDef.className, sanDef.id.column, sanDef.id.name
-
-    # add id as an available property
-    if typeof sanDef.id.name is 'string'
-        sanDef.available.properties[sanDef.id.name] = definition: sanDef.id
-
-    if definition.hasOwnProperty 'ctor'
-        _setConstructor sanDef.className, definition.ctor, sanDef
-
-    sanitized.markResolved sanDef.className
-    return
-
-_getValidOptions = (validOptions, options)->
-    _options = {}
-    if not _.isPlainObject options
-        return _options
-    for key in validOptions
-        if typeof options[key] isnt 'undefined'
-            _options[key] = options[key]
-    _options
-
-_setConstructor = (className, Ctor, definition)->
-    if GenericUtil.notEmptyString Ctor
-        Ctor = require Ctor
-
-    if typeof Ctor isnt 'function'
-        err = new Error "[#{className}] given constructor is not a function"
-        err.code = 'CTOR'
-        throw err
-    definition.ctor = Ctor
-    return
-
-_coerce = (value, connector)->
-    if value instanceof Array
-        res = []
-        for val in value
-            res.push connector.escape val
-        '(' + res.join ', ' + ')'
-    else
-        value

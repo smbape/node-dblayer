@@ -56,11 +56,15 @@ task = (config, assert)->
                 name: 'id'
                 column: 'colIdA'
 
-        # Must define id
-        # update: no longer the case
-        # assertPartialThrows mapping, 'ClassA',
-        #     table: 'TableA'
-        # , 'NO_ID'
+        # String id is for name and column
+        assertPartial mapping, 'ClassA',
+            table: 'TableA'
+            id: 'idA'
+        ,
+            table: 'TableA'
+            id:
+                name: 'idA'
+                column: 'idA'
 
         # Empty id column is replaced by id name
         assertPartial mapping, 'ClassA',
@@ -104,7 +108,7 @@ task = (config, assert)->
                 column: ''
         , 'ID_COLUMN'
 
-        # No table given => table = className
+        # default table name is className
         assertPartial mapping, 'ClassA',
             id:
                 name: 'id'
@@ -1066,29 +1070,9 @@ task = (config, assert)->
 
         model = new Model()
 
-        model.set 'propA1', 'propA1Value'
-        model.set 'propA2', 'propA2Value'
-        model.set 'propA3', 'propA3Value'
-
-        model.set 'propB1', 'propB1Value'
-        model.set 'propB2', 'propB2Value'
-        model.set 'propB3', 'propB3Value'
-
-        model.set 'propC1', 'propC1Value'
-        model.set 'propC2', 'propC2Value'
-        model.set 'propC3', 'propC3Value'
-
-        model.set 'propD1', 'propD1Value'
-        model.set 'propD2', 'propD2Value'
-        model.set 'propD3', 'propD3Value'
-
-        model.set 'propE1', 'propE1Value'
-        model.set 'propE2', 'propE2Value'
-        model.set 'propE3', 'propE3Value'
-
-        model.set 'propF1', 'propF1Value'
-        model.set 'propF2', 'propF2Value'
-        model.set 'propF3', 'propF3Value'
+        for letter in ['A', 'B', 'C', 'D', 'E', 'F']
+            for i in [1..3] by 1
+                model.set "prop#{letter}#{i}", "prop#{letter}#{i}Value"
 
         connector = poolWrite.createConnector()
 
@@ -1361,10 +1345,10 @@ task = (config, assert)->
                 assert.ifError err
                 pMgr.insert modelD, {connector: connector}, (err, id)->
                     assert.ifError err
-                    modelD.set pMgr.getId('ClassD'), id
+                    modelD.set pMgr.getIdName('ClassD'), id
                     pMgr.insert modelE, {connector: connector}, (err, id)->
                         assert.ifError err
-                        modelE.set pMgr.getId('ClassE'), id
+                        modelE.set pMgr.getIdName('ClassE'), id
                         pMgr.insert modelF, {connector: connector}, (err, id)->
                             assert.ifError err
                             options =
@@ -1372,17 +1356,17 @@ task = (config, assert)->
                                 model: modelF
                                 letters: ['C', 'F']
                                 listOptions:
-                                    where: '{' + pMgr.getId('ClassF') + '} = ' + id
+                                    where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
                                     connector: connector
                             assertListUnique pMgr, options, (model)->
                                 assertPropSubClass model, modelD, modelE
                                 modelE.set 'propA1', newE1Value
                                 modelF.set 'propC1', newF1Value
-                                modelE.remove pMgr.getId 'ClassE'
-                                modelF.remove pMgr.getId 'ClassF'
+                                modelE.remove pMgr.getIdName 'ClassE'
+                                modelF.remove pMgr.getIdName 'ClassF'
                                 pMgr.insert modelE, {connector: connector}, (err, id)->
                                     assert.ifError err
-                                    modelE.set pMgr.getId('ClassE'), id
+                                    modelE.set pMgr.getIdName('ClassE'), id
                                     pMgr.insert modelF, {connector: connector}, (err, id)->
                                         assert.ifError err
                                         options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
@@ -1430,7 +1414,7 @@ task = (config, assert)->
                 assert.ifError err
                 pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
                     assert.ifError err
-                    assert.strictEqual id, modelD.get pMgr.getId 'ClassD'
+                    assert.strictEqual id, modelD.get pMgr.getIdName 'ClassD'
                     creationDate = modelD.get 'creationDate'
                     modificationDate = modelD.get 'modificationDate'
                     assert.ok creationDate instanceof Date
@@ -1443,7 +1427,7 @@ task = (config, assert)->
                     assert.ok Math.abs(now.diff(modificationDate)) < 1500
                     pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
                         assert.ifError err
-                        assert.strictEqual id, modelE.get pMgr.getId 'ClassE'
+                        assert.strictEqual id, modelE.get pMgr.getIdName 'ClassE'
                         modificationDate = moment modelE.get 'modificationDate'
                         creationDate = moment modelE.get 'creationDate'
                         assert.strictEqual modificationDate.diff(creationDate), 0
@@ -1452,12 +1436,12 @@ task = (config, assert)->
                         assert.ok Math.abs(now.diff(modificationDate)) < 1500
                         pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
                             assert.ifError err
-                            assert.strictEqual id, modelF.get pMgr.getId 'ClassF'
-                            modelD.remove pMgr.getId 'ClassC'
-                            modelD.remove pMgr.getId 'ClassD'
-                            modelE.remove pMgr.getId 'ClassC'
-                            modelE.remove pMgr.getId 'ClassE'
-                            modelF.remove pMgr.getId 'ClassF'
+                            assert.strictEqual id, modelF.get pMgr.getIdName 'ClassF'
+                            modelD.remove pMgr.getIdName 'ClassC'
+                            modelD.remove pMgr.getIdName 'ClassD'
+                            modelE.remove pMgr.getIdName 'ClassC'
+                            modelE.remove pMgr.getIdName 'ClassE'
+                            modelF.remove pMgr.getIdName 'ClassF'
                             modelD.set 'propA1', newD1Value
                             modelE.set 'propA1', newE1Value
                             modelF.set 'propC1', newF1Value
@@ -1522,11 +1506,11 @@ task = (config, assert)->
                         assert.ifError err
                         pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
                             assert.ifError err
-                            modelD.remove pMgr.getId 'ClassC'
-                            modelD.remove pMgr.getId 'ClassD'
-                            modelE.remove pMgr.getId 'ClassC'
-                            modelE.remove pMgr.getId 'ClassE'
-                            modelF.remove pMgr.getId 'ClassF'
+                            modelD.remove pMgr.getIdName 'ClassC'
+                            modelD.remove pMgr.getIdName 'ClassD'
+                            modelE.remove pMgr.getIdName 'ClassC'
+                            modelE.remove pMgr.getIdName 'ClassE'
+                            modelF.remove pMgr.getIdName 'ClassF'
                             pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
                                 assert.ifError err
                                 pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
@@ -1609,10 +1593,10 @@ task = (config, assert)->
                         pMgr.insert modelF, {connector: connector}, (err, id)->
                             assert.ifError err
                             assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, ->
-                                modelD.remove pMgr.getId 'ClassC'
-                                modelD.remove pMgr.getId 'ClassD'
-                                modelE.remove pMgr.getId 'ClassC'
-                                modelE.remove pMgr.getId 'ClassE'
+                                modelD.remove pMgr.getIdName 'ClassC'
+                                modelD.remove pMgr.getIdName 'ClassD'
+                                modelE.remove pMgr.getIdName 'ClassC'
+                                modelE.remove pMgr.getIdName 'ClassE'
                                 pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
                                     assert.ifError err
                                     pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
@@ -1659,24 +1643,24 @@ task = (config, assert)->
                 assert.ifError err
                 pMgr.save modelD, {connector: connector}, (err, id)->
                     assert.ifError err
-                    assert.strictEqual id, modelD.get pMgr.getId modelD.className
+                    assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
                     pMgr.save modelE, {connector: connector}, (err, id)->
                         assert.ifError err
-                        assert.strictEqual id, modelE.get pMgr.getId modelE.className
+                        assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
                         pMgr.save modelF, {connector: connector}, (err, id)->
                             assert.ifError err
-                            assert.strictEqual id, modelF.get pMgr.getId modelF.className
-                            modelD.remove pMgr.getId 'ClassC'
-                            modelD.remove pMgr.getId 'ClassD'
-                            modelE.remove pMgr.getId 'ClassC'
-                            modelE.remove pMgr.getId 'ClassE'
-                            modelF.remove pMgr.getId 'ClassF'
+                            assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                            modelD.remove pMgr.getIdName 'ClassC'
+                            modelD.remove pMgr.getIdName 'ClassD'
+                            modelE.remove pMgr.getIdName 'ClassC'
+                            modelE.remove pMgr.getIdName 'ClassE'
+                            modelF.remove pMgr.getIdName 'ClassF'
                             pMgr.save modelD, {connector: connector}, (err, id)->
                                 assert.ifError err
-                                assert.strictEqual id, modelD.get pMgr.getId modelD.className
+                                assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
                                 pMgr.save modelE, {connector: connector}, (err, id)->
                                     assert.ifError err
-                                    assert.strictEqual id, modelE.get pMgr.getId modelE.className
+                                    assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
                                     pMgr.save modelF, {connector: connector}, (err, id)->
                                         modelD.set 'propA1', newD1Value
                                         modelE.set 'propA1', newE1Value
@@ -1729,7 +1713,7 @@ task = (config, assert)->
                     assert.ifError err
                     pMgr.save modelF, {connector: connector}, (err, id)->
                         assert.ifError err
-                        assert.strictEqual id, modelF.get pMgr.getId modelF.className
+                        assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
                         options =
                             classNameLetter: 'F'
                             model: modelF
@@ -1768,7 +1752,7 @@ task = (config, assert)->
                     assert.ifError err
                     pMgr.save modelF, {connector: connector}, (err, id)->
                         assert.ifError err
-                        assert.strictEqual id, modelF.get pMgr.getId modelF.className
+                        assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
                         options =
                             classNameLetter: 'F'
                             model: modelF
@@ -1980,10 +1964,10 @@ task = (config, assert)->
                 assert.ifError err
                 pMgr.insert modelD, {connector: connector}, (err, id)->
                     assert.ifError err
-                    modelD.set pMgr.getId('ClassD'), id
+                    modelD.set pMgr.getIdName('ClassD'), id
                     pMgr.insert modelE, {connector: connector}, (err, id)->
                         assert.ifError err
-                        modelE.set pMgr.getId('ClassE'), id
+                        modelE.set pMgr.getIdName('ClassE'), id
                         pMgr.insert modelF, {connector: connector}, (err, id)->
                             assert.ifError err
                             options =
@@ -1992,18 +1976,18 @@ task = (config, assert)->
                                 letters: ['C', 'F']
                                 listOptions:
                                     fields: ['propClassD:*', '*', 'propClassE:*']
-                                    where: '{' + pMgr.getId('ClassF') + '} = ' + id
+                                    where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
                                     connector: connector
                             # TODO: make sure only one query is sent
                             assertListUnique pMgr, options, (model)->
                                 assertPropSubClass model, modelD, modelE
                                 modelE.set 'propA1', newE1Value
                                 modelF.set 'propC1', newF1Value
-                                modelE.remove pMgr.getId 'ClassE'
-                                modelF.remove pMgr.getId 'ClassF'
+                                modelE.remove pMgr.getIdName 'ClassE'
+                                modelF.remove pMgr.getIdName 'ClassF'
                                 pMgr.insert modelE, {connector: connector}, (err, id)->
                                     assert.ifError err
-                                    modelE.set pMgr.getId('ClassE'), id
+                                    modelE.set pMgr.getIdName('ClassE'), id
                                     pMgr.insert modelF, {connector: connector}, (err, id)->
                                         assert.ifError err
                                         options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
@@ -2230,19 +2214,19 @@ task = (config, assert)->
                         next()
                     , true
 
-    # issue: test update on subclass with no properties
-    # testOtherStream with committed transactions
-    # test optimistic lock
+    # issue: update on subclass with no properties
+    # OtherStream with committed transactions
+    # optimistic lock
     #   update
     #   delete
     # sort,group on mixin|parent class prop
     # sort,group on property class prop
     # sort, group, limit offset
-    # initialize model i.e. use database value to fill model values. must have an id
-    # stream list
+    # initialize model i.e. use database value to fill model values.
+    # id as [prop, [, prop ...]]
+    #   initialize, update, delete
     # check bad filter
-    # check:
-    #     database and mapping are compatible
+    # check: database and mapping are compatible
     # collection
     # stream with inherited =>
     #   2 connections?

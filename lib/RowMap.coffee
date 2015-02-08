@@ -256,7 +256,7 @@ module.exports = class RowMap
             @_set info, 'selectAll', true
             # info.selectAll = true
             definition = @manager.getDefinition info.className
-            for prop of definition.available.properties
+            for prop of definition.availableProperties
                 @_setField @_getUniqueId(prop, ancestors), true
             return
 
@@ -283,7 +283,7 @@ module.exports = class RowMap
 
         if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'marked'
             parentProp = prop
-            properties = @manager.getDefinition(info.className).available.properties
+            properties = @manager.getDefinition(info.className).availableProperties
             info.properties = {}
             for prop of properties
                 @_set info.properties, @_getUniqueId(prop, parentProp, ancestors), true
@@ -334,7 +334,7 @@ module.exports = class RowMap
         [prop, ancestors] = @_getPropAncestors id
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         definition = @manager.getDefinition parentInfo.className
-        availableProperty = definition.available.properties[prop]
+        availableProperty = definition.availableProperties[prop]
         propDef = availableProperty.definition
         info = _.extend {attribute: prop}, extra
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
@@ -386,7 +386,7 @@ module.exports = class RowMap
             else
                 tableAlias = @_mixins[mixinId].tableAlias
 
-            availableProperty = mixinDef.available.properties[prop]
+            availableProperty = mixinDef.availableProperties[prop]
 
         propDef = availableProperty.definition
 
@@ -417,7 +417,7 @@ module.exports = class RowMap
         prop = info.attribute
 
         # if value is null, no futher processing is needed
-        # or Property has no sub-elements
+        # if Property has no sub-elements, no futher processing is needed
         if value is null or not info.hasOwnProperty 'className'
             @_setValue model, prop, value, info
             return model
@@ -429,12 +429,13 @@ module.exports = class RowMap
             @_setValue model, prop, childModel, info
 
         if info.hasOwnProperty 'hasJoin'
+            # this row contains needed data
             # init prop model with this row
             for childProp of info.properties
                 @_initValue childProp, row, childModel, tasks
 
-            # id is null  means value is null
-            childIdProp = @manager.getId propClassName
+            # id is null, it means that value is null
+            childIdProp = @manager.getIdName propClassName
             if null is @_getValue childModel, childIdProp
                 @_setValue model, prop, null, info
         else
@@ -446,7 +447,7 @@ module.exports = class RowMap
                     type: @options.type
                     models: [childModel]
                     # for nested element, value is the id
-                    where: STATIC.FIELD_CHAR_BEGIN + @manager.getId(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
+                    where: STATIC.FIELD_CHAR_BEGIN + @manager.getIdName(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
     
         return model
 
@@ -499,9 +500,10 @@ module.exports = class RowMap
         info = @_getInfo id
 
         definition = @manager.getDefinition info.className
-        if not prop
-            return definition
-        return definition.available.properties[prop]
+        if prop
+            definition.availableProperties[prop]
+        else
+            definition
 
     _getAncestors: (field, isFull)->
         if typeof field is 'string'
