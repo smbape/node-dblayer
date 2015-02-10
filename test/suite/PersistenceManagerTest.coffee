@@ -2030,6 +2030,7 @@ task = (config, assert)->
             where: [
                 '{author:country:property:code} = ' + connector.escape 'country.CAMEROUN'
             ]
+            order: '{id}' # Important. For an unknown reason, second query is ordered
         connector.acquire (err)->
             assert.ifError err
             connector.begin (err)->

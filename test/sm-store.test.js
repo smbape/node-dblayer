@@ -1,6 +1,4 @@
-'use strict';
-
-require("sm-require")();
+require('coffee-script').register();
 var log4js = require('log4js');
 var path = require('path');
 var dirname = path.dirname(__filename);

@@ -1,4 +1,4 @@
-require("sm-require")();
+require('coffee-script').register();
 var log4js = require('log4js');
 // var dirname = path.dirname(__filename);
 // log4js.configure(path.join(dirname, 'log4js.json'));
