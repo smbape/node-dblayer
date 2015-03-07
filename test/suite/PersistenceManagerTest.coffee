@@ -2016,7 +2016,7 @@ task = (config, assert)->
 
     testIssue3 = (next)->
         # Nested condition on non selected field crash
-        # Mixin cause inner join instead of left join for left join parent
+        # Mixin parent causes inner join instead of left join for left join on child
         # Select a was select a:*
         
         dbMap = require '../lib/test-map'

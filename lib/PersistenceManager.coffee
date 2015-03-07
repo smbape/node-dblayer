@@ -148,8 +148,8 @@ PersistenceManager::getDeleteQuery = (model, options)->
     new DeleteQuery @, model, options
 
 PersistenceManager::save = (model, options, callback)->
-    if arguments.length is 2
-        callback = options if 'function' is typeof options
+    if arguments.length is 2 and 'function' is typeof options
+        callback = options
     options = {} if not _.isPlainObject options
     (callback = ->) if 'function' isnt typeof callback
 
@@ -625,7 +625,7 @@ class UpdateQuery
                 lock = value
                 if typeof writeHandler is 'function'
                     lock = writeHandler lock, options
-                    lockCondition.and connector.exprEqual lock, connector.escapeId(column), connector
+                    lockCondition.and connector.exprEqual lock, connector.escapeId column
 
             if typeof updateHandler is 'function'
                 value = updateHandler options
