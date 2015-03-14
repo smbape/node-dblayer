@@ -20,17 +20,21 @@ task = (config, assert)->
 
     setUp = (next)->
         next()
+        return
 
     tearDown = (next)->
         next()
+        return
 
     assertPartialThrows = (mapping, className, given, expected)->
         mapping[className] = given
         assert.throws ->
             pMgr = new PersistenceManager mapping
+            return
         , (err)->
             err.code is expected
         , 'unexpected error'
+        return
 
     assertPartial = (mapping, className, given, expected)->
         mapping[className] = given
@@ -41,6 +45,12 @@ task = (config, assert)->
         return
 
     testBasicMapping = (next)->
+        logger.debug 'begin testBasicMapping'
+        _next = next
+        next = ->
+            logger.debug 'finish testBasicMapping'
+            _next()
+
         mapping = {}
 
         # Check consistency
@@ -120,8 +130,15 @@ task = (config, assert)->
                 column: 'colIdA'
 
         next()
+        return
 
     testBasicMapping2 = (next)->
+        logger.debug 'begin testBasicMapping2'
+        _next = next
+        next = ->
+            logger.debug 'finish testBasicMapping2'
+            _next()
+
         mapping = {}
 
         # Check consistency
@@ -215,8 +232,15 @@ task = (config, assert)->
         , 'DUP_COLUMN'
 
         next()
+        return
 
     testInheritance = (next)->
+        logger.debug 'begin testInheritance'
+        _next = next
+        next = ->
+            logger.debug 'finish testInheritance'
+            _next()
+
         mapping = {}
 
         # Parent is undefined
@@ -416,8 +440,15 @@ task = (config, assert)->
         , 'RELATED_MIXIN'
 
         next()
+        return
 
     testCircularReference = (next)->
+        logger.debug 'begin testCircularReference'
+        _next = next
+        next = ->
+            logger.debug 'finish testCircularReference'
+            _next()
+
         mapping = {}
 
         # A <- B <- C <- C
@@ -481,8 +512,15 @@ task = (config, assert)->
         , 'CIRCULAR_REF'
 
         next()
+        return
 
     testThrows = (next)->
+        logger.debug 'begin testThrows'
+        _next = next
+        next = ->
+            logger.debug 'finish testThrows'
+            _next()
+
         mapping = {}
 
         # Undefined class in properties
@@ -619,23 +657,33 @@ task = (config, assert)->
         , 'INCOMP_ID'
 
         next()
+        return
 
     assertInsertQuery = (mapping, model, className, expected)->
         model.className = className
         pMgr = new PersistenceManager mapping
         query = pMgr.getInsertQuery model, {force: true}
         assert.strictEqual query.toString(), expected
+        return
 
     assertInsertQueryThrows = (mapping, model, className, expected, options)->
         model.className = className
         pMgr = new PersistenceManager mapping
         assert.throws ->
             pMgr.getInsertQuery model, options
+            return
         , (err)->
             err.code is expected
         , 'unexpected error'
+        return
 
-    testInsert = (next)->
+    testInsertQuery = (next)->
+        logger.debug 'begin testInsertQuery'
+        _next = next
+        next = ->
+            logger.debug 'finish testInsertQuery'
+            _next()
+
         mapping = {}
 
         class Model
@@ -919,6 +967,7 @@ task = (config, assert)->
         assert.strictEqual query2.toString(), 'INSERT INTO TableB (colPropB0, colPropB1, colPropB3) VALUES (\'idAB0Value\', \'propB1Value\', \'propB3Value\')'
 
         next()
+        return
 
     assertPersist = (pMgr, model, classNameLetter, id, connector, next)->
         className = 'Class' + classNameLetter
@@ -938,6 +987,8 @@ task = (config, assert)->
             assert.strictEqual row['PROP_' + classNameLetter + '2'], model.get 'prop' + classNameLetter + '2'
             assert.strictEqual row['PROP_' + classNameLetter + '3'], model.get 'prop' + classNameLetter + '3'
             next row
+            return
+        return
 
     setUpMapping = ->
         mapping = {}
@@ -1066,11 +1117,26 @@ task = (config, assert)->
                     column: 'CLA_A_ID'
                     className: 'ClassE'
 
+        class ModelG extends Model
+            className: 'ClassG'
+
+        mapping['ClassG'] =
+            ctor: ModelG
+            table: 'CLASS_G'
+            id:
+                name: 'idG'
+                column: 'G_ID'
+            constraints: {type: 'unique', properties: ['propG1', 'propG2']}
+            properties:
+                propG1: 'PROP_G1'
+                propG2: 'PROP_G2'
+                propG3: 'PROP_G3'
+
         pMgr = new PersistenceManager mapping
 
         model = new Model()
 
-        for letter in ['A', 'B', 'C', 'D', 'E', 'F']
+        for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G']
             for i in [1..3] by 1
                 model.set "prop#{letter}#{i}", "prop#{letter}#{i}Value"
 
@@ -1078,15 +1144,28 @@ task = (config, assert)->
 
         return [pMgr, model, connector, Model, mapping]
 
-    testGet = (next)->
+    testGetColumn = (next)->
+        logger.debug 'begin testGetColumn'
+        _next = next
+        next = ->
+            logger.debug 'finish testGetColumn'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         assert.strictEqual pMgr.getColumn('ClassA', 'idA'), 'A_ID'
         assert.strictEqual pMgr.getColumn('ClassA', 'propA1'), 'PROP_A1'
         assert.strictEqual pMgr.getColumn('ClassA', 'propA2'), 'PROP_A2'
         assert.strictEqual pMgr.getColumn('ClassA', 'propA3'), 'PROP_A3'
         next()
+        return
 
     testInsertBasic = (next)->
+        logger.debug 'begin testInsertBasic'
+        _next = next
+        next = ->
+            logger.debug 'finish testInsertBasic'
+            _next()
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1100,9 +1179,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testInsertSubClass = (next)->
+        logger.debug 'begin testInsertSubClass'
+        _next = next
+        next = ->
+            logger.debug 'finish testInsertSubClass'
+            _next()
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassB'
         query = pMgr.getInsertQuery model, {connector: connector, dialect: connector.getDialect()}
@@ -1118,9 +1209,22 @@ task = (config, assert)->
                             connector.rollback (err)->
                                 assert.ifError err
                                 next()
+                                return
                             , true
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testInsertMixin = (next)->
+        logger.debug 'begin testInsertMixin'
+        _next = next
+        next = ->
+            logger.debug 'finish testInsertMixin'
+            _next()
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1136,9 +1240,23 @@ task = (config, assert)->
                                 connector.rollback (err)->
                                     assert.ifError err
                                     next()
+                                    return
                                 , true
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testInsertMixin2 = (next)->
+        logger.debug 'begin testInsertMixin2'
+        _next = next
+        next = ->
+            logger.debug 'finish testInsertMixin2'
+            _next()
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassE'
 
@@ -1155,17 +1273,28 @@ task = (config, assert)->
                                     connector.rollback (err)->
                                         assert.ifError err
                                         next()
+                                        return
                                     , true
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     assertList = (pMgr, options, next)->
         classNameLetter = options.classNameLetter
         listOptions = options.listOptions
 
         className = 'Class' + classNameLetter
-        query = pMgr.list className, listOptions, (err, models)->
+        pMgr.list className, listOptions, (err, models)->
             assert.ifError err
             assert.ok models.length > 0
             next models
+            return
+        return
 
     assertListUnique = (pMgr, options, next)->
         classNameLetter = options.classNameLetter
@@ -1180,8 +1309,16 @@ task = (config, assert)->
                     prop = 'prop' + letter + index
                     assert.strictEqual model.get(prop), pModel.get prop
             next models[0]
+            return
+        return
 
     testListBasic = (next)->
+        logger.debug 'begin testListBasic'
+        _next = next
+        next = ->
+            logger.debug 'finish testListBasic'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1236,9 +1373,30 @@ task = (config, assert)->
                                                             connector.rollback (err)->
                                                                 assert.ifError err
                                                                 next()
+                                                                return
                                                             , true
+                                                            return
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testListSubClass = (next)->
+        logger.debug 'begin testListSubClass'
+        _next = next
+        next = ->
+            logger.debug 'finish testListSubClass'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
         connector.acquire (err)->
@@ -1258,9 +1416,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testListMixin = (next)->
+        logger.debug 'begin testListMixin'
+        _next = next
+        next = ->
+            logger.debug 'finish testListMixin'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1281,9 +1451,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testListMixin2 = (next)->
+        logger.debug 'begin testListMixin2'
+        _next = next
+        next = ->
+            logger.debug 'finish testListMixin2'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
         connector.acquire (err)->
@@ -1303,7 +1485,13 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     assertPropSubClass = (modelF, modelD, modelE)->
         assert.strictEqual modelF.className, 'ClassF'
@@ -1326,6 +1514,12 @@ task = (config, assert)->
         return
 
     testListPropSubClass = (next)->
+        logger.debug 'begin testListPropSubClass'
+        _next = next
+        next = ->
+            logger.debug 'finish testListPropSubClass'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1391,9 +1585,29 @@ task = (config, assert)->
                                                         connector.rollback (err)->
                                                             assert.ifError err
                                                             next()
+                                                            return
                                                         , true
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testListField = (next)->
+        logger.debug 'begin testListField'
+        _next = next
+        next = ->
+            logger.debug 'finish testListField'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1479,9 +1693,26 @@ task = (config, assert)->
                                             connector.rollback (err)->
                                                 assert.ifError err
                                                 next()
+                                                return
                                             , true
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testUpdate = (next)->
+        logger.debug 'begin testUpdate'
+        _next = next
+        next = ->
+            logger.debug 'finish testUpdate'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1542,7 +1773,21 @@ task = (config, assert)->
                                                         connector.rollback (err)->
                                                             assert.ifError err
                                                             next()
+                                                            return
                                                         , true
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     assertCount = (pMgr, expected, connector, next)->
         done = 0
@@ -1566,8 +1811,16 @@ task = (config, assert)->
             assert.strictEqual expected[4], parseInt res.rows[4].count, 10
             assert.strictEqual expected[5], parseInt res.rows[5].count, 10
             next()
+            return
+        return
 
     testDelete = (next)->
+        logger.debug 'begin testDelete'
+        _next = next
+        next = ->
+            logger.debug 'finish testDelete'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1616,9 +1869,33 @@ task = (config, assert)->
                                                                         connector.rollback (err)->
                                                                             assert.ifError err
                                                                             next()
+                                                                            return
                                                                         , true
+                                                                        return
+                                                                    return
+                                                                return
+                                                            return
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testSave = (next)->
+        logger.debug 'begin testSave'
+        _next = next
+        next = ->
+            logger.debug 'finish testSave'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1641,12 +1918,16 @@ task = (config, assert)->
             assert.ifError err
             connector.begin (err)->
                 assert.ifError err
+                logger.trace 'save modelD'
                 pMgr.save modelD, {connector: connector}, (err, id)->
                     assert.ifError err
                     assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
+                    logger.trace 'save modelE'
+                    debugger
                     pMgr.save modelE, {connector: connector}, (err, id)->
                         assert.ifError err
                         assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
+                        logger.trace 'save modelF'
                         pMgr.save modelF, {connector: connector}, (err, id)->
                             assert.ifError err
                             assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
@@ -1655,22 +1936,29 @@ task = (config, assert)->
                             modelE.remove pMgr.getIdName 'ClassC'
                             modelE.remove pMgr.getIdName 'ClassE'
                             modelF.remove pMgr.getIdName 'ClassF'
+                            logger.trace 'save modelD 2'
+                            debugger
                             pMgr.save modelD, {connector: connector}, (err, id)->
                                 assert.ifError err
                                 assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
+                                logger.trace 'save modelE 2'
                                 pMgr.save modelE, {connector: connector}, (err, id)->
                                     assert.ifError err
                                     assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
+                                    logger.trace 'save modelF 2'
                                     pMgr.save modelF, {connector: connector}, (err, id)->
                                         modelD.set 'propA1', newD1Value
                                         modelE.set 'propA1', newE1Value
                                         modelF.set 'propC1', newF1Value
+                                        logger.trace 'save modelD 3'
                                         pMgr.save modelD, {connector: connector}, (err, id)->
                                             assert.ifError err
                                             assert.strictEqual newD1Value, modelD.get 'propA1'
+                                            logger.trace 'save modelE 3'
                                             pMgr.save modelE, {connector: connector}, (err, id)->
                                                 assert.ifError err
                                                 assert.strictEqual newE1Value, modelE.get 'propA1'
+                                                logger.trace 'save modelF 3'
                                                 pMgr.save modelF, {connector: connector}, (err, id)->
                                                     assert.ifError err
                                                     options =
@@ -1689,9 +1977,29 @@ task = (config, assert)->
                                                         connector.rollback (err)->
                                                             assert.ifError err
                                                             next()
+                                                            return
                                                         , true
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testIssue1 = (next)->
+        logger.debug 'begin testIssue1'
+        _next = next
+        next = ->
+            logger.debug 'finish testIssue1'
+            _next()
+
         # Saving model with an unset propClass throws exception
         
         [pMgr, model, connector, Model] = setUpMapping()
@@ -1728,9 +2036,22 @@ task = (config, assert)->
                             connector.rollback (err)->
                                 assert.ifError err
                                 next()
+                                return
                             , true
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testIssue2 = (next)->
+        logger.debug 'begin testIssue2'
+        _next = next
+        next = ->
+            logger.debug 'finish testIssue2'
+            _next()
+
         # Combination of where and fields throws on certain circumstances
         
         [pMgr, model, connector, Model] = setUpMapping()
@@ -1776,7 +2097,14 @@ task = (config, assert)->
                             connector.rollback (err)->
                                 assert.ifError err
                                 next()
+                                return
                             , true
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     assertStream = (pMgr, options, callback, next)->
         classNameLetter = options.classNameLetter
@@ -1786,6 +2114,8 @@ task = (config, assert)->
         pMgr.stream className, listOptions, callback, (err, fields)->
             assert.ifError err
             next err, fields
+            return
+        return
 
     assertStreamUnique = (pMgr, options, next)->
         classNameLetter = options.classNameLetter
@@ -1797,6 +2127,7 @@ task = (config, assert)->
             count++
             pModel = model
             assert.strictEqual count, 1
+            return
         , (err, fields)->
             assert.ifError err
             assert.strictEqual count, 1
@@ -1804,8 +2135,16 @@ task = (config, assert)->
                 for index in [1..3]
                     assert.strictEqual model.get('prop' + letter + index), pModel.get 'prop' + letter + index
             next pModel
+            return
+        return
 
     testStreamBasic = (next)->
+        logger.debug 'begin testStreamBasic'
+        _next = next
+        next = ->
+            logger.debug 'finish testStreamBasic'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1875,9 +2214,30 @@ task = (config, assert)->
                                                             connector.rollback (err)->
                                                                 assert.ifError err
                                                                 next()
+                                                                return
                                                             , true
+                                                            return
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testStreamSubClass = (next)->
+        logger.debug 'begin testStreamSubClass'
+        _next = next
+        next = ->
+            logger.debug 'finish testStreamSubClass'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
         connector.acquire (err)->
@@ -1897,9 +2257,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testStreamMixin = (next)->
+        logger.debug 'begin testStreamMixin'
+        _next = next
+        next = ->
+            logger.debug 'finish testStreamMixin'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1920,9 +2292,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testStreamMixin2 = (next)->
+        logger.debug 'begin testStreamMixin2'
+        _next = next
+        next = ->
+            logger.debug 'finish testStreamMixin2'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
         connector.acquire (err)->
@@ -1942,9 +2326,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testStar = (next)->
+        logger.debug 'begin testStar'
+        _next = next
+        next = ->
+            logger.debug 'finish testStar'
+            _next()
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -2012,9 +2408,29 @@ task = (config, assert)->
                                                         connector.rollback (err)->
                                                             assert.ifError err
                                                             next()
+                                                            return
                                                         , true
+                                                        return
+                                                    return
+                                                return
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     testIssue3 = (next)->
+        logger.debug 'begin testIssue3'
+        _next = next
+        next = ->
+            logger.debug 'finish testIssue3'
+            _next()
+
         # Nested condition on non selected field crash
         # Mixin parent causes inner join instead of left join for left join on child
         # Select a was select a:*
@@ -2053,9 +2469,21 @@ task = (config, assert)->
                         connector.rollback (err)->
                             assert.ifError err
                             next()
+                            return
                         , true
+                        return
+                    return
+                return
+            return
+        return
 
     testJoin = (next)->
+        logger.debug 'begin testJoin'
+        _next = next
+        next = ->
+            logger.debug 'finish testJoin'
+            _next()
+
         dbMap = require '../lib/test-map'
         
         pMgr = new PersistenceManager dbMap
@@ -2104,9 +2532,20 @@ task = (config, assert)->
                     connector.rollback (err)->
                         assert.ifError err
                         next()
+                        return
                     , true
+                    return
+                return
+            return
+        return
 
     testIssue4 = (next)->
+        logger.debug 'begin testIssue4'
+        _next = next
+        next = ->
+            logger.debug 'finish testIssue4'
+            _next()
+
         # no field was considered as *
         dbMap = require '../lib/test-map'
         
@@ -2155,9 +2594,20 @@ task = (config, assert)->
                     connector.rollback (err)->
                         assert.ifError err
                         next()
+                        return
                     , true
+                    return
+                return
+            return
+        return
 
     testSelectParts = (next)->
+        logger.debug 'begin testSelectParts'
+        _next = next
+        next = ->
+            logger.debug 'finish testSelectParts'
+            _next()
+
         # no field was considered as *
         dbMap = require '../lib/test-map'
         
@@ -2213,7 +2663,88 @@ task = (config, assert)->
                     connector.rollback (err)->
                         assert.ifError err
                         next()
+                        return
                     , true
+                    return
+                return
+            return
+        return
+
+    testUnique = (next)->
+        logger.debug 'begin testUnique'
+        _next = next
+        next = ->
+            logger.debug 'finish testUnique'
+            _next()
+
+        # unique constraint used on initialize, update, delete => where must be on properties
+        # For performance concern, even if an entry has a unique constraint, add a primary key column
+        # initialize goes with list => where is handled
+        # update and delete, for each unique constraint, take the first one that has all it's fields not null
+        
+        [pMgr, model, connector, Model] = setUpMapping()
+        connector.acquire (err)->
+            assert.ifError err
+            connector.begin (err)->
+                assert.ifError err
+
+                model.className = 'ClassG'
+                model.set 'propG1', 'valueG10'
+                model.set 'propG2', 'valueG20'
+                model.set 'propG3', 'valueG30'
+                pMgr.insert model, {connector: connector}, (err, id0)->
+                    assert.ifError err
+                    model.set 'propG1', 'valueG11'
+                    model.set 'propG2', 'valueG21'
+                    model.set 'propG3', 'valueG31'
+                    pMgr.insert model, {connector: connector}, (err, id1)->
+                        assert.ifError err
+                        model.set 'propG1', 'valueG12'
+                        model.set 'propG2', 'valueG22'
+                        model.set 'propG3', 'valueG32'
+                        pMgr.insert model, {connector: connector}, (err, id2)->
+                            assert.ifError err
+                            model.set 'propG1', 'valueG10'
+                            model.set 'propG2', 'valueG20'
+                            pMgr.initialize model, {connector: connector}, (err, models)->
+                                assert.ifError err
+                                assert.strictEqual id0, model.get 'idG'
+                                model.remove 'idG'
+                                model.set 'propG1', 'valueG11'
+                                model.set 'propG2', 'valueG21'
+                                model.set 'propG3', 'valueG34'
+                                pMgr.update model, {connector: connector}, (err, id)->
+                                    assert.ifError err
+                                    assert.strictEqual id1, id
+                                    model.remove 'idG'
+                                    model.set 'propG1', 'valueG12'
+                                    model.set 'propG2', 'valueG22'
+                                    pMgr.delete model, {connector: connector}, (err)->
+                                        assert.ifError err
+                                        options =
+                                            type: 'json'
+                                            connector: connector
+                                            order: '{idG}'
+                                        pMgr.list model.className, options, (err, models)->
+                                            assert.ifError err
+                                            assert.strictEqual 2, models.length
+                                            assert.strictEqual id0, models[0].idG
+                                            assert.strictEqual id1, models[1].idG
+                                            connector.rollback (err)->
+                                                assert.ifError err
+                                                next()
+                                                return
+                                            , true
+                                            return
+                                        return
+                                    return
+                                return
+                            return
+                        return
+                    return
+                return
+            return
+        return
 
     # issue: update on subclass with no properties
     # OtherStream with committed transactions
@@ -2242,8 +2773,8 @@ task = (config, assert)->
         testInheritance
         testCircularReference
         testThrows
-        testGet
-        testInsert
+        testGetColumn
+        testInsertQuery
         testInsertBasic
         testInsertSubClass
         testInsertMixin
@@ -2268,6 +2799,7 @@ task = (config, assert)->
         testJoin
         testIssue4
         testSelectParts
+        testUnique
         tearDown
     ]
 

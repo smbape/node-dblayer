@@ -203,13 +203,13 @@ _resolve = (className, mapping, compiled)->
         err.code = 'ID'
         throw err
 
-    hasId = true
+    idIsMandatory = true
     if classDef.hasOwnProperty 'id'
         id = classDef.id
     else if rawDefinition.hasOwnProperty 'id'
         id = rawDefinition.id
     else
-        hasId = false
+        idIsMandatory = false
         id = {}
 
     if not _.isPlainObject id
@@ -222,7 +222,7 @@ _resolve = (className, mapping, compiled)->
         classDef.id.column = id.column
 
     if id.hasOwnProperty('name') and id.hasOwnProperty('className')
-        err = new Error "[#{classDef.className}] name and className are incompatible properties for id"
+        err = new Error "[#{classDef.className}] name and className are mutally exclusive properties for id"
         err.code = 'INCOMP_ID'
         throw err
 
@@ -237,10 +237,9 @@ _resolve = (className, mapping, compiled)->
             throw err
 
         compiled._addColumn className, classDef.id.column, classDef.id.name
-        
     else if GenericUtil.notEmptyString id.className
         classDef.id.className = id.className
-    else if hasId
+    else if idIsMandatory
         err = new Error "[#{classDef.className}] name xor className must be defined as a not empty string for id"
         err.code = 'ID'
         throw err
@@ -259,6 +258,14 @@ _resolve = (className, mapping, compiled)->
     _addMixins compiled, classDef, rawDefinition, id, mapping
     # =============================================================================
     #  Mixins checking - End
+    # =============================================================================
+
+    # =============================================================================
+    #  Constraints checking
+    # =============================================================================
+    _addConstraints classDef, rawDefinition
+    # =============================================================================
+    #  Constraints checking - End
     # =============================================================================
 
     if typeof classDef.id.className is 'string'
@@ -283,17 +290,14 @@ _resolve = (className, mapping, compiled)->
     return
 
 _addProperties = (classDef, rawProperties)->
-    if _.isPlainObject rawProperties
-        properties = rawProperties
-    else
-        properties = {}
+    return if not _.isPlainObject rawProperties
 
-    for prop, rawPropDef of properties
+    for prop, rawPropDef of rawProperties
         if typeof rawPropDef is 'string'
             rawPropDef = column: rawPropDef
 
         if not _.isPlainObject rawPropDef
-            err = new Error "[#{classDef.className}] property '#{prop}' must be an object"
+            err = new Error "[#{classDef.className}] property '#{prop}' must be an object or a string"
             err.code = 'PROP'
             throw err
 
@@ -323,7 +327,8 @@ _addProperties = (classDef, rawProperties)->
                     handlers[handlerType] = handler
 
         # optimistic lock definition
-        # update only values where lock is the same, therefore prevent concurrent unaware update
+        # update only values where lock is the same
+        # with update handler, prevents concurrent update
         if rawPropDef.hasOwnProperty 'lock'
             propDef.lock = typeof rawPropDef.lock is 'boolean' and rawPropDef.lock
 
@@ -335,7 +340,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
     else if GenericUtil.notEmptyString(rawDefinition.mixins)
         mixins = [rawDefinition.mixins]
     else if Array.isArray(rawDefinition.mixins)
-        mixins = rawDefinition.mixins.slice 0
+        mixins = rawDefinition.mixins[0..]
     else
         err = new Error "[#{classDef.className}] mixins property can only be a string or an array of strings"
         err.code = 'MIXINS'
@@ -420,6 +425,45 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
                     mixin: _mixin
                     definition: mixinDef.availableProperties[prop].definition
 
+    return
+
+_addConstraints = (classDef, rawDefinition)->
+    classDef.constraints = constraints = unique: []
+
+    rawConstraints = rawDefinition.constraints
+    rawConstraints = [rawConstraints] if _.isPlainObject rawConstraints
+    return if not Array.isArray rawConstraints
+
+    ERR_CODE = 'CONSTRAINT'
+
+    for constraint, index in rawConstraints
+        if not _.isPlainObject constraint
+            err = new Error "[#{classDef.className}] constraint at index #{index} is not a plain object"
+            err.code = ERR_CODE
+            throw err
+
+        if constraint.type isnt 'unique'
+            err = new Error "[#{classDef.className}] constraint at index #{index} is not supported. Supported constraint type is 'unique'"
+            err.code = ERR_CODE
+            throw err
+
+        properties = constraint.properties
+        if GenericUtil.notEmptyString properties
+            properties = [properties]
+
+        if not Array.isArray properties
+            err = new Error "[#{classDef.className}] constraint at index #{index}: properties must be a not empty string or an array of strings"
+            err.code = ERR_CODE
+            throw err
+
+        for prop in properties
+            if not classDef.properties.hasOwnProperty prop
+                err = new Error "[#{classDef.className}] - constraint at index #{index}: property #{prop} is not owned"
+                err.code = ERR_CODE
+                throw err
+
+        constraints.unique.push properties[0..]
+    
     return
 
 _setConstructor = (classDef, Ctor)->

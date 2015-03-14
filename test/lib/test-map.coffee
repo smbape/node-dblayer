@@ -6,7 +6,7 @@ mapping = module.exports
 
 handlersDate = 
     read: (value, options)->
-        moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss').toDate()
+        moment.utc(value, 'YYYY-MM-DD HH:mm:ss').toDate()
     write: (value, model, options)->
         moment(value).utc().format 'YYYY-MM-DD HH:mm:ss'
 
@@ -62,6 +62,10 @@ mapping['User'] =
         occupation: 'USE_OCCUPATION'
         language: className: 'Language'
         ip: 'USE_IP'
+    constraints: [
+        {type: 'unique', properties: ['login']}
+        {type: 'unique', properties: ['email']}
+    ]
 
 mapping['Right'] =
     table: 'RIGHTS'
@@ -71,7 +75,7 @@ mapping['Right'] =
         column: 'RGT_ID'
     properties:
         code: 'RGT_CODE'
-        name: className: 'Property'
+    constraints: {type: 'unique', properties: ['code']}
 
 mapping['UserRight'] =
     table: 'USR_RGT'
@@ -79,6 +83,7 @@ mapping['UserRight'] =
     properties:
         user: className: 'User'
         right: className: 'Right'
+    constraints: {type: 'unique', properties: ['user', 'right']}
 
 mapping['Property'] =
     table: 'PROPERTIES'
@@ -88,6 +93,7 @@ mapping['Property'] =
         column: 'LPR_ID'
     properties:
         code: 'LPR_CODE'
+    constraints: {type: 'unique', properties: ['code']}
 
 mapping['Language'] =
     table: 'LANGUAGES'
@@ -100,6 +106,7 @@ mapping['Language'] =
         key: 'LNG_KEY'
         label: 'LNG_LABEL'
         property: className: 'Property'
+    constraints: {type: 'unique', properties: ['code']}
 
 mapping['Translation'] =
     table: 'TRANSLATIONS'

@@ -32,10 +32,16 @@ var library = require('../');
 var AdapterPool = library.AdapterPool,
     pools = {};
 
-var dbms, poolAdmin, poolRead, poolWrite, options, taskName;
+var dbms, poolAdmin, poolRead, poolWrite, options, taskName, dialects;
 
 for (dbms in config) {
+    addTask(dbms);
+}
 
+function addTask(dbms) {
+    if (!config.hasOwnProperty(dbms)) {
+        return;
+    }
     options = {};
     options.poolRead = new AdapterPool(config[dbms].read, {
         name: dbms + 'PoolRead'
@@ -110,7 +116,7 @@ function run(next) {
     }, null, _next);
 }
 
-if (false) {
+function debugTests() {
     // For debugging purpose
     assert = require('assert');
     tests = [];
@@ -123,16 +129,43 @@ if (false) {
             });
         })(testSuite[prop], prop);
     }
-    
-    module.exports.run = function (next) {
+
+    return function(next) {
         async.series(tests, function() {
             destroyPools(next);
         });
     };
+}
+
+if (false) {
+    module.exports.run = debugTests();
 } else if (isNodeunit) {
     module.exports.end = destroyPools;
 } else if (isRequire) {
-    module.exports = {run: run};
+    module.exports = {
+        run: run
+    };
 } else {
-    run();
+    var GetOpt = require('node-getopt');
+    var options = GetOpt.create([
+        ['', 'dialects=ARG', 'Database Management Systems [postgres, mysql, sqlite]'],
+        ['', 'trace', 'Show trace stack on error'],
+        ['h', 'help', 'Display this help']
+    ]).bindHelp().parseSystem().options;
+    dialects = options.hasOwnProperty('dialects') ? options.dialects.split(/\s*,\s*/) : null;
+    if (dialects && dialects.length > 0) {
+
+        for (var prop in testSuite) {
+            delete testSuite[prop];
+        }
+
+        for (var i = dialects.length - 1; i >= 0; i--) {
+            addTask(dialects[i]);
+        }
+    }
+    if (options.hasOwnProperty('trace')) {
+        run();
+    } else {
+        debugTests()();
+    }
 }

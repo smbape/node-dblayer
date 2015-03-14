@@ -223,7 +223,9 @@ module.exports = class Connector extends EventEmitter
             return ret(err) if err
 
             if @savepoints is 0
-                # No automatic acquire because the cannot be automatic release
+                # No automatic acquire because there cannot be an automatic release
+                # Programmer may or may not perform a query/stream with the connection.
+                # Therefore, there is no way to know when to release connection
                 err = new Error 'Connector has no active connection'
                 err.code = 'NO_CONNECTION'
                 return ret err

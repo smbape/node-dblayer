@@ -155,19 +155,24 @@ PersistenceManager::save = (model, options, callback)->
 
     className = options.className or model.className
     definition = @getDefinition className
-    if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
-        oriAttributes = _.clone model.toJSON()
-        @initialize model, _.extend({attributes: [definition.id.name]}, options), (err, models)=>
+
+    where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
+        useDefinitionColumn: false
+        useAttributes: false
+
+    if where.length is 0
+        @insert model, _.extend({}, options, reflect: true), callback
+    else
+        options = _.extend {}, options,
+            where: where
+            limit: 2 # Expecting one result. Limit is for unique checking without getting all results
+        @list className, options, (err, models)=>
             return callback(err) if err
-            if models.length > 0
-                for attr of oriAttributes
-                    model.set attr, oriAttributes[attr]
+            if models.length is 1
                 @update model, options, callback
             else
                 @insert model, _.extend({}, options, reflect: true), callback
             return
-    else
-        @insert model, _.extend({}, options, reflect: true), callback
     return
 
 PersistenceManager::initialize = (model, options, callback)->
@@ -182,7 +187,7 @@ PersistenceManager::initialize = (model, options, callback)->
     className = options.className or model.className
     definition = @getDefinition className
     options = _.extend {}, options,
-        where: _getInitializeCondition @, model, className, definition, options
+        where: _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
         models: [model]
     @list className, options, callback
 
@@ -192,10 +197,28 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 
     if typeof options.where is 'undefined'
         if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
+            # id is define
             attributes = {}
             attributes[definition.id.name] = value
         else
-            attributes = options.attributes or model.toJSON()
+            if definition.constraints.unique.length isnt 0
+                attributes = {}
+                # check unique constraints properties
+                for constraint in definition.constraints.unique
+                    isSetted = true
+                    for prop in constraint
+                        value = model.get prop
+
+                        # null and undefined are not allowed values for unique columns
+                        # 0 is a falsy value but a valid value for  unique columns
+                        if value is null or 'undefined' is typeof value
+                            isSetted = false
+                            break
+
+                        attributes[prop] = value
+                    break if isSetted
+
+            attributes = options.attributes or model.toJSON() if not isSetted and options.useAttributes isnt false
         where = []
         try
             if _.isPlainObject attributes
@@ -212,15 +235,22 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 
     where
 
+PRIMITIVE_TYPES = /^(?:string|boolean|number)$/
+
 _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, options)->
     if typeof value is 'undefined' or not definition.availableProperties.hasOwnProperty attr
         return
 
     propDef = definition.availableProperties[attr].definition
+    if options.useDefinitionColumn
+        column = connector.escapeId definition.properties[attr].column
+    else
+        column = '{' + attr + '}'
+
     if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
         value = propDef.handlers.write value, model, options
-    if  /^(?:string|boolean|number)$/.test typeof value
-        where.push '{' + attr + '} = ' + connector.escape value
+    if  PRIMITIVE_TYPES.test typeof value
+        where.push column + ' = ' + connector.escape value
     else if GenericUtil.isObject value
         propClassName = definition.availableProperties[attr].definition.className
         value = value.get pMgr.getIdName propClassName
@@ -228,9 +258,9 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
             value = propDef.handlers.write value, model, options
         if typeof value isnt 'undefined'
             if value is null
-                where.push '{' + attr + '} IS NULL'
-            else if /^(?:string|boolean|number)$/.test typeof value
-                where.push '{' + attr + '} = ' + connector.escape value
+                where.push column + ' IS NULL'
+            else if PRIMITIVE_TYPES.test typeof value
+                where.push column + ' = ' + connector.escape value
 
     return
 
@@ -306,6 +336,7 @@ class InsertQuery
                     if parentModel.length is 0
                         value = null
                     else
+                        # assume it is the id
                         value = parentModel
                 else
                     value = parentModel.get prop.id.name
@@ -432,7 +463,6 @@ class SelectQuery
     stream: (streamConnector, listConnector, callback, done)->
         rowMap = @getRowMap()
         query = rowMap.parse @toString()
-        # query = @toString()
         pMgr = @getManager()
         options= @getOptions()
         models= options.models or []
@@ -505,7 +535,6 @@ class SelectQuery
     list: (connector, callback)->
         rowMap = @getRowMap()
         query = rowMap.parse @toString()
-        # query = @toString()
         pMgr = @getManager()
         options= @getOptions()
 
@@ -552,6 +581,29 @@ class SelectQuery
         , options, options.executeOptions
         query
 
+_addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, definition, options)->
+    idName = pMgr.getIdName className
+    if not GenericUtil.notEmptyString idName
+        err = new Error "Cannot #{name} #{className} models because id has not been defined"
+        err.code = name.toUpperCase()
+        throw err
+
+    id = model.get idName
+    hasNoCondition = id is null or 'undefined' is typeof id
+    if hasNoCondition
+        where = _getInitializeCondition pMgr, model, className, definition, _.extend {}, options, {useDefinitionColumn: true}
+        for condition in where
+            hasNoCondition = false
+            action.where condition
+    else
+        action.where connector.escapeId(definition.id.column) + ' = ' + connector.escape id
+    
+    if hasNoCondition
+        err = new Error "Cannot #{name} #{className} model because id is null or undefined"
+        err.code = name.toUpperCase()
+        throw err
+    return
+
 class UpdateQuery
     constructor: (pMgr, model, options = {})->
         @getModel = -> model
@@ -578,8 +630,7 @@ class UpdateQuery
         definition = pMgr.getDefinition className
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
 
-        # where = _getInitializeCondition pMgr, model, className, definition, options
-        update.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getIdName className
+        _addUpdateOrDeleteCondition update, 'update', connector, pMgr, model, className, definition, options
 
         # condition to track changes
         changeCondition = squel.expr()
@@ -731,12 +782,11 @@ class UpdateQuery
         definition = @getDefinition()
         model = @getModel()
         options = @getOptions()
-        where = []
 
         query = pMgr.decorateInsert options.dialect, query, definition.id.column
         connector.query query, (err, res)->
             return callback(err) if err
-            id = model.get definition.id.name
+
 
             if definition.id.hasOwnProperty 'column'
                 if res.hasOwnProperty 'affectedRows'
@@ -747,14 +797,19 @@ class UpdateQuery
                     if res.rows.length is 0
                         hasNoUpdate = true
 
-            logger.trace '[' + definition.className + '] - UPDATE ' + id
+            id = model.get definition.id.name
 
-            if definition.id.hasOwnProperty 'column'
-                where[where.length] = '{' + pMgr.getIdName(definition.className) + '} = ' + id
-            options = _.extend {}, options,
-                where: where
+            if 'undefined' is typeof id
+                where = _getInitializeCondition pMgr, model, definition.className, definition, _.extend {}, options, useDefinitionColumn: false
+            else if definition.id.hasOwnProperty 'column'
+                where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
+
+            options = _.extend {}, options, where: where
+
             pMgr.initialize model, options, (err, models)->
                 return callback err if err
+                id = model.get definition.id.name
+
                 if hasNoUpdate 
                     if models.length is 0
                         err = new Error 'id or lock condition'
@@ -762,6 +817,8 @@ class UpdateQuery
                         logger.trace '[' + definition.className + '] - NO UPDATE ' + id
                     else
                         extended = 'no-update'
+                else
+                    logger.trace '[' + definition.className + '] - UPDATE ' + id
                 callback err, id, extended
                 return
             return
@@ -781,12 +838,14 @@ class DeleteQuery
         className = options.className or model.className
         definition = pMgr.getDefinition className
         remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId definition.table
-        remove.where connector.escapeId(definition.id.column) + ' = ' + connector.escape model.get pMgr.getIdName className
+
+        _addUpdateOrDeleteCondition remove, 'delete', connector, pMgr, model, className, definition, options
 
         # optimistic lock
         for prop, propDef of definition.properties
 
             if propDef.hasOwnProperty 'className'
+                # cascade delete is not yet defined
                 continue
 
             if propDef.lock

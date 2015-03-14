@@ -159,7 +159,7 @@ module.exports = class RowMap
 
             if  /^(?:string|boolean|number)$/.test typeof option
                 option = [option]
-            else if optionName is 'limit'
+            else if optionName is 'limit' and not @options['no-limit']
                 option = [@static.LIMIT]
             else if _.isEmpty option
                 continue
@@ -448,6 +448,8 @@ module.exports = class RowMap
                     models: [childModel]
                     # for nested element, value is the id
                     where: STATIC.FIELD_CHAR_BEGIN + @manager.getIdName(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
+                    # expect only one result. limit 2 is for unique checking without returning all rows
+                    limit: 2
     
         return model
 
