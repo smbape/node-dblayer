@@ -2374,7 +2374,7 @@ task = (config, assert)->
                                     fields: ['propClassD:*', '*', 'propClassE:*']
                                     where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
                                     connector: connector
-                            # TODO: make sure only one query is sent
+                            # TODO: make sure only one query is sent .i.e all join done, no sub-queries to get composite elements
                             assertListUnique pMgr, options, (model)->
                                 assertPropSubClass model, modelD, modelE
                                 modelE.set 'propA1', newE1Value
