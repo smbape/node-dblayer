@@ -335,14 +335,19 @@ module.exports = class RowMap
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         definition = @manager.getDefinition parentInfo.className
         availableProperty = definition.availableProperties[prop]
+        if 'undefined' is typeof availableProperty
+            throw new Error "Property '#{prop}' is not defined for '#{parentInfo.className}'"
         propDef = availableProperty.definition
         info = _.extend {attribute: prop}, extra
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
             @_set info, 'className', propDef.className
-            # info.className = propDef.className
+
         if propDef.hasOwnProperty('handlers') and propDef.handlers.hasOwnProperty 'read'
             @_set info, 'read', propDef.handlers.read
-            # info.read = propDef.handlers.read
+
+        if _.isObject(overrides = @options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
+            @_set info, 'read', handlers.read
+
         @_setInfo id, info
 
     # Get parent prop column alias, mixins join
@@ -480,6 +485,7 @@ module.exports = class RowMap
         columnAlias
 
     # for debugging purpose
+    # allow to know where a property was setted
     _set: (obj, key, value)->
         obj[key] = value
 

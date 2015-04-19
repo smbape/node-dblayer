@@ -1,15 +1,22 @@
 factory = (require)->
+    toString = ({}).toString;
     hasOwnProperty = Object::hasOwnProperty
     GenericUtil =
+        
+        # Based on jQuery 1.11
+        isArray: Array.isArray or (obj)->
+            '[object Array]' is toString.call obj
+
+        # Based on jQuery 1.11
         isNumeric: (obj) ->
-            not isNaN(parseFloat(obj)) and isFinite obj
+            !GenericUtil.isArray( obj ) and (obj - parseFloat( obj ) + 1) >= 0
 
         isWindow: (obj) ->
             # jshint eqnull: true, eqeqeq: false 
             obj? and obj is obj.window
 
         isObject: (obj) ->
-            typeof obj is "object" and obj isnt null
+            typeof obj is 'object' and obj isnt null
 
         notEmptyString: (str)->
             typeof str is 'string' and str.length > 0

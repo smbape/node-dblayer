@@ -3,7 +3,24 @@ logger = log4js.getLogger 'CompiledMapping'
 _ = require 'lodash'
 GenericUtil = require './GenericUtil'
 
-class ClassDefinition
+modelId = 0
+class Model
+    constructor: ()->
+        @id = ++modelId
+        @attributes = {}
+    clone: ->
+        _clone = new Model()
+        _clone.attributes = _.clone @attributes
+        _clone
+    set: (prop, value)->
+        @attributes[prop] = value
+        return @
+    get: (prop)->
+        @attributes[prop]
+    remove: (prop)->
+        delete @attributes[prop]
+    toJSON: ->
+        @attributes
 
 module.exports = class CompiledMapping
     constructor: (mapping)->
@@ -283,8 +300,7 @@ _resolve = (className, mapping, compiled)->
     if typeof classDef.id.name is 'string'
         classDef.availableProperties[classDef.id.name] = definition: classDef.id
 
-    if rawDefinition.hasOwnProperty 'ctor'
-        _setConstructor classDef, rawDefinition.ctor
+    _setConstructor classDef, rawDefinition.ctor
 
     compiled._markResolved classDef.className
     return
@@ -467,12 +483,15 @@ _addConstraints = (classDef, rawDefinition)->
     return
 
 _setConstructor = (classDef, Ctor)->
-    if GenericUtil.notEmptyString Ctor
+    if 'undefined' is typeof Ctor
+        Ctor = Model
+    else if GenericUtil.notEmptyString Ctor
         Ctor = require Ctor
 
     if typeof Ctor isnt 'function'
         err = new Error "[#{classDef.className}] given constructor is not a function"
         err.code = 'CTOR'
         throw err
+
     classDef.ctor = Ctor
     return

@@ -995,7 +995,7 @@ task = (config, assert)->
         modelId = 0
         class Model
             constructor: ()->
-                @id = modelId++
+                @id = ++modelId
                 @attributes = {}
             clone: ->
                 _clone = new Model()

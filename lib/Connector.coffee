@@ -175,6 +175,7 @@ module.exports = class Connector extends EventEmitter
             if err and options.autoRollback isnt false
                 logger.trace 'automatic rollback on query error'
                 return @_rollback callback, false, err
+            logger.trace '[query] - DONE: ' + query
             callback err, res
 
     stream: (query, callback, done, options = {})->
@@ -211,6 +212,7 @@ module.exports = class Connector extends EventEmitter
             if err and options.autoRollback isnt false
                 logger.trace 'automatic rollback on stream error'
                 return @_rollback done, false, err
+            logger.trace '[stream] - DONE: ' + query
             done.apply null, arguments
         return
 
@@ -352,6 +354,7 @@ module.exports = class Connector extends EventEmitter
             return @_rollback(callback, all, errors) if err
             @_removeSavepoint()
             return @_commit(callback, all, errors) if all
+            logger.trace '[query] - DONE: ' + query
             callback()
 
     release: (callback)->

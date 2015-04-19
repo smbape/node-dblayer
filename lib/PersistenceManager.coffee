@@ -33,6 +33,14 @@ PersistenceManager::dialects =
             nameQuoteCharacter: '`'
             fieldAliasQuoteCharacter: '`'
             tableAliasQuoteCharacter: '`'
+    sqlite3:
+        squelOptions:
+            # autoQuoteTableNames: true
+            # autoQuoteFieldNames: true
+            replaceSingleQuotes: true
+            nameQuoteCharacter: '"'
+            fieldAliasQuoteCharacter: '"'
+            tableAliasQuoteCharacter: '"'
 
 PersistenceManager::getSquelOptions = (dialect)->
     if @dialects.hasOwnProperty dialect
@@ -154,7 +162,7 @@ PersistenceManager::save = (model, options, callback)->
     (callback = ->) if 'function' isnt typeof callback
 
     className = options.className or model.className
-    definition = @getDefinition className
+    definition = @_getDefinition className
 
     where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
         useDefinitionColumn: false
@@ -163,15 +171,16 @@ PersistenceManager::save = (model, options, callback)->
     if where.length is 0
         @insert model, _.extend({}, options, reflect: true), callback
     else
+        backup = options
         options = _.extend {}, options,
             where: where
             limit: 2 # Expecting one result. Limit is for unique checking without getting all results
         @list className, options, (err, models)=>
             return callback(err) if err
             if models.length is 1
-                @update model, options, callback
+                @update model, backup, callback
             else
-                @insert model, _.extend({}, options, reflect: true), callback
+                @insert model, _.extend({}, backup, reflect: true), callback
             return
     return
 
@@ -185,7 +194,7 @@ PersistenceManager::initialize = (model, options, callback)->
         return callback 'No model'
     
     className = options.className or model.className
-    definition = @getDefinition className
+    definition = @_getDefinition className
     options = _.extend {}, options,
         where: _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
         models: [model]
@@ -266,14 +275,10 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
 
 class InsertQuery
     constructor: (pMgr, model, options = {})->
-        @getModel = ->
-            model
-        @getManager = ->
-            pMgr
-        @getOptions = ->
-            options
-        @getDefinition = ->
-            definition
+        @getModel = -> model
+        @getManager = -> pMgr
+        @getOptions = -> options
+        @getDefinition = -> definition
 
         connector = options.connector
         if connector
@@ -296,7 +301,7 @@ class InsertQuery
             return insert.toString()
 
         className = options.className or model.className
-        definition = pMgr.getDefinition className
+        definition = pMgr._getDefinition className
         insert = squel.insert(pMgr.getSquelOptions(options.dialect)).into @escapeId(definition.table)
 
         if not options.force and typeof model.get(definition.id.name) isnt 'undefined'
@@ -324,7 +329,7 @@ class InsertQuery
                 parentModel = model.get prop
                 if typeof parentModel is 'undefined'
                     continue
-                prop = pMgr.getDefinition propDef.className
+                prop = pMgr._getDefinition propDef.className
 
                 # If column is not setted assume it has the same name as the column id
                 if typeof column is 'undefined'
@@ -583,12 +588,13 @@ class SelectQuery
 
 _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, definition, options)->
     idName = pMgr.getIdName className
-    if not GenericUtil.notEmptyString idName
+    idName = null if typeof idName isnt 'string' or idName.length is 0
+    if definition.constraints.unique.length is 0 and idName is null
         err = new Error "Cannot #{name} #{className} models because id has not been defined"
         err.code = name.toUpperCase()
         throw err
 
-    id = model.get idName
+    id = model.get idName if idName isnt null
     hasNoCondition = id is null or 'undefined' is typeof id
     if hasNoCondition
         where = _getInitializeCondition pMgr, model, className, definition, _.extend {}, options, {useDefinitionColumn: true}
@@ -627,7 +633,7 @@ class UpdateQuery
                 str
 
         className = options.className or model.className
-        definition = pMgr.getDefinition className
+        definition = pMgr._getDefinition className
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
 
         _addUpdateOrDeleteCondition update, 'update', connector, pMgr, model, className, definition, options
@@ -651,7 +657,7 @@ class UpdateQuery
                         # assume it is the id
                         value = parentModel
                 else
-                    prop = pMgr.getDefinition propDef.className
+                    prop = pMgr._getDefinition propDef.className
                     value = parentModel.get prop.id.name
             else
                 value = model.get prop
@@ -744,6 +750,7 @@ class UpdateQuery
                 break
 
         hasUpdate = false
+        definition = @getDefinition()
         async.series tasks, (err, results)=>
             return callback(err) if err
 
@@ -754,7 +761,7 @@ class UpdateQuery
                         id = result[0]
                         extended = result[1]
                         if not extended
-                            logger.trace '[' + @getDefinition().className + '] - UPDATE: has update ' + id
+                            logger.trace '[' + definition.className + '] - UPDATE: has update ' + id
                             hasUpdate = true
                             break
                 if results[results.length - 1] instanceof Array
@@ -766,7 +773,7 @@ class UpdateQuery
 
             # If parent mixin has been update, child must be considered as being updated
             if not hasUpdate
-                logger.trace '[' + @getDefinition().className + '] - UPDATE: has no update ' + id
+                logger.trace '[' + definition.className + '] - UPDATE: has no update ' + id
                 @setChangeCondition()
 
             @_execute connector, (err, id, extended)->
@@ -836,7 +843,7 @@ class DeleteQuery
 
         connector = options.connector
         className = options.className or model.className
-        definition = pMgr.getDefinition className
+        definition = pMgr._getDefinition className
         remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId definition.table
 
         _addUpdateOrDeleteCondition remove, 'delete', connector, pMgr, model, className, definition, options
