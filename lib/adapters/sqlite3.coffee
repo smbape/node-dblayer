@@ -106,7 +106,6 @@ class SQLite3Query extends EventEmitter
         query = @text
         values = @values
         callback = @callback
-        logger.trace '[query]', query, values
 
         # Quick falsy test to determine if insert|update|delete or else
         # falsy because (insert toto ...) will not be recognise as insert because of bracket
@@ -179,8 +178,6 @@ class SQLite3Stream extends ArrayStream
         query = @text
         values = @values
         done = @done
-
-        logger.trace '[stream]', query, values
 
         result = {}
         hasError = false

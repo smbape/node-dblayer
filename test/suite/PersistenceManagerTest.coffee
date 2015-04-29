@@ -662,7 +662,7 @@ task = (config, assert)->
     assertInsertQuery = (mapping, model, className, expected)->
         model.className = className
         pMgr = new PersistenceManager mapping
-        query = pMgr.getInsertQuery model, {force: true}
+        query = pMgr.getInsertQuery model
         assert.strictEqual query.toString(), expected
         return
 
@@ -700,8 +700,7 @@ task = (config, assert)->
                 column: 'colIdA'
             properties:
                 propA1: 'colPropA1'
-        assertInsertQueryThrows mapping, model, 'ClassA', 'ID_EXISTS'
-        assertInsertQuery mapping, model, 'ClassA', 'INSERT INTO TableA (colPropA1) VALUES (\'propA1Value\')'
+        assertInsertQuery mapping, model, 'ClassA', 'INSERT INTO TableA (colIdA, colPropA1) VALUES (\'idAValue\', \'propA1Value\')'
 
         # id + properties class
         class Model
@@ -722,7 +721,7 @@ task = (config, assert)->
                     className: 'ClassA'
                 propB2: 'colPropB2'
         
-        assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colIdA, colPropB2) VALUES (\'idAValue\', \'propB2Value\')'
+        assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colIdB, colIdA, colPropB2) VALUES (\'idBValue\', \'idAValue\', \'propB2Value\')'
 
         mapping['ClassB'] =
             table: 'TableB'
@@ -735,7 +734,7 @@ task = (config, assert)->
                     className: 'ClassA'
                 propB2: 'colPropB2'
         
-        assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colPropB1, colPropB2) VALUES (\'idAValue\', \'propB2Value\')'
+        assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colIdB, colPropB1, colPropB2) VALUES (\'idBValue\', \'idAValue\', \'propB2Value\')'
 
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
@@ -749,7 +748,7 @@ task = (config, assert)->
             properties:
                 propClassB1:
                     className: 'ClassB'
-        assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (colIdA) VALUES (\'idAValue\')'
+        assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (idC, colIdA) VALUES (\'idCValue\', \'idAValue\')'
         
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
@@ -764,7 +763,7 @@ task = (config, assert)->
             properties:
                 propClassB1:
                     className: 'ClassB'
-        assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (colIdB) VALUES (\'idAValue\')'
+        assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (idC, colIdB) VALUES (\'idCValue\', \'idAValue\')'
         
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
@@ -782,7 +781,7 @@ task = (config, assert)->
             properties:
                 propClassC1:
                     className: 'ClassC'
-        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (colIdA) VALUES (\'idAValue\')'
+        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdA) VALUES (\'idDValue\', \'idAValue\')'
         
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
@@ -801,7 +800,7 @@ task = (config, assert)->
             properties:
                 propClassC1:
                     className: 'ClassC'
-        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (colIdB) VALUES (\'idAValue\')'
+        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdB) VALUES (\'idDValue\', \'idAValue\')'
         
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
@@ -821,7 +820,7 @@ task = (config, assert)->
             properties:
                 propClassC1:
                     className: 'ClassC'
-        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (colIdC) VALUES (\'idAValue\')'
+        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdC) VALUES (\'idDValue\', \'idAValue\')'
         
         # throw error if no id is setted for sub-element
         class Model
@@ -832,7 +831,7 @@ task = (config, assert)->
                     return new Model()
                 return prop + 'Value'
         model = new Model()
-        assertInsertQueryThrows mapping, model, 'ClassD', 'NO_ID', {force: true}
+        assertInsertQueryThrows mapping, model, 'ClassD', 'NO_ID'
         
         # only save setted properties
         class Model
@@ -854,7 +853,7 @@ task = (config, assert)->
                 propD1: 'colPropD1'
                 propD2: 'colPropD2'
                 propD3: 'colPropD3'
-        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (colIdC, colPropD1, colPropD3) VALUES (\'idAValue\', \'propD1Value\', \'propD3Value\')'
+        assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdC, colPropD1, colPropD3) VALUES (\'idDValue\', \'idAValue\', \'propD1Value\', \'propD3Value\')'
         
         # id className
         class Model
@@ -893,14 +892,14 @@ task = (config, assert)->
                 propB3: 'colPropB3'
 
         pMgr = new PersistenceManager mapping
-        query = pMgr.getInsertQuery model, {force: true}
+        query = pMgr.getInsertQuery model
         query = query.toParam()
         assert.strictEqual query.text, 'INSERT INTO TableB (colIdA, colPropB0, colPropB1, colPropB3) VALUES (?, ?, ?, ?)'
         assert.strictEqual query.values[1], 'idAB0Value'
         assert.strictEqual query.values[2], 'propB1Value'
         assert.strictEqual query.values[3], 'propB3Value'
         query = query.values[0]
-        assert.strictEqual query.toString(), 'INSERT INTO TableA (colPropA1, colPropA3) VALUES (\'propA1Value\', \'propA3Value\')'
+        assert.strictEqual query.toString(), 'INSERT INTO TableA (colIdA, colPropA1, colPropA3) VALUES (\'idAValue\', \'propA1Value\', \'propA3Value\')'
         
         # id, mixin
         mapping['ClassB'] =
@@ -917,14 +916,15 @@ task = (config, assert)->
                 propB2: 'colPropB2'
                 propB3: 'colPropB3'
         pMgr = new PersistenceManager mapping
-        query = pMgr.getInsertQuery model, {force: true}
+        query = pMgr.getInsertQuery model
         query = query.toParam()
-        assert.strictEqual query.text, 'INSERT INTO TableB (colIdA, colPropB0, colPropB1, colPropB3) VALUES (?, ?, ?, ?)'
-        assert.strictEqual query.values[1], 'idAB0Value'
-        assert.strictEqual query.values[2], 'propB1Value'
-        assert.strictEqual query.values[3], 'propB3Value'
+        assert.strictEqual query.text, 'INSERT INTO TableB (colIdA, colIdB, colPropB0, colPropB1, colPropB3) VALUES (?, ?, ?, ?, ?)'
+        assert.strictEqual query.values[1], 'idBValue'
+        assert.strictEqual query.values[2], 'idAB0Value'
+        assert.strictEqual query.values[3], 'propB1Value'
+        assert.strictEqual query.values[4], 'propB3Value'
         query2 = query.values[0]
-        assert.strictEqual query2.toString(), 'INSERT INTO TableA (colPropA1, colPropA3) VALUES (\'propA1Value\', \'propA3Value\')'
+        assert.strictEqual query2.toString(), 'INSERT INTO TableA (colIdA, colPropA1, colPropA3) VALUES (\'idAValue\', \'propA1Value\', \'propA3Value\')'
         
         # id, mixins
         mapping['ClassB'] =
@@ -955,16 +955,17 @@ task = (config, assert)->
                 propC3: 'colPropC3'
         pMgr = new PersistenceManager mapping
         model.className = 'ClassC'
-        query = pMgr.getInsertQuery model, {force: true}
+        query = pMgr.getInsertQuery model
         query = query.toParam()
-        assert.strictEqual query.text, 'INSERT INTO TableC (colIdA, colIdB, colPropC0, colPropC1, colPropC3) VALUES (?, ?, ?, ?, ?)'
-        assert.strictEqual query.values[2], 'idAC0Value'
-        assert.strictEqual query.values[3], 'propC1Value'
-        assert.strictEqual query.values[4], 'propC3Value'
+        assert.strictEqual query.text, 'INSERT INTO TableC (colIdA, colIdB, colIdC, colPropC0, colPropC1, colPropC3) VALUES (?, ?, ?, ?, ?, ?)'
+        assert.strictEqual query.values[2], 'idCValue'
+        assert.strictEqual query.values[3], 'idAC0Value'
+        assert.strictEqual query.values[4], 'propC1Value'
+        assert.strictEqual query.values[5], 'propC3Value'
         query2 = query.values[0]
-        assert.strictEqual query2.toString(), 'INSERT INTO TableA (colPropA1, colPropA3) VALUES (\'propA1Value\', \'propA3Value\')'
+        assert.strictEqual query2.toString(), 'INSERT INTO TableA (colIdA, colPropA1, colPropA3) VALUES (\'idAValue\', \'propA1Value\', \'propA3Value\')'
         query2 = query.values[1]
-        assert.strictEqual query2.toString(), 'INSERT INTO TableB (colPropB0, colPropB1, colPropB3) VALUES (\'idAB0Value\', \'propB1Value\', \'propB3Value\')'
+        assert.strictEqual query2.toString(), 'INSERT INTO TableB (colIdB, colPropB0, colPropB1, colPropB3) VALUES (\'idBValue\', \'idAB0Value\', \'propB1Value\', \'propB3Value\')'
 
         next()
         return
@@ -2747,6 +2748,8 @@ task = (config, assert)->
         return
 
     # issue: update on subclass with no properties
+    # initialize model i.e. use database value to fill model values.
+    # initializeOrInsert
     # OtherStream with committed transactions
     # optimistic lock
     #   update
@@ -2754,17 +2757,6 @@ task = (config, assert)->
     # sort,group on mixin|parent class prop
     # sort,group on property class prop
     # sort, group, limit offset
-    # initialize model i.e. use database value to fill model values.
-    # id as [prop, [, prop ...]]
-    #   initialize, update, delete
-    # check bad filter
-    # check: database and mapping are compatible
-    # collection
-    # stream with inherited =>
-    #   2 connections?
-    # stream with collections?
-    #   two connections?
-    # decision: manually set joins, stream only do one request, charge to you to recompute records
     
     series = [
         setUp

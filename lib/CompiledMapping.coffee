@@ -5,14 +5,21 @@ GenericUtil = require './GenericUtil'
 
 modelId = 0
 class Model
-    constructor: ()->
+    constructor: (attributes)->
         @id = ++modelId
-        @attributes = {}
+        if _.isPlainObject attributes
+            @attributes = _.clone attributes
+        else
+            @attributes = {}
     clone: ->
         _clone = new Model()
         _clone.attributes = _.clone @attributes
         _clone
     set: (prop, value)->
+        if _.isPlainObject prop
+            for attr of prop
+                @set att, prop[attr]
+            return @
         @attributes[prop] = value
         return @
     get: (prop)->
@@ -234,7 +241,7 @@ _resolve = (className, mapping, compiled)->
         err.code = 'ID'
         throw err
 
-    classDef.id = {}
+    classDef.id = name: null
     if GenericUtil.notEmptyString id.column
         classDef.id.column = id.column
 

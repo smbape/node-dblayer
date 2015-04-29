@@ -62,7 +62,11 @@ PersistenceManager::insert = (model, options, callback)->
     connector.acquire (err)->
         return callback(err) if err
         connector.begin (err)->
-            return callback(err) if err
+            if err
+                connector.release (err)->
+                    callback(err)
+                    return
+                return
             query.execute connector, (err)->
                 if err
                     method = 'rollback'
@@ -72,7 +76,7 @@ PersistenceManager::insert = (model, options, callback)->
                 args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
-                        if GenericUtil.isObject args[0]
+                        if _.isObject args[0]
                             args[0].subError = err
                         else
                             args[0] = err
@@ -117,7 +121,11 @@ PersistenceManager::update = (model, options, callback)->
     connector.acquire (err)->
         return callback(err) if err
         connector.begin (err)->
-            return callback(err) if err
+            if err
+                connector.release (err)->
+                    callback(err)
+                    return
+                return
             query.execute connector, (err)->
                 if err
                     method = 'rollback'
@@ -127,7 +135,7 @@ PersistenceManager::update = (model, options, callback)->
                 args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
-                        if GenericUtil.isObject(err)
+                        if _.isObject(err)
                             args[0].subError = err
                         else
                             args[0] = err
@@ -143,7 +151,7 @@ PersistenceManager::update = (model, options, callback)->
 PersistenceManager::getUpdateQuery = (model, options)->
     new UpdateQuery @, model, options
 
-PersistenceManager::delete = (model, options, callback)->
+PersistenceManager::delete = PersistenceManager::remove = (model, options, callback)->
     connector = options.connector
     try
         query = @getDeleteQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
@@ -184,13 +192,44 @@ PersistenceManager::save = (model, options, callback)->
             return
     return
 
+
+PersistenceManager::initializeOrInsert = (model, options, callback)->
+    if arguments.length is 2 and 'function' is typeof options
+        callback = options
+    options = {} if not _.isPlainObject options
+    (callback = ->) if 'function' isnt typeof callback
+
+    className = options.className or model.className
+    definition = @_getDefinition className
+
+    where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
+        useDefinitionColumn: false
+        useAttributes: false
+
+    if where.length is 0
+        @insert model, _.extend({}, options, reflect: true), callback
+    else
+        backup = options
+        options = _.extend {}, options,
+            where: where
+            limit: 2 # Expecting one result. Limit is for unique checking without getting all results
+        @list className, options, (err, models)=>
+            return callback(err) if err
+            if models.length is 1
+                model.set models[0].attributes
+                callback err, [model]
+            else
+                @insert model, _.extend({}, backup, reflect: true), callback
+            return
+    return
+
 PersistenceManager::initialize = (model, options, callback)->
     if arguments.length is 2
         callback = options if 'function' is typeof options
     options = {} if not _.isPlainObject options
     (callback = ->) if 'function' isnt typeof callback
 
-    if not GenericUtil.isObject model
+    if not _.isObject model
         return callback 'No model'
     
     className = options.className or model.className
@@ -229,19 +268,20 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 
             attributes = options.attributes or model.toJSON() if not isSetted and options.useAttributes isnt false
         where = []
-        try
-            if _.isPlainObject attributes
-                for attr, value of attributes
-                    _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
-            else if attributes instanceof Array
-                for attr in attributes
-                    value = model.get attr
-                    _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
-        catch err
-            return callback err
+        
+        if _.isPlainObject attributes
+            for attr, value of attributes
+                _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
+        else if attributes instanceof Array
+            for attr in attributes
+                value = model.get attr
+                _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
     else
         where = options.where
 
+    if isSetted
+        _.isPlainObject(options.result) or (options.result = {})
+        options.result.constraint = index
     where
 
 PRIMITIVE_TYPES = /^(?:string|boolean|number)$/
@@ -260,7 +300,7 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
         value = propDef.handlers.write value, model, options
     if  PRIMITIVE_TYPES.test typeof value
         where.push column + ' = ' + connector.escape value
-    else if GenericUtil.isObject value
+    else if _.isObject value
         propClassName = definition.availableProperties[attr].definition.className
         value = value.get pMgr.getIdName propClassName
         if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
@@ -304,10 +344,10 @@ class InsertQuery
         definition = pMgr._getDefinition className
         insert = squel.insert(pMgr.getSquelOptions(options.dialect)).into @escapeId(definition.table)
 
-        if not options.force and typeof model.get(definition.id.name) isnt 'undefined'
-            err = new Error "[#{className}]: Model has already and id"
-            err.code = 'ID_EXISTS'
-            throw err
+        # if not options.force and typeof model.get(definition.id.name) isnt 'undefined'
+        #     err = new Error "[#{className}]: Model has already and id"
+        #     err.code = 'ID_EXISTS'
+        #     throw err
 
         # ids of mixins will be setted at execution
         if definition.mixins.length > 0
@@ -321,6 +361,10 @@ class InsertQuery
 
             for mixin in definition.mixins
                 insert.set @escapeId(mixin.column), '$id'
+
+        idName = pMgr.getIdName className
+        id = model.get idName if idName isnt null
+        insert.set @escapeId(definition.id.column), id if id
 
         for prop, propDef of definition.properties
             column = propDef.column
@@ -481,7 +525,7 @@ class SelectQuery
                 timeout: timeout
                 onTake: ->
                     if hasError
-                        if GenericUtil.isObject err
+                        if _.isObject err
                             err.subError = hasError
                         else
                             err = hasError
@@ -597,7 +641,8 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
     id = model.get idName if idName isnt null
     hasNoCondition = id is null or 'undefined' is typeof id
     if hasNoCondition
-        where = _getInitializeCondition pMgr, model, className, definition, _.extend {}, options, {useDefinitionColumn: true}
+        options = _.extend {}, options, {useDefinitionColumn: true}
+        where = _getInitializeCondition pMgr, model, className, definition, options
         for condition in where
             hasNoCondition = false
             action.where condition
@@ -608,7 +653,7 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
         err = new Error "Cannot #{name} #{className} model because id is null or undefined"
         err.code = name.toUpperCase()
         throw err
-    return
+    return options.result
 
 class UpdateQuery
     constructor: (pMgr, model, options = {})->
@@ -636,7 +681,7 @@ class UpdateQuery
         definition = pMgr._getDefinition className
         update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
 
-        _addUpdateOrDeleteCondition update, 'update', connector, pMgr, model, className, definition, options
+        result = _addUpdateOrDeleteCondition update, 'update', connector, pMgr, model, className, definition, options
 
         # condition to track changes
         changeCondition = squel.expr()
@@ -644,6 +689,10 @@ class UpdateQuery
 
         # update owned properties
         for prop, propDef of definition.properties
+            if result
+                constraint = definition.constraints.unique[result.constraint]
+                if -1 isnt constraint.indexOf prop
+                    continue
 
             if propDef.hasOwnProperty('className') and typeof (parentModel = model.get prop) isnt 'undefined'
                 # Class property
@@ -728,6 +777,11 @@ class UpdateQuery
                 return params
 
         # check
+        # for block in update.blocks
+        #     if block instanceof squel.cls.SetFieldBlock
+        #         if block.fields.length is 0
+        #             hasNoUpdate = true
+        #         break
         query = @toString()
 
     execute: (connector, callback)->
@@ -919,3 +973,11 @@ class DeleteQuery
         query = @oriToString()
         connector.query query, callback, @getOptions().executeOptions
         return
+
+# check: database and mapping are compatible
+# collection
+# stream with inherited =>
+#   2 connections?
+# stream with collections?
+#   two connections?
+# decision: manually set joins, stream only do one request, charge to you to recompute records
