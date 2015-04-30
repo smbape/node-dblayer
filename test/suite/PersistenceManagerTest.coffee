@@ -1622,88 +1622,85 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                    assert.ifError err
-                    assert.strictEqual id, modelD.get pMgr.getIdName 'ClassD'
-                    creationDate = modelD.get 'creationDate'
-                    modificationDate = modelD.get 'modificationDate'
-                    assert.ok creationDate instanceof Date
-                    assert.ok modificationDate instanceof Date
-                    creationDate = moment creationDate
-                    modificationDate = moment modificationDate
-                    assert.strictEqual modificationDate.diff(creationDate), 0
-                    now = moment()
-                    assert.ok Math.abs(now.diff(creationDate)) < 1500
-                    assert.ok Math.abs(now.diff(modificationDate)) < 1500
-                    pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                        assert.ifError err
-                        assert.strictEqual id, modelE.get pMgr.getIdName 'ClassE'
-                        modificationDate = moment modelE.get 'modificationDate'
-                        creationDate = moment modelE.get 'creationDate'
-                        assert.strictEqual modificationDate.diff(creationDate), 0
-                        now = moment()
-                        assert.ok Math.abs(now.diff(creationDate)) < 1500
-                        assert.ok Math.abs(now.diff(modificationDate)) < 1500
-                        pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
-                            assert.ifError err
-                            assert.strictEqual id, modelF.get pMgr.getIdName 'ClassF'
-                            modelD.remove pMgr.getIdName 'ClassC'
-                            modelD.remove pMgr.getIdName 'ClassD'
-                            modelE.remove pMgr.getIdName 'ClassC'
-                            modelE.remove pMgr.getIdName 'ClassE'
-                            modelF.remove pMgr.getIdName 'ClassF'
-                            modelD.set 'propA1', newD1Value
-                            modelE.set 'propA1', newE1Value
-                            modelF.set 'propC1', newF1Value
-                            pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                                assert.ifError err
-                                pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                                    assert.ifError err
-                                    pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
-                                        assert.ifError err
-                                        options =
-                                            classNameLetter: 'F'
-                                            model: modelF
-                                            letters: ['C', 'F']
-                                            listOptions:
-                                                fields: [
-                                                    'propC1'
-                                                    'propClassD:propA1'
-                                                    'propClassE:propA1'
-                                                ]
-                                                where: [
-                                                    '{propClassD:propA1} = ' + connector.escape newD1Value
-                                                    '{propClassE:propA1} = ' + connector.escape newE1Value
-                                                    '{propC1} = ' + connector.escape newF1Value
-                                                ]
-                                                connector: connector
-                                                type: 'json'
-
-                                        assertList pMgr, options, (err, models)->
-                                            assert.strictEqual models.length, 1
-                                            model = models[0]
-                                            assert.ok _.isPlainObject model
-                                            assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
-                                            assert.strictEqual model.propClassE.propA1, modelE.get 'propA1'
-                                            assert.strictEqual model.propC1, modelF.get 'propC1'
-                                            connector.rollback (err)->
-                                                assert.ifError err
-                                                next()
-                                                return
-                                            , true
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
+            (id, next)->
+                assert.strictEqual id, modelD.get pMgr.getIdName 'ClassD'
+                creationDate = modelD.get 'creationDate'
+                modificationDate = modelD.get 'modificationDate'
+                assert.ok creationDate instanceof Date
+                assert.ok modificationDate instanceof Date
+                creationDate = moment creationDate
+                modificationDate = moment modificationDate
+                assert.strictEqual modificationDate.diff(creationDate), 0
+                now = moment()
+                assert.ok Math.abs(now.diff(creationDate)) < 1500
+                assert.ok Math.abs(now.diff(modificationDate)) < 1500
+                pMgr.insert modelE, {connector: connector, reflect: true}, next
                 return
+            (id, next)->
+                assert.strictEqual id, modelE.get pMgr.getIdName 'ClassE'
+                modificationDate = moment modelE.get 'modificationDate'
+                creationDate = moment modelE.get 'creationDate'
+                assert.strictEqual modificationDate.diff(creationDate), 0
+                now = moment()
+                assert.ok Math.abs(now.diff(creationDate)) < 1500
+                assert.ok Math.abs(now.diff(modificationDate)) < 1500
+                pMgr.insert modelF, {connector: connector, reflect: true}, next
+                return
+            (id, next)->
+                assert.strictEqual id, modelF.get pMgr.getIdName 'ClassF'
+                modelD.remove pMgr.getIdName 'ClassC'
+                modelD.remove pMgr.getIdName 'ClassD'
+                modelE.remove pMgr.getIdName 'ClassC'
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                modelD.set 'propA1', newD1Value
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                pMgr.insert modelD, {connector: connector, reflect: true}, next
+                return
+            (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        fields: [
+                            'propC1'
+                            'propClassD:propA1'
+                            'propClassE:propA1'
+                        ]
+                        where: [
+                            '{propClassD:propA1} = ' + connector.escape newD1Value
+                            '{propClassE:propA1} = ' + connector.escape newE1Value
+                            '{propC1} = ' + connector.escape newF1Value
+                        ]
+                        connector: connector
+                        type: 'json'
+
+                assertList pMgr, options, next
+            (models, next)->
+                assert.strictEqual models.length, 1
+                model = models[0]
+                assert.ok _.isPlainObject model
+                assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
+                assert.strictEqual model.propClassE.propA1, modelE.get 'propA1'
+                assert.strictEqual model.propC1, modelF.get 'propC1'
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testUpdate = (next)->
@@ -1727,66 +1724,56 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                    assert.ifError err
-                    pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                        assert.ifError err
-                        pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
-                            assert.ifError err
-                            modelD.remove pMgr.getIdName 'ClassC'
-                            modelD.remove pMgr.getIdName 'ClassD'
-                            modelE.remove pMgr.getIdName 'ClassC'
-                            modelE.remove pMgr.getIdName 'ClassE'
-                            modelF.remove pMgr.getIdName 'ClassF'
-                            pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                                assert.ifError err
-                                pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                                    assert.ifError err
-                                    pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
-                                        assert.ifError err
-                                        modelD.set 'propA1', newD1Value
-                                        modelE.set 'propA1', newE1Value
-                                        modelF.set 'propC1', newF1Value
-                                        pMgr.update modelD, {connector: connector}, (err, id)->
-                                            assert.ifError err
-                                            pMgr.update modelE, {connector: connector}, (err, id)->
-                                                assert.ifError err
-                                                pMgr.update modelF, {connector: connector}, (err, id)->
-                                                    assert.ifError err
-                                                    options =
-                                                        classNameLetter: 'F'
-                                                        model: modelF
-                                                        letters: ['C', 'F']
-                                                        listOptions:
-                                                            where: [
-                                                                '{propClassD:propA1} = ' + connector.escape newD1Value
-                                                                '{propClassE:propA1} = ' + connector.escape newE1Value
-                                                                '{propC1} = ' + connector.escape newF1Value
-                                                            ]
-                                                            connector: connector
-                                                    assertListUnique pMgr, options, (err, model)->
-                                                        assertPropSubClass model, modelD, modelE
-                                                        connector.rollback (err)->
-                                                            assert.ifError err
-                                                            next()
-                                                            return
-                                                        , true
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
+            (id, next)->
+                modelD.remove pMgr.getIdName 'ClassC'
+                modelD.remove pMgr.getIdName 'ClassD'
+                modelE.remove pMgr.getIdName 'ClassC'
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                pMgr.insert modelD, {connector: connector, reflect: true}, next
                 return
+            (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
+            (id, next)->
+                modelD.set 'propA1', newD1Value
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                pMgr.update modelD, {connector: connector}, next
+                return
+            (id, msg, next)-> pMgr.update modelE, {connector: connector}, next
+            (id, msg, next)-> pMgr.update modelF, {connector: connector}, next
+            (id, msg, next)->
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        where: [
+                            '{propClassD:propA1} = ' + connector.escape newD1Value
+                            '{propClassE:propA1} = ' + connector.escape newE1Value
+                            '{propC1} = ' + connector.escape newF1Value
+                        ]
+                        connector: connector
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     assertCount = (pMgr, expected, connector, next)->
@@ -1803,14 +1790,14 @@ task = (config, assert)->
 
         query = query.substring 11
         connector.query query, (err, res)->
-            assert.ifError err
+            return next err if err
             assert.strictEqual expected[0], parseInt res.rows[0].count, 10
             assert.strictEqual expected[1], parseInt res.rows[1].count, 10
             assert.strictEqual expected[2], parseInt res.rows[2].count, 10
             assert.strictEqual expected[3], parseInt res.rows[3].count, 10
             assert.strictEqual expected[4], parseInt res.rows[4].count, 10
             assert.strictEqual expected[5], parseInt res.rows[5].count, 10
-            next()
+            next err
             return
         return
 
@@ -1835,58 +1822,37 @@ task = (config, assert)->
         # E -> (B -> A), C
         # D -> A, C
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                    assert.ifError err
-                    pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                        assert.ifError err
-                        pMgr.insert modelF, {connector: connector}, (err, id)->
-                            assert.ifError err
-                            assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, ->
-                                modelD.remove pMgr.getIdName 'ClassC'
-                                modelD.remove pMgr.getIdName 'ClassD'
-                                modelE.remove pMgr.getIdName 'ClassC'
-                                modelE.remove pMgr.getIdName 'ClassE'
-                                pMgr.insert modelD, {connector: connector, reflect: true}, (err, id)->
-                                    assert.ifError err
-                                    pMgr.insert modelE, {connector: connector, reflect: true}, (err, id)->
-                                        assert.ifError err
-                                        pMgr.insert modelF, {connector: connector, reflect: true}, (err, id)->
-                                            assert.ifError err
-                                            assertCount pMgr, [4, 2, 6, 2, 2, 2], connector, ->
-                                                pMgr.delete modelF, {connector: connector}, (err)->
-                                                    assert.ifError err
-                                                    assertCount pMgr, [4, 2, 5, 2, 2, 1], connector, ->
-                                                        pMgr.delete modelE, {connector: connector}, (err)->
-                                                            assert.ifError err
-                                                            assertCount pMgr, [3, 1, 4, 2, 1, 1], connector, ->
-                                                                pMgr.delete modelD, {connector: connector}, (err)->
-                                                                    assert.ifError err
-                                                                    assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, ->
-                                                                        connector.rollback (err)->
-                                                                            assert.ifError err
-                                                                            next()
-                                                                            return
-                                                                        , true
-                                                                        return
-                                                                    return
-                                                                return
-                                                            return
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelF, {connector: connector}, next
+            (id, next)-> assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, next
+            (next)->
+                modelD.remove pMgr.getIdName 'ClassC'
+                modelD.remove pMgr.getIdName 'ClassD'
+                modelE.remove pMgr.getIdName 'ClassC'
+                modelE.remove pMgr.getIdName 'ClassE'
+                pMgr.insert modelD, {connector: connector, reflect: true}, next
                 return
+            (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
+            (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
+            (id, next)-> assertCount pMgr, [4, 2, 6, 2, 2, 2], connector, next
+            (next)-> pMgr.delete modelF, {connector: connector}, next
+            (res, next)-> assertCount pMgr, [4, 2, 5, 2, 2, 1], connector, next
+            (next)-> pMgr.delete modelE, {connector: connector}, next
+            (res, next)-> assertCount pMgr, [3, 1, 4, 2, 1, 1], connector, next
+            (next)-> pMgr.delete modelD, {connector: connector}, next
+            (res, next)-> assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, next
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testSave = (next)->
@@ -1914,81 +1880,89 @@ task = (config, assert)->
         # E -> (B -> A), C
         # D -> A, C
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                logger.trace 'save modelD'
-                pMgr.save modelD, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
-                    logger.trace 'save modelE'
-                    pMgr.save modelE, {connector: connector}, (err, id)->
-                        assert.ifError err
-                        assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
-                        logger.trace 'save modelF'
-                        pMgr.save modelF, {connector: connector}, (err, id)->
-                            assert.ifError err
-                            assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
-                            modelD.remove pMgr.getIdName 'ClassC'
-                            modelD.remove pMgr.getIdName 'ClassD'
-                            modelE.remove pMgr.getIdName 'ClassC'
-                            modelE.remove pMgr.getIdName 'ClassE'
-                            modelF.remove pMgr.getIdName 'ClassF'
-                            logger.trace 'save modelD 2'
-                            pMgr.save modelD, {connector: connector}, (err, id)->
-                                assert.ifError err
-                                assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
-                                logger.trace 'save modelE 2'
-                                pMgr.save modelE, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
-                                    logger.trace 'save modelF 2'
-                                    pMgr.save modelF, {connector: connector}, (err, id)->
-                                        modelD.set 'propA1', newD1Value
-                                        modelE.set 'propA1', newE1Value
-                                        modelF.set 'propC1', newF1Value
-                                        logger.trace 'save modelD 3'
-                                        pMgr.save modelD, {connector: connector}, (err, id)->
-                                            assert.ifError err
-                                            assert.strictEqual newD1Value, modelD.get 'propA1'
-                                            logger.trace 'save modelE 3'
-                                            pMgr.save modelE, {connector: connector}, (err, id)->
-                                                assert.ifError err
-                                                assert.strictEqual newE1Value, modelE.get 'propA1'
-                                                logger.trace 'save modelF 3'
-                                                pMgr.save modelF, {connector: connector}, (err, id)->
-                                                    assert.ifError err
-                                                    options =
-                                                        classNameLetter: 'F'
-                                                        model: modelF
-                                                        letters: ['C', 'F']
-                                                        listOptions:
-                                                            where: [
-                                                                '{propClassD:propA1} = ' + connector.escape newD1Value
-                                                                '{propClassE:propA1} = ' + connector.escape newE1Value
-                                                                '{propC1} = ' + connector.escape newF1Value
-                                                            ]
-                                                            connector: connector
-                                                    assertListUnique pMgr, options, (err, model)->
-                                                        assertPropSubClass model, modelD, modelE
-                                                        connector.rollback (err)->
-                                                            assert.ifError err
-                                                            next()
-                                                            return
-                                                        , true
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.save modelD, {connector: connector}, next
+            (id, next)->
+                assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
+                pMgr.save modelE, {connector: connector}, next
                 return
+            (id, next)->
+                assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
+                pMgr.save modelF, {connector: connector}, next
+                return
+            (id, next)->
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                modelD.remove pMgr.getIdName 'ClassC'
+                modelD.remove pMgr.getIdName 'ClassD'
+                modelE.remove pMgr.getIdName 'ClassC'
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                pMgr.save modelD, {connector: connector}, next
+                return
+            (id, next)->
+                assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
+                modelD.prevId = modelD.get pMgr.getIdName modelD.className
+                pMgr.save modelE, {connector: connector}, next
+                return
+            (id, next)->
+                assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
+                modelE.prevId = modelE.get pMgr.getIdName modelE.className
+                pMgr.save modelF, {connector: connector}, next
+                return
+            (id, next)->
+                modelF.prevId = modelF.get pMgr.getIdName modelF.className
+                modelD.set 'propA1', newD1Value
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                pMgr.save modelD, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual newD1Value, modelD.get 'propA1'
+                assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
+                assert.strictEqual id, modelD.prevId
+                pMgr.save modelE, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual newE1Value, modelE.get 'propA1'
+                assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
+                assert.strictEqual id, modelE.prevId
+                pMgr.save modelF, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual newF1Value, modelF.get 'propC1'
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                assert.strictEqual id, modelF.prevId
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        where: [
+                            '{propClassD:propA1} = ' + connector.escape newD1Value
+                            '{propClassE:propA1} = ' + connector.escape newE1Value
+                            '{propC1} = ' + connector.escape newF1Value
+                        ]
+                        connector: connector
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                debugger
+                assertPropSubClass model, modelD, modelE
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testIssue1 = (next)->
@@ -2006,41 +1980,42 @@ task = (config, assert)->
         modelD = model.clone()
         modelD.className = 'ClassD'
         modelF.set 'propClassD', modelD
+        # propClassE is not setted
 
         # F -> C
         # E -> (B -> A), C
         # D -> A, C
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.save modelD, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    pMgr.save modelF, {connector: connector}, (err, id)->
-                        assert.ifError err
-                        assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
-                        options =
-                            classNameLetter: 'F'
-                            model: modelF
-                            letters: ['C', 'F']
-                            listOptions:
-                                where: [
-                                    '{idC} = ' + id
-                                ]
-                                connector: connector
-                        assertListUnique pMgr, options, (err, model)->
-                            assertPropSubClass model, modelD
-                            connector.rollback (err)->
-                                assert.ifError err
-                                next()
-                                return
-                            , true
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.save modelD, {connector: connector}, next
+            (id, next)-> pMgr.save modelF, {connector: connector}, next
+            (id, next)->
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        where: [
+                            '{idC} = ' + id
+                        ]
+                        connector: connector
+                assertListUnique pMgr, options, next
                 return
+            (model, next)->
+                assertPropSubClass model, modelD
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testIssue2 = (next)->
@@ -2063,45 +2038,48 @@ task = (config, assert)->
         # E -> (B -> A), C
         # D -> A, C
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.save modelD, {connector: connector}, (err, idD)->
-                    assert.ifError err
-                    pMgr.save modelF, {connector: connector}, (err, id)->
-                        assert.ifError err
-                        assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
-                        options =
-                            classNameLetter: 'F'
-                            model: modelF
-                            letters: ['C', 'F']
-                            listOptions:
-                                fields: [
-                                    'propC1'
-                                    'propClassD:propA1'
-                                ]
-                                where: [
-                                    '{idC} = ' + id
-                                    '{propClassD} = ' + idD
-                                ]
-                                connector: connector
-                                type: 'json'
-                        assertList pMgr, options, (err, models)->
-                            assert.strictEqual models.length, 1
-                            model = models[0]
-                            assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
-                            assert.strictEqual model.propC1, modelF.get 'propC1'
-                            connector.rollback (err)->
-                                assert.ifError err
-                                next()
-                                return
-                            , true
-                            return
-                        return
-                    return
+        idD = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.save modelD, {connector: connector}, next
+            (id, next)->
+                idD = id
+                pMgr.save modelF, {connector: connector}, next
                 return
+            (id, next)->
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        fields: [
+                            'propC1'
+                            'propClassD:propA1'
+                        ]
+                        where: [
+                            '{idC} = ' + id
+                            '{propClassD} = ' + idD
+                        ]
+                        connector: connector
+                        type: 'json'
+                assertList pMgr, options, next
+            (models, next)->
+                assert.strictEqual models.length, 1
+                model = models[0]
+                assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
+                assert.strictEqual model.propC1, modelF.get 'propC1'
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     assertStream = (pMgr, options, callback, next)->
@@ -2127,12 +2105,12 @@ task = (config, assert)->
             assert.strictEqual count, 1
             return
         , (err, fields)->
-            assert.ifError err
+            return next err if err
             assert.strictEqual count, 1
             for letter in letters
                 for index in [1..3]
                     assert.strictEqual model.get('prop' + letter + index), pModel.get 'prop' + letter + index
-            next pModel
+            next err, pModel
             return
         return
 
@@ -2152,81 +2130,83 @@ task = (config, assert)->
             listOptions:
                 connector: connector
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assertStreamUnique pMgr, options, ->
-                        id1 = id
-                        options.listOptions.where = '{idA} = ' + id
-                        assertStreamUnique pMgr, options, ->
-                            options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
-                            assertStreamUnique pMgr, options, ->
-                                model.set 'propA1', 'value'
-                                pMgr.insert model, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    id2 = id
-                                    options.listOptions.where = [
-                                        '{idA} = ' + id
-                                        '{propA1} = ' + connector.escape model.get 'propA1'
-                                    ]
-                                    assertStreamUnique pMgr, options, ->
-                                            column = '{propA1}'
-                                            condition1 = column + ' = ' + connector.escape 'propA1Value' 
-                                            condition2 = column +  ' = ' + connector.escape 'value' 
-                                            options.listOptions.where = [
-                                                squel.expr().and( condition1 ).or condition2 
-                                            ]
-                                            count = 0
-                                            assertStream pMgr, options, (pModel)->
-                                                if count is 0
-                                                    assert.strictEqual 'propA1Value', pModel.get 'propA1'
-                                                    assert.strictEqual id1, pModel.get 'idA'
-                                                else if count is 1
-                                                    assert.strictEqual 'value', pModel.get 'propA1'
-                                                    assert.strictEqual id2, pModel.get 'idA'
-                                                else
-                                                    assert.strictEqual count, 1
-                                                count++
-                                            , (err, fields)->
-                                                assert.ifError err
-                                                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
-                                                assertStreamUnique pMgr, options, ->
-                                                    model.set 'propA2', 'value'
-                                                    pMgr.insert model, {connector: connector}, (err, id)->
-                                                        assert.ifError err
-                                                        count = 0
-                                                        assertStream pMgr, options, (pModel)->
-                                                            if count is 0
-                                                                assert.strictEqual 'propA2Value', pModel.get 'propA2'
-                                                            else if count is 1
-                                                                assert.strictEqual 'value', pModel.get 'propA2'
-                                                                assert.strictEqual id, pModel.get 'idA'
-                                                            else
-                                                                assert.strictEqual count, 1
-                                                            count++
-                                                        , (err, fields)->
-                                                            assert.ifError err
-                                                            connector.rollback (err)->
-                                                                assert.ifError err
-                                                                next()
-                                                                return
-                                                            , true
-                                                            return
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        id1 = id2 = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                id1 = id
+                assertStreamUnique pMgr, options, next
                 return
+            (_model, next)->
+                options.listOptions.where = '{idA} = ' + id1
+                assertStreamUnique pMgr, options, next
+                return
+            (_model, next)->
+                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
+                assertStreamUnique pMgr, options, next
+                return
+            (_model, next)->
+                model.set 'propA1', 'value'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                id2 = id
+                options.listOptions.where = [
+                    '{idA} = ' + id
+                    '{propA1} = ' + connector.escape model.get 'propA1'
+                ]
+                assertStreamUnique pMgr, options, next
+                return
+            (_model, next)->
+                column = '{propA1}'
+                condition1 = column + ' = ' + connector.escape 'propA1Value'
+                condition2 = column +  ' = ' + connector.escape 'value'
+                options.listOptions.where = [squel.expr().and(condition1).or(condition2)]
+                count = 0
+                assertStream pMgr, options, (pModel)->
+                    count++
+                    if count is 1
+                        assert.strictEqual 'propA1Value', pModel.get 'propA1'
+                        assert.strictEqual id1, pModel.get 'idA'
+                    else if count is 2
+                        assert.strictEqual 'value', pModel.get 'propA1'
+                        assert.strictEqual id2, pModel.get 'idA'
+                    else
+                        # Make sure not more than 2 rows have been saved
+                        assert.strictEqual count, 2
+                , next
+                return
+            (fields, next)->
+                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
+                assertStreamUnique pMgr, options, next
+                return
+            (_model, next)->
+                model.set 'propA2', 'value'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                count = 0
+                assertStream pMgr, options, (pModel)->
+                    if count is 0
+                        assert.strictEqual 'propA2Value', pModel.get 'propA2'
+                    else if count is 1
+                        assert.strictEqual 'value', pModel.get 'propA2'
+                        assert.strictEqual id, pModel.get 'idA'
+                    else
+                        assert.strictEqual count, 1
+                    count++
+                , next
+                return
+            (fields, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testStreamSubClass = (next)->
@@ -2238,29 +2218,29 @@ task = (config, assert)->
 
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'B'
-                        model: model
-                        letters: ['A', 'B']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertStreamUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'B'
+                    model: model
+                    letters: ['A', 'B']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertStreamUnique pMgr, options, next
                 return
+            (model, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testStreamMixin = (next)->
@@ -2273,29 +2253,28 @@ task = (config, assert)->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'D'
-                        model: model
-                        letters: ['A', 'C', 'D']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertStreamUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'D'
+                    model: model
+                    letters: ['A', 'C', 'D']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertStreamUnique pMgr, options, next
                 return
+            (model, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testStreamMixin2 = (next)->
@@ -2307,29 +2286,29 @@ task = (config, assert)->
 
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'E'
-                        model: model
-                        letters: ['A', 'B', 'C', 'E']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertStreamUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'E'
+                    model: model
+                    letters: ['A', 'B', 'C', 'E']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertStreamUnique pMgr, options, next
                 return
+            (model, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testStar = (next)->
@@ -2352,75 +2331,78 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert modelD, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    modelD.set pMgr.getIdName('ClassD'), id
-                    pMgr.insert modelE, {connector: connector}, (err, id)->
-                        assert.ifError err
-                        modelE.set pMgr.getIdName('ClassE'), id
-                        pMgr.insert modelF, {connector: connector}, (err, id)->
-                            assert.ifError err
-                            options =
-                                classNameLetter: 'F'
-                                model: modelF
-                                letters: ['C', 'F']
-                                listOptions:
-                                    fields: ['propClassD:*', '*', 'propClassE:*']
-                                    where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
-                                    connector: connector
-                            # TODO: make sure only one query is sent .i.e all join done, no sub-queries to get composite elements
-                            assertListUnique pMgr, options, (err, model)->
-                                assertPropSubClass model, modelD, modelE
-                                modelE.set 'propA1', newE1Value
-                                modelF.set 'propC1', newF1Value
-                                modelE.remove pMgr.getIdName 'ClassE'
-                                modelF.remove pMgr.getIdName 'ClassF'
-                                pMgr.insert modelE, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    modelE.set pMgr.getIdName('ClassE'), id
-                                    pMgr.insert modelF, {connector: connector}, (err, id)->
-                                        assert.ifError err
-                                        options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
-                                        assertListUnique pMgr, options, (err, model)->
-                                            assertPropSubClass model, modelD, modelE
-                                            options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
-                                            assertListUnique pMgr, options, (err, model)->
-                                                assertPropSubClass model, modelD, modelE
-                                                options.listOptions.where = [
-                                                    '{propClassE:propA1} = ' + connector.escape newE1Value
-                                                    '{propC1} = ' + connector.escape newF1Value
-                                                ]
-                                                assertListUnique pMgr, options, (err, model)->
-                                                    assertPropSubClass model, modelD, modelE
-                                                    options.listOptions.where = [
-                                                        '{propClassE:propA1} = ' + connector.escape 'propA1Value'
-                                                        '{propC1} = ' + connector.escape newF1Value
-                                                    ]
-                                                    pMgr.list 'ClassF', options.listOptions, (err, models)->
-                                                        assert.ifError err
-                                                        assert.strictEqual models.length, 0
-                                                        connector.rollback (err)->
-                                                            assert.ifError err
-                                                            next()
-                                                            return
-                                                        , true
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        options = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert modelD, {connector: connector}, next
+            (id, next)->
+                modelD.set pMgr.getIdName('ClassD'), id
+                pMgr.insert modelE, {connector: connector}, next
                 return
+            (id, next)->
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        fields: ['propClassD:*', '*', 'propClassE:*']
+                        where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
+                        connector: connector
+                # TODO: make sure only one query is sent .i.e all join done, no sub-queries to get composite elements
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                pMgr.insert modelE, {connector: connector}, next
+                return
+            (id, next)->
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape newE1Value
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape 'propA1Value'
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                pMgr.list 'ClassF', options.listOptions, next
+            (models, next)->
+                assert.strictEqual models.length, 0
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
-        return
 
     testIssue3 = (next)->
         logger.debug 'begin testIssue3'
@@ -2429,7 +2411,7 @@ task = (config, assert)->
             logger.debug 'finish testIssue3'
             _next()
 
-        # Nested condition on non selected field crash
+        # Nested condition on non selected field cause crash
         # Mixin parent causes inner join instead of left join for left join on child
         # Select a was select a:*
         
@@ -2445,33 +2427,35 @@ task = (config, assert)->
                 '{author:country:property:code} = ' + connector.escape 'country.CAMEROUN'
             ]
             order: '{id}' # Important. For an unknown reason, second query is ordered
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
 
-                pMgr.list 'User', options, (err, models)->
-                    assert.ifError err
-                    assert.ok models.length > 0
-                    pModels = models
-                    options.fields = [
-                        'id'
-                        'author:country:property:*'
-                        'author:language:property:*'
-                    ]
+        pModels = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.list 'User', options, next
+            (models, next)-> 
+                assert.ok models.length > 0
+                pModels = models
+                options.fields = [
+                    'id'
+                    'author:country:property:*'
+                    'author:language:property:*'
+                ]
 
-                    pMgr.list 'User', options, (err, models)->
-                        for model, index in models
-                            assert.strictEqual 'country.CAMEROUN', model.get('author').get('country').get('property').get('code')
-                            assert.strictEqual model.get('id'), pModels[index].get('id')
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+                pMgr.list 'User', options, next
                 return
+            (models, next)->
+                for model, index in models
+                    assert.strictEqual 'country.CAMEROUN', model.get('author').get('country').get('property').get('code')
+                    assert.strictEqual model.get('id'), pModels[index].get('id')
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
@@ -2516,24 +2500,23 @@ task = (config, assert)->
                         'key'
                     ]
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-
-                pMgr.list 'User', options, (err, models)->
-                    assert.ifError err
-                    assert.ok models.length > 0
-                    for model in models
-                        assert.strictEqual strCode, model.get('country').get('property').get('code')
-                        assert.strictEqual strCode, model.get('translation').get('property').get('code')
-                    connector.rollback (err)->
-                        assert.ifError err
-                        next()
-                        return
-                    , true
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.list 'User', options, next
+            (models, next)->
+                assert.ok models.length > 0
+                for model in models
+                    assert.strictEqual strCode, model.get('country').get('property').get('code')
+                    assert.strictEqual strCode, model.get('translation').get('property').get('code')
+                next()
                 return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
@@ -2578,27 +2561,27 @@ task = (config, assert)->
                     type: 'left'
                     condition: '{LNG, id} = {ctry, language}'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-
-                pMgr.list 'User', options, (err, models)->
-                    assert.ifError err
-                    assert.ok models.length > 0
-                    for model in models
-                        assert.strictEqual strCode, model.country.property.code
-                        assert.strictEqual strCode, model.ctry.property.code
-                    connector.rollback (err)->
-                        assert.ifError err
-                        next()
-                        return
-                    , true
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.list 'User', options, next
+            (models, next)->
+                assert.ok models.length > 0
+                for model in models
+                    assert.strictEqual strCode, model.country.property.code
+                    assert.strictEqual strCode, model.ctry.property.code
+                next()
                 return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
+    # order, group, having, limit, offset
     testSelectParts = (next)->
         logger.debug 'begin testSelectParts'
         _next = next
@@ -2647,32 +2630,32 @@ task = (config, assert)->
             ]
             limit: 10
             offset: 0
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
 
-                pMgr.list 'User', options, (err, models)->
-                    assert.ifError err
-                    assert.ok models.length > 0
-                    for model in models
-                        assert.strictEqual strCode, model.country.property.code
-                        assert.strictEqual strCode, model.ctry.property.code
-                    connector.rollback (err)->
-                        assert.ifError err
-                        next()
-                        return
-                    , true
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.list 'User', options, next
+            (models, next)->
+                assert.ok models.length > 0
+                for model in models
+                    assert.strictEqual strCode, model.country.property.code
+                    assert.strictEqual strCode, model.ctry.property.code
+                next()
                 return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
-    testUnique = (next)->
-        logger.debug 'begin testUnique'
+    testUniqueConstraint = (next)->
+        logger.debug 'begin testUniqueConstraint'
         _next = next
         next = ->
-            logger.debug 'finish testUnique'
+            logger.debug 'finish testUniqueConstraint'
             _next()
 
         # unique constraint used on initialize, update, delete => where must be on properties
@@ -2681,71 +2664,83 @@ task = (config, assert)->
         # update and delete, for each unique constraint, take the first one that has all it's fields not null
         
         [pMgr, model, connector, Model] = setUpMapping()
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
 
+        id0 = id1 = id2 = 0
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)->
                 model.className = 'ClassG'
                 model.set 'propG1', 'valueG10'
                 model.set 'propG2', 'valueG20'
                 model.set 'propG3', 'valueG30'
-                pMgr.insert model, {connector: connector}, (err, id0)->
-                    assert.ifError err
-                    model.set 'propG1', 'valueG11'
-                    model.set 'propG2', 'valueG21'
-                    model.set 'propG3', 'valueG31'
-                    pMgr.insert model, {connector: connector}, (err, id1)->
-                        assert.ifError err
-                        model.set 'propG1', 'valueG12'
-                        model.set 'propG2', 'valueG22'
-                        model.set 'propG3', 'valueG32'
-                        pMgr.insert model, {connector: connector}, (err, id2)->
-                            assert.ifError err
-                            model.set 'propG1', 'valueG10'
-                            model.set 'propG2', 'valueG20'
-                            pMgr.initialize model, {connector: connector}, (err, models)->
-                                assert.ifError err
-                                assert.strictEqual id0, model.get 'idG'
-                                model.remove 'idG'
-                                model.set 'propG1', 'valueG11'
-                                model.set 'propG2', 'valueG21'
-                                model.set 'propG3', 'valueG34'
-                                pMgr.update model, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    assert.strictEqual id1, id
-                                    model.remove 'idG'
-                                    model.set 'propG1', 'valueG12'
-                                    model.set 'propG2', 'valueG22'
-                                    pMgr.delete model, {connector: connector}, (err)->
-                                        assert.ifError err
-                                        options =
-                                            type: 'json'
-                                            connector: connector
-                                            order: '{idG}'
-                                        pMgr.list model.className, options, (err, models)->
-                                            assert.ifError err
-                                            assert.strictEqual 2, models.length
-                                            assert.strictEqual id0, models[0].idG
-                                            assert.strictEqual id1, models[1].idG
-                                            connector.rollback (err)->
-                                                assert.ifError err
-                                                next()
-                                                return
-                                            , true
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+                pMgr.insert model, {connector: connector}, next
                 return
+            (id, next)->
+                id0 = id
+                model.set 'propG1', 'valueG11'
+                model.set 'propG2', 'valueG21'
+                model.set 'propG3', 'valueG31'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                id1 = id
+                model.set 'propG1', 'valueG12'
+                model.set 'propG2', 'valueG22'
+                model.set 'propG3', 'valueG32'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                id2 = id
+                model.set 'propG1', 'valueG10'
+                model.set 'propG2', 'valueG20'
+                pMgr.initialize model, {connector: connector}, next
+                return
+            (models, next)->
+                assert.strictEqual id0, model.get pMgr.getIdName model.className
+                model.remove pMgr.getIdName model.className
+                model.set 'propG1', 'valueG11'
+                model.set 'propG2', 'valueG21'
+                model.set 'propG3', 'valueG34'
+                pMgr.update model, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual id1, id
+                model.remove pMgr.getIdName model.className
+                pMgr.save model, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual id1, id
+                model.remove pMgr.getIdName model.className
+                model.set 'propG1', 'valueG12'
+                model.set 'propG2', 'valueG22'
+                pMgr.delete model, {connector: connector}, next
+                return
+            (res, next)->
+                options =
+                    type: 'json'
+                    connector: connector
+                    order: '{idG}'
+                pMgr.list model.className, options, next
+                return
+            (models, next)->
+                assert.strictEqual 2, models.length
+                assert.strictEqual id0, models[0].idG
+                assert.strictEqual id1, models[1].idG
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
-    # update, delete, save using unique constraint
-    # issue: update on subclass with no properties
+    # issue: update on subclass with no owned properties
     # initialize model i.e. use database value to fill model values.
     # initializeOrInsert
     # OtherStream with committed transactions
@@ -2789,7 +2784,7 @@ task = (config, assert)->
         testJoin
         testIssue4
         testSelectParts
-        testUnique
+        testUniqueConstraint
         tearDown
     ]
 

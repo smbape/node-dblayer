@@ -512,7 +512,7 @@ class SelectQuery
         rowMap = new RowMap className, pMgr, _.extend {}, options, select: select
 
         # check
-        query = @toString()
+        @toString()
 
     stream: (streamConnector, listConnector, callback, done)->
         rowMap = @getRowMap()
@@ -787,7 +787,7 @@ class UpdateQuery
         #         if block.fields.length is 0
         #             hasNoUpdate = true
         #         break
-        query = @toString()
+        @toString()
 
     execute: (connector, callback)->
         if @toString is @oriToString
@@ -944,7 +944,7 @@ class DeleteQuery
                 return params
 
         # check
-        query = @toString()
+        @toString()
 
     execute: (connector, callback)->
         if @toString is @oriToString
