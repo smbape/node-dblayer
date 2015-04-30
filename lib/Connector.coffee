@@ -102,7 +102,7 @@ module.exports = class Connector extends EventEmitter
         @state = state if state?
         @resourceSem.semTake settings
 
-    _giveResource: ()->
+    _giveResource: ->
         @state = STATES.AVAILABLE if @state isnt STATES.INVALID
         @resourceSem.semGive()
 
@@ -113,16 +113,16 @@ module.exports = class Connector extends EventEmitter
             return
 
         @_takeResource STATES.ACQUIRE, (err)=>
-            return ret(err) if err
+            return ret err if err
             @_acquire ret
             return
 
     _acquire: (callback)->
         # check if connection has already been acquired
-        return callback() if @savepoints > 0
+        return callback null if @savepoints > 0
 
         @pool.acquire (err, connection)=>
-            return callback(err) if err
+            return callback err if err
             @_addSavePoint connection
             @acquireTimeout = setTimeout =>
                 @_takeResource STATES.FORCE_RELEASE,
@@ -139,7 +139,7 @@ module.exports = class Connector extends EventEmitter
                         , true
             , @timeout
             logger.trace 'acquire connection'
-            callback()
+            callback null
         return
 
     query: (query, callback, options)->
@@ -149,12 +149,12 @@ module.exports = class Connector extends EventEmitter
             return
 
         @_takeResource STATES.QUERY, (err)=>
-            return ret(err) if err
+            return ret err if err
 
             if @savepoints is 0
                 logger.trace 'automatic acquire for query'
                 return @_acquire (err)=>
-                    return ret(err) if err
+                    return ret err if err
                     @_query query, (err)=>
                         args = Array::slice.call arguments, 0
                         logger.trace 'automatic release for query'
@@ -185,12 +185,12 @@ module.exports = class Connector extends EventEmitter
             return
 
         @_takeResource STATES.STREAM, (err)=>
-            return ret(err) if err
+            return ret err if err
 
             if @savepoints is 0
                 logger.trace 'automatic acquire for stream'
                 return @_acquire (err)=>
-                    return ret(err) if err
+                    return ret err if err
                     logger.trace 'automatic release for stream'
                     @_stream query, callback, (err)=>
                         args = Array::slice.call arguments, 0
@@ -222,7 +222,7 @@ module.exports = class Connector extends EventEmitter
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.START_TRANSACTION, (err)=>
-            return ret(err) if err
+            return ret err if err
 
             if @savepoints is 0
                 # No automatic acquire because there cannot be an automatic release
@@ -252,7 +252,7 @@ module.exports = class Connector extends EventEmitter
             return callback err if err
             logger.trace 'begin transaction'
             @_addSavePoint()
-            callback()
+            callback null
             return
         return
 
@@ -275,9 +275,10 @@ module.exports = class Connector extends EventEmitter
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.ROLLBACK, (err)=>
-            return ret(err) if err
-            return ret() if @savepoints is 0
+            return ret err if err
+            return ret null if @savepoints is 0
             @_rollback ret, all
+
     _rollback: (callback, all, errors)->
         if @savepoints is 1
             return @_release callback, errors if all
@@ -304,7 +305,7 @@ module.exports = class Connector extends EventEmitter
                     errors.push err
 
             return @_rollback(callback, all, errors) if all
-            callback(errors)
+            callback errors
 
     commit: (callback, all = false)->
         if typeof callback is 'boolean'
@@ -325,9 +326,10 @@ module.exports = class Connector extends EventEmitter
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.COMMIT, (err)=>
-            return ret(err) if err
-            return ret() if @savepoints is 0
+            return ret err if err
+            return ret null if @savepoints is 0
             @_commit ret, all
+
     _commit: (callback, all, errors)->
         if @savepoints is 1
             return @_release callback, errors if all
@@ -355,7 +357,7 @@ module.exports = class Connector extends EventEmitter
             @_removeSavepoint()
             return @_commit(callback, all, errors) if all
             # logger.trace '[query] - DONE: ' + query
-            callback()
+            callback null
 
     release: (callback)->
         ret = =>
@@ -363,8 +365,8 @@ module.exports = class Connector extends EventEmitter
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.RELEASE, (err)=>
-            return ret(err) if err
-            return ret() if @savepoints is 0
+            return ret err if err
+            return ret null if @savepoints is 0
             if @savepoints isnt 1
                 err = new Error 'There is a begining transaction. End it before release'
                 err.code = 'NO_RELEASE'

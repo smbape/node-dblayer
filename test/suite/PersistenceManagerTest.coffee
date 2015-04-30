@@ -981,13 +981,13 @@ task = (config, assert)->
             .where connector.escapeId(definition.id.column) + ' = ?', id
             .toString()
         connector.query query, (err, res)->
-            assert.ifError err
+            return next err if err
             assert.strictEqual res.rows.length, 1
             row = res.rows[0]
             assert.strictEqual row['PROP_' + classNameLetter + '1'], model.get 'prop' + classNameLetter + '1'
             assert.strictEqual row['PROP_' + classNameLetter + '2'], model.get 'prop' + classNameLetter + '2'
             assert.strictEqual row['PROP_' + classNameLetter + '3'], model.get 'prop' + classNameLetter + '3'
-            next row
+            next err, row
             return
         return
 
@@ -1170,21 +1170,17 @@ task = (config, assert)->
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassA'
 
-        connector.acquire (err)->
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)-> assertPersist pMgr, model, 'A', id, connector, next
+            (row, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
             assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assertPersist pMgr, model, 'A', id, connector, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
-                return
+            next()
             return
         return
 
@@ -1199,23 +1195,18 @@ task = (config, assert)->
         model.className = 'ClassB'
         query = pMgr.getInsertQuery model, {connector: connector, dialect: connector.getDialect()}
 
-        connector.acquire (err)->
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> query.execute connector, next
+            (id, next)-> assertPersist pMgr, model, 'B', id, connector, next
+            (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
+            (row, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
             assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                query.execute connector, (err, id)->
-                    assert.ifError err
-                    assertPersist pMgr, model, 'B', id, connector, (row)->
-                        assertPersist pMgr, model, 'A', row, connector, (row)->
-                            connector.rollback (err)->
-                                assert.ifError err
-                                next()
-                                return
-                            , true
-                            return
-                        return
-                    return
-                return
+            next()
             return
         return
 
@@ -1228,27 +1219,26 @@ task = (config, assert)->
 
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassD'
+        rowD = null
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assertPersist pMgr, model, 'D', id, connector, (rowD)->
-                        assertPersist pMgr, model, 'C', rowD, connector, (rowC)->
-                            assertPersist pMgr, model, 'A', rowD, connector, (rowA)->
-                                connector.rollback (err)->
-                                    assert.ifError err
-                                    next()
-                                    return
-                                , true
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)-> assertPersist pMgr, model, 'D', id, connector, next
+            (row, next)->
+                rowD = row
+                assertPersist pMgr, model, 'C', row, connector, next
                 return
+            (row, next)-> assertPersist pMgr, model, 'A', rowD, connector, next
+            (row, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testInsertMixin2 = (next)->
@@ -1261,28 +1251,27 @@ task = (config, assert)->
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassE'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assertPersist pMgr, model, 'E', id, connector, (rowE)->
-                        assertPersist pMgr, model, 'C', rowE, connector, (rowC)->
-                            assertPersist pMgr, model, 'B', rowE, connector, (rowB)->
-                                assertPersist pMgr, model, 'A', rowB, connector, (rowA)->
-                                    connector.rollback (err)->
-                                        assert.ifError err
-                                        next()
-                                        return
-                                    , true
-                                    return
-                                return
-                            return
-                        return
-                    return
+        rowE = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)-> assertPersist pMgr, model, 'E', id, connector, next
+            (row, next)->
+                rowE = row
+                assertPersist pMgr, model, 'C', row, connector, next
                 return
+            (row, next)-> assertPersist pMgr, model, 'C', row, connector, next
+            (row, next)-> assertPersist pMgr, model, 'B', rowE, connector, next
+            (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
+            (row, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     assertList = (pMgr, options, next)->
@@ -1291,9 +1280,9 @@ task = (config, assert)->
 
         className = 'Class' + classNameLetter
         pMgr.list className, listOptions, (err, models)->
-            assert.ifError err
+            return next err if err
             assert.ok models.length > 0
-            next models
+            next err, models
             return
         return
 
@@ -1302,14 +1291,15 @@ task = (config, assert)->
         model = options.model
         letters = options.letters or [classNameLetter]
 
-        assertList pMgr, options, (models)->
+        assertList pMgr, options, (err, models)->
+            return next err if err
             assert.strictEqual models.length, 1
             pModel = models[0]
             for letter in letters
                 for index in [1..3]
                     prop = 'prop' + letter + index
                     assert.strictEqual model.get(prop), pModel.get prop
-            next models[0]
+            next err, models[0]
             return
         return
 
@@ -1329,65 +1319,70 @@ task = (config, assert)->
             listOptions:
                 connector: connector
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    assertListUnique pMgr, options, ->
-                        id1 = id
-                        options.listOptions.where = '{idA} = ' + id
-                        assertListUnique pMgr, options, ->
-                            options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
-                            assertListUnique pMgr, options, ->
-                                model.set 'propA1', 'value'
-                                pMgr.insert model, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    id2 = id
-                                    options.listOptions.where = [
-                                        '{idA} = ' + id
-                                        '{propA1} = ' + connector.escape model.get 'propA1'
-                                    ]
-                                    assertListUnique pMgr, options, ->
-                                            column = '{propA1}'
-                                            condition1 = column + ' = ' + connector.escape 'propA1Value' 
-                                            condition2 = column +  ' = ' + connector.escape 'value' 
-                                            options.listOptions.where = [
-                                                squel.expr().and( condition1 ).or condition2 
-                                            ]
-                                            assertList pMgr, options, (models)->
-                                                assert.strictEqual models.length, 2
-                                                assert.strictEqual 'propA1Value', models[0].get 'propA1'
-                                                assert.strictEqual 'value', models[1].get 'propA1'
-                                                assert.strictEqual id1, models[0].get 'idA'
-                                                assert.strictEqual id2, models[1].get 'idA'
-                                                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
-                                                assertListUnique pMgr, options, ->
-                                                    model.set 'propA2', 'value'
-                                                    pMgr.insert model, {connector: connector}, (err, id)->
-                                                        assert.ifError err
-                                                        assertList pMgr, options, (models)->
-                                                            assert.strictEqual models.length, 2
-                                                            assert.strictEqual 'propA2Value', models[0].get 'propA2'
-                                                            assert.strictEqual 'value', models[1].get 'propA2'
-                                                            connector.rollback (err)->
-                                                                assert.ifError err
-                                                                next()
-                                                                return
-                                                            , true
-                                                            return
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        id1 = id2 = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                id1 = id
+                assertListUnique pMgr, options, next
                 return
+            (_model, next)->
+                options.listOptions.where = '{idA} = ' + id1
+                assertListUnique pMgr, options, next
+                return
+            (_model, next)->
+                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
+                assertListUnique pMgr, options, next
+                return
+            (_model, next)->
+                model.set 'propA1', 'value'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                id2 = id
+                options.listOptions.where = [
+                    '{idA} = ' + id
+                    '{propA1} = ' + connector.escape model.get 'propA1'
+                ]
+                assertListUnique pMgr, options, next
+                return
+            (_model, next)->
+                column = '{propA1}'
+                condition1 = column + ' = ' + connector.escape 'propA1Value' 
+                condition2 = column +  ' = ' + connector.escape 'value' 
+                options.listOptions.where = [
+                    squel.expr().and( condition1 ).or condition2 
+                ]
+                assertList pMgr, options, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 2
+                assert.strictEqual 'propA1Value', models[0].get 'propA1'
+                assert.strictEqual 'value', models[1].get 'propA1'
+                assert.strictEqual id1, models[0].get 'idA'
+                assert.strictEqual id2, models[1].get 'idA'
+                options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
+                assertListUnique pMgr, options, next
+                return
+            (_model, next)->
+                model.set 'propA2', 'value'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)-> assertList pMgr, options, next
+            (models, next)->
+                assert.strictEqual models.length, 2
+                assert.strictEqual 'propA2Value', models[0].get 'propA2'
+                assert.strictEqual 'value', models[1].get 'propA2'
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
@@ -1400,29 +1395,29 @@ task = (config, assert)->
 
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'B'
-                        model: model
-                        letters: ['A', 'B']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertListUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'B'
+                    model: model
+                    letters: ['A', 'B']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertListUnique pMgr, options, next
                 return
+            (models, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testListMixin = (next)->
@@ -1435,29 +1430,28 @@ task = (config, assert)->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'D'
-                        model: model
-                        letters: ['A', 'C', 'D']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertListUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'D'
+                    model: model
+                    letters: ['A', 'C', 'D']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertListUnique pMgr, options, next
                 return
+            (models, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testListMixin2 = (next)->
@@ -1469,29 +1463,29 @@ task = (config, assert)->
 
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert model, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    options =
-                        classNameLetter: 'E'
-                        model: model
-                        letters: ['A', 'B', 'C', 'E']
-                        listOptions:
-                            where: '{idA} = ' + id
-                            connector: connector
-                    assertListUnique pMgr, options, ->
-                        connector.rollback (err)->
-                            assert.ifError err
-                            next()
-                            return
-                        , true
-                        return
-                    return
+
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert model, {connector: connector}, next
+            (id, next)->
+                options =
+                    classNameLetter: 'E'
+                    model: model
+                    letters: ['A', 'B', 'C', 'E']
+                    listOptions:
+                        where: '{idA} = ' + id
+                        connector: connector
+                assertListUnique pMgr, options, next
                 return
+            (models, next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     assertPropSubClass = (modelF, modelD, modelE)->
@@ -1534,71 +1528,76 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
-        connector.acquire (err)->
-            assert.ifError err
-            connector.begin (err)->
-                assert.ifError err
-                pMgr.insert modelD, {connector: connector}, (err, id)->
-                    assert.ifError err
-                    modelD.set pMgr.getIdName('ClassD'), id
-                    pMgr.insert modelE, {connector: connector}, (err, id)->
-                        assert.ifError err
-                        modelE.set pMgr.getIdName('ClassE'), id
-                        pMgr.insert modelF, {connector: connector}, (err, id)->
-                            assert.ifError err
-                            options =
-                                classNameLetter: 'F'
-                                model: modelF
-                                letters: ['C', 'F']
-                                listOptions:
-                                    where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
-                                    connector: connector
-                            assertListUnique pMgr, options, (model)->
-                                assertPropSubClass model, modelD, modelE
-                                modelE.set 'propA1', newE1Value
-                                modelF.set 'propC1', newF1Value
-                                modelE.remove pMgr.getIdName 'ClassE'
-                                modelF.remove pMgr.getIdName 'ClassF'
-                                pMgr.insert modelE, {connector: connector}, (err, id)->
-                                    assert.ifError err
-                                    modelE.set pMgr.getIdName('ClassE'), id
-                                    pMgr.insert modelF, {connector: connector}, (err, id)->
-                                        assert.ifError err
-                                        options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
-                                        assertListUnique pMgr, options, (model)->
-                                            assertPropSubClass model, modelD, modelE
-                                            options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
-                                            assertListUnique pMgr, options, (model)->
-                                                assertPropSubClass model, modelD, modelE
-                                                options.listOptions.where = [
-                                                    '{propClassE:propA1} = ' + connector.escape newE1Value
-                                                    '{propC1} = ' + connector.escape newF1Value
-                                                ]
-                                                assertListUnique pMgr, options, (model)->
-                                                    assertPropSubClass model, modelD, modelE
-                                                    options.listOptions.where = [
-                                                        '{propClassE:propA1} = ' + connector.escape 'propA1Value'
-                                                        '{propC1} = ' + connector.escape newF1Value
-                                                    ]
-                                                    pMgr.list 'ClassF', options.listOptions, (err, models)->
-                                                        assert.ifError err
-                                                        assert.strictEqual models.length, 0
-                                                        connector.rollback (err)->
-                                                            assert.ifError err
-                                                            next()
-                                                            return
-                                                        , true
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
-                    return
+        options = null
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)-> pMgr.insert modelD, {connector: connector}, next
+            (id, next)->
+                modelD.set pMgr.getIdName('ClassD'), id
+                pMgr.insert modelE, {connector: connector}, next
                 return
+            (id, next)->
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
+                        connector: connector
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                pMgr.insert modelE, {connector: connector}, next
+                return
+            (id, next)->
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape newE1Value
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape 'propA1Value'
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                pMgr.list 'ClassF', options.listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 0
+                next()
+                return
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
         return
 
@@ -1684,7 +1683,7 @@ task = (config, assert)->
                                                 connector: connector
                                                 type: 'json'
 
-                                        assertList pMgr, options, (models)->
+                                        assertList pMgr, options, (err, models)->
                                             assert.strictEqual models.length, 1
                                             model = models[0]
                                             assert.ok _.isPlainObject model
@@ -1769,7 +1768,7 @@ task = (config, assert)->
                                                                 '{propC1} = ' + connector.escape newF1Value
                                                             ]
                                                             connector: connector
-                                                    assertListUnique pMgr, options, (model)->
+                                                    assertListUnique pMgr, options, (err, model)->
                                                         assertPropSubClass model, modelD, modelE
                                                         connector.rollback (err)->
                                                             assert.ifError err
@@ -1924,7 +1923,6 @@ task = (config, assert)->
                     assert.ifError err
                     assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
                     logger.trace 'save modelE'
-                    debugger
                     pMgr.save modelE, {connector: connector}, (err, id)->
                         assert.ifError err
                         assert.strictEqual id, modelE.get pMgr.getIdName modelE.className
@@ -1938,7 +1936,6 @@ task = (config, assert)->
                             modelE.remove pMgr.getIdName 'ClassE'
                             modelF.remove pMgr.getIdName 'ClassF'
                             logger.trace 'save modelD 2'
-                            debugger
                             pMgr.save modelD, {connector: connector}, (err, id)->
                                 assert.ifError err
                                 assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
@@ -1973,7 +1970,7 @@ task = (config, assert)->
                                                                 '{propC1} = ' + connector.escape newF1Value
                                                             ]
                                                             connector: connector
-                                                    assertListUnique pMgr, options, (model)->
+                                                    assertListUnique pMgr, options, (err, model)->
                                                         assertPropSubClass model, modelD, modelE
                                                         connector.rollback (err)->
                                                             assert.ifError err
@@ -2032,7 +2029,7 @@ task = (config, assert)->
                                     '{idC} = ' + id
                                 ]
                                 connector: connector
-                        assertListUnique pMgr, options, (model)->
+                        assertListUnique pMgr, options, (err, model)->
                             assertPropSubClass model, modelD
                             connector.rollback (err)->
                                 assert.ifError err
@@ -2090,7 +2087,7 @@ task = (config, assert)->
                                 ]
                                 connector: connector
                                 type: 'json'
-                        assertList pMgr, options, (models)->
+                        assertList pMgr, options, (err, models)->
                             assert.strictEqual models.length, 1
                             model = models[0]
                             assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
@@ -2376,7 +2373,7 @@ task = (config, assert)->
                                     where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
                                     connector: connector
                             # TODO: make sure only one query is sent .i.e all join done, no sub-queries to get composite elements
-                            assertListUnique pMgr, options, (model)->
+                            assertListUnique pMgr, options, (err, model)->
                                 assertPropSubClass model, modelD, modelE
                                 modelE.set 'propA1', newE1Value
                                 modelF.set 'propC1', newF1Value
@@ -2388,16 +2385,16 @@ task = (config, assert)->
                                     pMgr.insert modelF, {connector: connector}, (err, id)->
                                         assert.ifError err
                                         options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
-                                        assertListUnique pMgr, options, (model)->
+                                        assertListUnique pMgr, options, (err, model)->
                                             assertPropSubClass model, modelD, modelE
                                             options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
-                                            assertListUnique pMgr, options, (model)->
+                                            assertListUnique pMgr, options, (err, model)->
                                                 assertPropSubClass model, modelD, modelE
                                                 options.listOptions.where = [
                                                     '{propClassE:propA1} = ' + connector.escape newE1Value
                                                     '{propC1} = ' + connector.escape newF1Value
                                                 ]
-                                                assertListUnique pMgr, options, (model)->
+                                                assertListUnique pMgr, options, (err, model)->
                                                     assertPropSubClass model, modelD, modelE
                                                     options.listOptions.where = [
                                                         '{propClassE:propA1} = ' + connector.escape 'propA1Value'
