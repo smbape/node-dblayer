@@ -43,8 +43,13 @@ PersistenceManager::dialects =
             tableAliasQuoteCharacter: '"'
 
 PersistenceManager::getSquelOptions = (dialect)->
-    if @dialects.hasOwnProperty dialect
-        _.clone @dialects[dialect].squelOptions
+    if @ instanceof PersistenceManager
+        instance = @
+    else
+        instance = PersistenceManager::
+
+    if instance.dialects.hasOwnProperty dialect
+        _.clone instance.dialects[dialect].squelOptions
 
 PersistenceManager::decorateInsert = (dialect, query, column)->
     if @dialects.hasOwnProperty(dialect) and 'function' is typeof @dialects[dialect].decorateInsert
@@ -252,7 +257,7 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
             if definition.constraints.unique.length isnt 0
                 attributes = {}
                 # check unique constraints properties
-                for constraint in definition.constraints.unique
+                for constraint, index in definition.constraints.unique
                     isSetted = true
                     for prop in constraint
                         value = model.get prop

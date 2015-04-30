@@ -2747,6 +2747,7 @@ task = (config, assert)->
             return
         return
 
+    # update, delete, save using unique constraint
     # issue: update on subclass with no properties
     # initialize model i.e. use database value to fill model values.
     # initializeOrInsert
