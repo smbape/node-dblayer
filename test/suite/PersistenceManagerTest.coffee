@@ -751,6 +751,7 @@ task = (config, assert)->
         assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (idC, colIdA) VALUES (\'idCValue\', \'idAValue\')'
         
         # prop.className -> id.className -> id.className
+        # 
         mapping['ClassB'] =
             table: 'TableB'
             id:
@@ -976,7 +977,7 @@ task = (config, assert)->
         if _.isObject id
             id = id[definition.id.column]
         query = squel
-            .select(pMgr.getSquelOptions(connector.getDialect()))
+            .select pMgr.getSquelOptions connector.getDialect()
             .from connector.escapeId definition.table
             .where connector.escapeId(definition.id.column) + ' = ?', id
             .toString()
@@ -994,23 +995,7 @@ task = (config, assert)->
     setUpMapping = ->
         mapping = {}
         modelId = 0
-        class Model
-            constructor: ()->
-                @id = ++modelId
-                @attributes = {}
-            clone: ->
-                _clone = new Model()
-                _clone.attributes = _.clone @attributes
-                _clone
-            set: (prop, value)->
-                @attributes[prop] = value
-                return @
-            get: (prop)->
-                @attributes[prop]
-            remove: (prop)->
-                delete @attributes[prop]
-            toJSON: ->
-                @attributes
+        Model = PersistenceManager::Model
 
         class ModelA extends Model
             className: 'ClassA'
@@ -1133,11 +1118,31 @@ task = (config, assert)->
                 propG2: 'PROP_G2'
                 propG3: 'PROP_G3'
 
+        class ModelH extends Model
+            className: 'ClassH'
+
+        mapping['ClassH'] =
+            ctor: ModelH
+            table: 'CLASS_H'
+            mixins: ['ClassD', 'ClassG']
+            properties:
+                propH1: 'PROP_H1'
+                propH2: 'PROP_H2'
+                propH3: 'PROP_H3'
+
+        class ModelI extends Model
+            className: 'ClassI'
+
+        mapping['ClassI'] =
+            ctor: ModelI
+            table: 'CLASS_I'
+            id: className: 'ClassG'
+
         pMgr = new PersistenceManager mapping
 
         model = new Model()
 
-        for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+        for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
             for i in [1..3] by 1
                 model.set "prop#{letter}#{i}", "prop#{letter}#{i}Value"
 
@@ -1151,6 +1156,8 @@ task = (config, assert)->
         next = ->
             logger.debug 'finish testGetColumn'
             _next()
+
+        # check get column names
 
         [pMgr, model, connector, Model] = setUpMapping()
         assert.strictEqual pMgr.getColumn('ClassA', 'idA'), 'A_ID'
@@ -1167,6 +1174,8 @@ task = (config, assert)->
             logger.debug 'finish testInsertBasic'
             _next()
 
+        # insert on class with no relation should work
+        
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1191,6 +1200,8 @@ task = (config, assert)->
             logger.debug 'finish testInsertSubClass'
             _next()
 
+        # insert on class with parent should also insert in parent table with the correct id
+        
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassB'
         query = pMgr.getInsertQuery model, {connector: connector, dialect: connector.getDialect()}
@@ -1217,6 +1228,9 @@ task = (config, assert)->
             logger.debug 'finish testInsertMixin'
             _next()
 
+        # insert on class with mixins should also insert in mixins table with the correct id
+        # one final parent and one final mixin
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassD'
         rowD = null
@@ -1228,8 +1242,10 @@ task = (config, assert)->
             (id, next)-> assertPersist pMgr, model, 'D', id, connector, next
             (row, next)->
                 rowD = row
+                # Mixin must have the correct id
                 assertPersist pMgr, model, 'C', row, connector, next
                 return
+            # Inherited parent must have the correct id
             (row, next)-> assertPersist pMgr, model, 'A', rowD, connector, next
             (row, next)-> connector.rollback next, true
         ]
@@ -1248,6 +1264,9 @@ task = (config, assert)->
             logger.debug 'finish testInsertMixin2'
             _next()
 
+        # insert on class with mixins should also insert in mixins table with the correct id
+        # one parent that has inheritance and one final mixin
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassE'
 
@@ -1259,10 +1278,14 @@ task = (config, assert)->
             (id, next)-> assertPersist pMgr, model, 'E', id, connector, next
             (row, next)->
                 rowE = row
+                # Mixin must have the correct id
                 assertPersist pMgr, model, 'C', row, connector, next
                 return
-            (row, next)-> assertPersist pMgr, model, 'C', row, connector, next
+
+            # Inherited parent must have the correct id
             (row, next)-> assertPersist pMgr, model, 'B', rowE, connector, next
+
+            # Inherited parent of inherited parent must have the correct id
             (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
             (row, next)-> connector.rollback next, true
         ]
@@ -1310,6 +1333,9 @@ task = (config, assert)->
             logger.debug 'finish testListBasic'
             _next()
 
+        # Test list of inserted items in a with no relations
+        # Test where condition
+        
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1326,13 +1352,16 @@ task = (config, assert)->
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 id1 = id
+                # The inserted item should be the only one in database
                 assertListUnique pMgr, options, next
                 return
             (_model, next)->
+                # The inserted item id should be the returned one by insert method
                 options.listOptions.where = '{idA} = ' + id1
                 assertListUnique pMgr, options, next
                 return
             (_model, next)->
+                # Properties must have been saved
                 options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
                 assertListUnique pMgr, options, next
                 return
@@ -1346,9 +1375,11 @@ task = (config, assert)->
                     '{idA} = ' + id
                     '{propA1} = ' + connector.escape model.get 'propA1'
                 ]
+                # Inserting new items should not changed properties of existing items
                 assertListUnique pMgr, options, next
                 return
             (_model, next)->
+                # Test where condition
                 column = '{propA1}'
                 condition1 = column + ' = ' + connector.escape 'propA1Value' 
                 condition2 = column +  ' = ' + connector.escape 'value' 
@@ -1358,26 +1389,49 @@ task = (config, assert)->
                 assertList pMgr, options, next
                 return
             (models, next)->
+                # query should returned both inserted items
                 assert.strictEqual models.length, 2
+
+                # returned properties must be correct
                 assert.strictEqual 'propA1Value', models[0].get 'propA1'
                 assert.strictEqual 'value', models[1].get 'propA1'
                 assert.strictEqual id1, models[0].get 'idA'
                 assert.strictEqual id2, models[1].get 'idA'
+
+                # Inertiing new items should not insert other items
                 options.listOptions.where = '{propA1} = ' + connector.escape model.get 'propA1'
                 assertListUnique pMgr, options, next
                 return
             (_model, next)->
+                # Insert new item with propA2 changed
                 model.set 'propA2', 'value'
                 pMgr.insert model, {connector: connector}, next
                 return
             (id, next)-> assertList pMgr, options, next
             (models, next)->
+                # There should be only 2 items with the same propA1 value
                 assert.strictEqual models.length, 2
                 assert.strictEqual 'propA2Value', models[0].get 'propA2'
                 assert.strictEqual 'value', models[1].get 'propA2'
-                next()
+
+                delete options.listOptions.where
+                assertList pMgr, options, next
                 return
-            (next)-> connector.rollback next, true
+            (models, next)->
+                # There should be only 3 items
+                assert.strictEqual models.length, 3
+
+                # insert class with no id
+                model.className = 'ClassH'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                # H has no id
+                assert.ok !id
+                options.classNameLetter = 'H'
+                assertListUnique pMgr, options, next
+                return
+            (_model, next)-> connector.rollback next, true
         ]
 
         async.waterfall tasks, (err)->
@@ -1392,6 +1446,8 @@ task = (config, assert)->
         next = ->
             logger.debug 'finish testListSubClass'
             _next()
+
+        # Test list on a class that has an inherited parent
 
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
@@ -1408,6 +1464,8 @@ task = (config, assert)->
                     listOptions:
                         where: '{idA} = ' + id
                         connector: connector
+
+                # Listing  classB should returned properties of ClassA and ClassB
                 assertListUnique pMgr, options, next
                 return
             (models, next)-> connector.rollback next, true
@@ -1427,6 +1485,8 @@ task = (config, assert)->
             logger.debug 'finish testListMixin'
             _next()
 
+        # Test list on a class with parent and mixins
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1442,6 +1502,8 @@ task = (config, assert)->
                     listOptions:
                         where: '{idA} = ' + id
                         connector: connector
+
+                # Listing  classD should returned properties of ClassA, ClassC and ClassD
                 assertListUnique pMgr, options, next
                 return
             (models, next)-> connector.rollback next, true
@@ -1461,6 +1523,8 @@ task = (config, assert)->
             logger.debug 'finish testListMixin2'
             _next()
 
+        # Test list of class with nested parent inheritance
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
 
@@ -1476,6 +1540,8 @@ task = (config, assert)->
                     listOptions:
                         where: '{idA} = ' + id
                         connector: connector
+
+                # Listing classD should returned properties of all related classes
                 assertListUnique pMgr, options, next
                 return
             (models, next)-> connector.rollback next, true
@@ -1515,6 +1581,8 @@ task = (config, assert)->
             logger.debug 'finish testListPropSubClass'
             _next()
 
+        # Test listing properties that are classes
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1532,12 +1600,13 @@ task = (config, assert)->
         tasks = [
             (next)-> connector.acquire next
             (next)-> connector.begin next
-            (next)-> pMgr.insert modelD, {connector: connector}, next
+            (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)->
-                modelD.set pMgr.getIdName('ClassD'), id
                 pMgr.insert modelE, {connector: connector}, next
                 return
             (id, next)->
+                # modelE will be used for multiple insert.
+                # Using reflect will cause every related class to have an id, therefore preventing new insertion of the same object
                 modelE.set pMgr.getIdName('ClassE'), id
                 pMgr.insert modelF, {connector: connector}, next
                 return
@@ -1552,6 +1621,7 @@ task = (config, assert)->
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
+                # List must returned property class properties
                 assertPropSubClass model, modelD, modelE
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newF1Value
@@ -1568,12 +1638,17 @@ task = (config, assert)->
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
+                # Check persistence of new values
                 assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
                 options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
                 assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
                 options.listOptions.where = [
                     '{propClassE:propA1} = ' + connector.escape newE1Value
                     '{propC1} = ' + connector.escape newF1Value
@@ -1582,6 +1657,8 @@ task = (config, assert)->
                 return
             (model, next)->
                 assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
                 options.listOptions.where = [
                     '{propClassE:propA1} = ' + connector.escape 'propA1Value'
                     '{propC1} = ' + connector.escape newF1Value
@@ -1601,12 +1678,15 @@ task = (config, assert)->
             return
         return
 
-    testListField = (next)->
-        logger.debug 'begin testListField'
+    testHandlersAndListField = (next)->
+        logger.debug 'begin testHandlersAndListField'
         _next = next
         next = ->
-            logger.debug 'finish testListField'
+            logger.debug 'finish testHandlersAndListField'
             _next()
+
+        # Test listing with only selected fields
+        # Test handlers
 
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
@@ -1622,12 +1702,16 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
+        id0 = null
         tasks = [
             (next)-> connector.acquire next
             (next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)->
-                assert.strictEqual id, modelD.get pMgr.getIdName 'ClassD'
+                idName = pMgr.getIdName 'ClassD'
+                id0 = id
+
+                assert.strictEqual id, modelD.get idName
                 creationDate = modelD.get 'creationDate'
                 modificationDate = modelD.get 'modificationDate'
                 assert.ok creationDate instanceof Date
@@ -1635,9 +1719,36 @@ task = (config, assert)->
                 creationDate = moment creationDate
                 modificationDate = moment modificationDate
                 assert.strictEqual modificationDate.diff(creationDate), 0
+
                 now = moment()
+
+                # give less than 1500ms to save data
                 assert.ok Math.abs(now.diff(creationDate)) < 1500
                 assert.ok Math.abs(now.diff(modificationDate)) < 1500
+
+                # initialize using attribute with handler write
+                model = new Model()
+                model.className = 'ClassD'
+                options =
+                    connector: connector
+                    attributes: creationDate: creationDate
+                pMgr.initialize model, options, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                creationDate = moment models[0].get 'creationDate'
+                assert.ok 1500 > Math.abs creationDate.diff modelD.get 'creationDate'
+
+                # list using attribute with handler write
+                options =
+                    connector: connector
+                    attributes: creationDate: modelD.get 'creationDate'
+                pMgr.list 'ClassD', options, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                creationDate = moment models[0].get 'creationDate'
+                assert.ok 1500 > Math.abs creationDate.diff modelD.get 'creationDate'
                 pMgr.insert modelE, {connector: connector, reflect: true}, next
                 return
             (id, next)->
@@ -1670,6 +1781,7 @@ task = (config, assert)->
                     model: modelF
                     letters: ['C', 'F']
                     listOptions:
+                        type: 'json'
                         fields: [
                             'propC1'
                             'propClassD:propA1'
@@ -1681,9 +1793,9 @@ task = (config, assert)->
                             '{propC1} = ' + connector.escape newF1Value
                         ]
                         connector: connector
-                        type: 'json'
 
                 assertList pMgr, options, next
+                return
             (models, next)->
                 assert.strictEqual models.length, 1
                 model = models[0]
@@ -1951,7 +2063,6 @@ task = (config, assert)->
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
-                debugger
                 assertPropSubClass model, modelD, modelE
                 next()
                 return
@@ -1980,28 +2091,65 @@ task = (config, assert)->
         modelD = model.clone()
         modelD.className = 'ClassD'
         modelF.set 'propClassD', modelD
-        # propClassE is not setted
+        modelF.set 'propClassE', null
 
         # F -> C
         # E -> (B -> A), C
         # D -> A, C
 
+        options = null
         tasks = [
             (next)-> connector.acquire next
             (next)-> connector.begin next
             (next)-> pMgr.save modelD, {connector: connector}, next
-            (id, next)-> pMgr.save modelF, {connector: connector}, next
-            (id, next)->
-                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+            (id, next)-> pMgr.insert modelF, {connector: connector}, next
+            (id, next)-> 
                 options =
                     classNameLetter: 'F'
                     model: modelF
                     letters: ['C', 'F']
                     listOptions:
-                        where: [
-                            '{idC} = ' + id
-                        ]
                         connector: connector
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD
+                assert.strictEqual model.get('propClassE'), null
+
+                modelF.set 'propClassE', ''
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD
+                assert.strictEqual model.get('propClassE'), null
+
+                modelF.set 'propClassD', modelD.get pMgr.getIdName 'ClassD'
+                modelF.remove 'propClassE'
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD
+                assert.strictEqual model.get('propClassE'), null
+
+                modelF.set 'propClassD', parseInt modelD.get(pMgr.getIdName 'ClassD'), 10
+                modelF.remove 'propClassE'
+                assertListUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD
+                assert.strictEqual model.get('propClassE'), null
+
+                pMgr.save modelF, {connector: connector}, next
+                return
+            (id, next)->
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                options.listOptions.where = [
+                    '{idC} = ' + id
+                ]
+                pMgr.list 'ClassF', {connector: connector, count: true}, next
+                return
+            (count, next)->
+                assert.strictEqual count, 2
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
@@ -2311,11 +2459,11 @@ task = (config, assert)->
 
         return
 
-    testStar = (next)->
-        logger.debug 'begin testStar'
+    testStarAndInitialize = (next)->
+        logger.debug 'begin testStarAndInitialize'
         _next = next
         next = ->
-            logger.debug 'finish testStar'
+            logger.debug 'finish testStarAndInitialize'
             _next()
 
         [pMgr, model, connector, Model] = setUpMapping()
@@ -2331,7 +2479,7 @@ task = (config, assert)->
         newE1Value = 'value1'
         newF1Value = 'value2'
 
-        options = null
+        options = id0 = null
         tasks = [
             (next)-> connector.acquire next
             (next)-> connector.begin next
@@ -2358,6 +2506,47 @@ task = (config, assert)->
                 return
             (model, next)->
                 assertPropSubClass model, modelD, modelE
+
+                # test initialize using where clause
+                idName = pMgr.getIdName 'ClassF'
+                id0 = model.get idName
+                model = new Model()
+                model.set idName, id0
+                model.className = 'ClassF'
+                pMgr.initialize model, options.listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                idName = pMgr.getIdName 'ClassF'
+                assert.strictEqual models[0].get(idName), id0
+
+                # test initialize using Array attributes
+                listOptions = _.clone options.listOptions
+                delete listOptions.where
+                listOptions.attributes = [idName]
+                model = new Model()
+                model.set idName, id0
+                model.className = 'ClassF'
+                pMgr.initialize model, options.listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                idName = pMgr.getIdName 'ClassF'
+                assert.strictEqual models[0].get(idName), id0
+                
+                # test initialize using propClass attribute
+                listOptions = _.clone options.listOptions
+                delete listOptions.where
+                listOptions.attributes = [idName]
+                model = new Model propClassD: modelD
+                model.className = 'ClassF'
+                pMgr.initialize model, options.listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                idName = pMgr.getIdName 'ClassF'
+                assert.strictEqual models[0].get(idName), id0
+
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newF1Value
                 modelE.remove pMgr.getIdName 'ClassE'
@@ -2387,6 +2576,14 @@ task = (config, assert)->
                 return
             (model, next)->
                 assertPropSubClass model, modelD, modelE
+
+                # test count with where block
+                options.listOptions.count = true
+                pMgr.list 'ClassF', options.listOptions, next
+                return
+            (count, next)->
+                assert.strictEqual count, 1
+                options.listOptions.count = false
                 options.listOptions.where = [
                     '{propClassE:propA1} = ' + connector.escape 'propA1Value'
                     '{propC1} = ' + connector.escape newF1Value
@@ -2394,6 +2591,12 @@ task = (config, assert)->
                 pMgr.list 'ClassF', options.listOptions, next
             (models, next)->
                 assert.strictEqual models.length, 0
+                # test count with where block
+                options.listOptions.count = true
+                pMgr.list 'ClassF', options.listOptions, next
+                return
+            (count, next)->
+                assert.strictEqual count, 0
                 next()
                 return
             (next)-> connector.rollback next, true
@@ -2499,6 +2702,7 @@ task = (config, assert)->
                         'code'
                         'key'
                     ]
+            limit: 5
 
         tasks = [
             (next)-> connector.acquire next
@@ -2506,9 +2710,20 @@ task = (config, assert)->
             (next)-> pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
+                assert.ok models.length <= options.limit
                 for model in models
                     assert.strictEqual strCode, model.get('country').get('property').get('code')
                     assert.strictEqual strCode, model.get('translation').get('property').get('code')
+
+                # test count with fields and join
+                # Using LIMIT you will not limit the count or sum but only the returned rows
+                # http://stackoverflow.com/questions/17020842/mysql-count-with-limit#answers-header
+                options.count = true
+                pMgr.list 'User', options, next
+                return
+            (count, next)->
+                # There are supposed to be 25 users matching the where field
+                assert.strictEqual count, 25
                 next()
                 return
             (next)-> connector.rollback next, true
@@ -2582,11 +2797,11 @@ task = (config, assert)->
         return
 
     # order, group, having, limit, offset
-    testSelectParts = (next)->
-        logger.debug 'begin testSelectParts'
+    testSelectBlocks = (next)->
+        logger.debug 'begin testSelectBlocks'
         _next = next
         next = ->
-            logger.debug 'finish testSelectParts'
+            logger.debug 'finish testSelectBlocks'
             _next()
 
         # no field was considered as *
@@ -2626,7 +2841,13 @@ task = (config, assert)->
             ]
             having: [
                 '{LNG, key} = ' + connector.escape 'FR'
-                '{country:property:code} = ' + connector.escape strCode
+                [
+                    '{LNG, key} IN ?', ['FR']
+                ]
+                squel.expr().and '{LNG, key} <> ' + connector.escape 'EN'
+                [
+                    '{country:property:code} = ?', strCode
+                ]
             ]
             limit: 10
             offset: 0
@@ -2664,6 +2885,7 @@ task = (config, assert)->
         # update and delete, for each unique constraint, take the first one that has all it's fields not null
         
         [pMgr, model, connector, Model] = setUpMapping()
+        _model = null
 
         id0 = id1 = id2 = 0
         tasks = [
@@ -2671,6 +2893,7 @@ task = (config, assert)->
             (next)-> connector.begin next
             (next)->
                 model.className = 'ClassG'
+                _model = model.clone()
                 model.set 'propG1', 'valueG10'
                 model.set 'propG2', 'valueG20'
                 model.set 'propG3', 'valueG30'
@@ -2681,17 +2904,37 @@ task = (config, assert)->
                 model.set 'propG1', 'valueG11'
                 model.set 'propG2', 'valueG21'
                 model.set 'propG3', 'valueG31'
-                pMgr.insert model, {connector: connector}, next
+                pMgr.save model.clone(), {connector: connector}, next
                 return
             (id, next)->
                 id1 = id
                 model.set 'propG1', 'valueG12'
                 model.set 'propG2', 'valueG22'
                 model.set 'propG3', 'valueG32'
-                pMgr.insert model, {connector: connector}, next
+                pMgr.initializeOrInsert model, {connector: connector}, next
                 return
             (id, next)->
                 id2 = id
+                pMgr.list 'ClassG', {connector: connector, count: true}, next
+                return
+            (count, next)->
+                assert.strictEqual count, 3
+                model.remove pMgr.getIdName model.className
+                pMgr.initializeOrInsert model, {connector: connector}, next
+                return
+            (id, next)->
+                assert.strictEqual id, id2
+                model.remove pMgr.getIdName model.className
+                pMgr.save model, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                assert.strictEqual id, id2
+                pMgr.list 'ClassG', {connector: connector, count: true}, next
+                return
+            (count, next)->
+                assert.strictEqual count, 3
+                model.remove pMgr.getIdName model.className
                 model.set 'propG1', 'valueG10'
                 model.set 'propG2', 'valueG20'
                 pMgr.initialize model, {connector: connector}, next
@@ -2729,9 +2972,40 @@ task = (config, assert)->
                 assert.strictEqual 2, models.length
                 assert.strictEqual id0, models[0].idG
                 assert.strictEqual id1, models[1].idG
-                next()
+
+                model = _model
+
+                # insert with only one unique contraints setted
+                model.set 'propG1', 'valueG13'
+                model.set 'propG3', 'valueG33'
+                pMgr.insert model, {connector: connector}, next
                 return
-            (next)-> connector.rollback next, true
+            (id, next)-> pMgr.list 'ClassG', {connector: connector, count: true}, next
+            (count, next)->
+                assert.strictEqual count, 3
+
+                # save with only one unique contraints setted
+                model.set 'propG1', 'valueG14'
+                model.set 'propG3', 'valueG34'
+                pMgr.save model, {connector: connector}, next
+                return
+            (id, next)-> pMgr.list 'ClassG', {connector: connector, count: true}, next
+            (count, next)->
+                assert.strictEqual count, 4
+
+                # update with only one unique contraints setted
+                model.set 'propG3', 'valueG34New'
+                pMgr.update model, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual 'function', typeof next
+                pMgr.list 'ClassG', {connector: connector, count: true}, next
+                return
+            (count, next)->
+                assert.strictEqual count, 4
+                pMgr.delete model, {connector: connector}, next
+                return
+            (res, next)-> connector.rollback next, true
         ]
 
         async.waterfall tasks, (err)->
@@ -2740,6 +3014,31 @@ task = (config, assert)->
             return
         return
 
+    # insert class with no id
+    # insert with unique contraint values
+    # insert, update, delete with only one unique contraints setted
+    # initialize with no options
+    # initialize with array attribute option
+    # where using a value with write handler
+    # initialize using attributes prop: class
+    # insert, update, save setting propClass to null
+    # insert, update, save setting propClass to empty string
+    # insert, update, save setting propClass to string id
+    # insert, update, save setting propClass to number id
+    # insert, update, save using write handler that return undefined
+    # update, save using update handler that return undefined
+    # initalizeOrInsert with no unique contraint values
+    # initialize with no model
+    # stream using 2 times the same connector
+    # list without a callback
+    # list with models number that doesn't match given models
+    # update or delete on class name with no id
+    # update or delete with null or unsetted id
+    # update parent mixin, make sure child is consired as being updated
+    # update without change, expect no update
+    
+    # error handling tests
+    # # If parent mixin has been update, child must be considered as being updated
     # issue: update on subclass with no owned properties
     # initialize model i.e. use database value to fill model values.
     # initializeOrInsert
@@ -2769,7 +3068,7 @@ task = (config, assert)->
         testListMixin
         testListMixin2
         testListPropSubClass
-        testListField
+        testHandlersAndListField
         testUpdate
         testDelete
         testSave
@@ -2779,11 +3078,11 @@ task = (config, assert)->
         testStreamSubClass
         testStreamMixin
         testStreamMixin2
-        testStar
+        testStarAndInitialize
         testIssue3
         testJoin
         testIssue4
-        testSelectParts
+        testSelectBlocks
         testUniqueConstraint
         tearDown
     ]

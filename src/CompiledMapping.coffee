@@ -12,14 +12,19 @@ class Model
         else
             @attributes = {}
     clone: ->
-        _clone = new Model()
-        _clone.attributes = _.clone @attributes
+        _clone = new @constructor()
+        # _clone.attributes = _.clone @attributes
+        for own prop of @
+            if prop isnt 'id'
+                _clone[prop] = _.clone @[prop]
         _clone
     set: (prop, value)->
         if _.isPlainObject prop
             for attr of prop
-                @set att, prop[attr]
+                @set attr, prop[attr]
             return @
+        if prop is 'id'
+            @id = value
         @attributes[prop] = value
         return @
     get: (prop)->
@@ -48,6 +53,8 @@ module.exports = class CompiledMapping
 
         @resolved = true
 
+    Model: Model
+
     getIdName: (className)->
         @assertClassHasMapping className
         @classes[className].id.name
@@ -56,8 +63,8 @@ module.exports = class CompiledMapping
         @assertClassHasMapping className
         _.cloneDeep @classes[className]
 
-    getMapping: ->
-        _.cloneDeep @classes
+    # getMapping: ->
+    #     _.cloneDeep @classes
 
     getColumn: (className, prop)->
         @assertClassHasMapping className

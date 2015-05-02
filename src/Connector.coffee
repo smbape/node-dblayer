@@ -53,12 +53,13 @@ module.exports = class Connector extends EventEmitter
         @pool.adapter.exprEqual.apply @pool.adapter, arguments
     exprNotEqual: ->
         @pool.adapter.exprNotEqual.apply @pool.adapter, arguments
-    getPool: ->
-        @pool
+    
+    # getPool: ->
+    #     @pool
     getInnerPool: ->
         @pool.pool
-    getPoolSize: ->
-        @pool.pool.getPoolSize()
+    # getPoolSize: ->
+    #     @pool.pool.getPoolSize()
     getMaxConnection: ->
         @pool.getMaxConnection()
 

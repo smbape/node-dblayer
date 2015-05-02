@@ -3,6 +3,7 @@ path = require 'path'
 GenericUtil = require './GenericUtil'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'
+squel = require 'squel'
 
 STATIC =
     PROP_SEP: ':'
@@ -59,7 +60,7 @@ module.exports = class RowMap
         @_processOptions()
 
     _initialize: ->
-        if @options.type is 'json'
+        if @options.type is 'json' or @options.count
             @_setValue = _setPlainObjectValue
             @_getValue = _getPlainObjectValue
             @_create = _createPlainObject
@@ -106,8 +107,10 @@ module.exports = class RowMap
                 throw err
 
             @_joining[id] = true
-            condition = _replaceField options.condition.toString(), (field)=>
-                @_getSetColumn field
+
+            condition = _readFields.call @, options.condition
+            # condition = _replaceField options.condition.toString(), (field)=>
+            #     @_getSetColumn field
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
                 
@@ -141,11 +144,17 @@ module.exports = class RowMap
                 @_rootInfo.properties = @_rootInfo.properties or {}
                 @_rootInfo.properties[alias] = true
                 @_infos[alias].attribute = alias
-                for field in fields
-                    @_setField @_getUniqueId(field, alias), true
+
+                if not @options.count
+                    for field in fields
+                        @_setField @_getUniqueId(field, alias), true
         return
 
     _processFields: ->
+        if @options.count
+            @_selectCount()
+            return
+
         fields = @_sanitizeFields @options.fields, ['*']
         for field in fields
             @_setField field
@@ -154,32 +163,26 @@ module.exports = class RowMap
 
     _processOptions: ->
         select = @options.select
-        for optionName in ['where', 'group', 'having', 'order', 'limit', 'offset']
-            option = @options[optionName]
+        for block in ['where', 'group', 'having', 'order', 'limit', 'offset']
+            option = @options[block]
 
             if  /^(?:string|boolean|number)$/.test typeof option
                 option = [option]
-            else if optionName is 'limit' and not @options['no-limit']
+            else if block is 'limit'
                 option = [@static.LIMIT]
             else if _.isEmpty option
                 continue
 
             if not (option instanceof Array)
-                err = new Error "[#{@className}]: #{optionName} can only be a string or an array"
-                err.code = optionName.toUpperCase()
+                err = new Error "[#{@className}]: #{block} can only be a string or an array"
+                err.code = block.toUpperCase()
                 throw err
 
+            if block is 'limit' and option[0] < 0
+                continue
+
             for opt in option
-                if opt instanceof Array
-                    _replaceField opt[0], (field)=>
-                        @_getSetColumn field
-                        return
-                    select[optionName].apply select, opt
-                else
-                    _replaceField opt.toString(), (field)=>
-                        @_getSetColumn field
-                        return
-                    select[optionName] opt
+                _readFields.call @, opt, select, block
         
         return
 
@@ -247,6 +250,28 @@ module.exports = class RowMap
 
         return
 
+    _selectCount: ->
+        prop = 'count'
+        ancestors = [STATIC.ROOT]
+
+        id = @_getUniqueId prop, ancestors
+        info = @_getSetInfo id, true
+        @_set info, 'read', (value)->
+            parseInt value, 10
+
+        if info.hasOwnProperty 'field'
+            # this property has already been selected
+            return
+
+        column = 'count(1)'
+        columnAlias = @_uniqColAlias()
+        @options.select.field column, columnAlias
+        @_set info, 'field', columnAlias
+        parentInfo = @_getInfo @_getUniqueId null, ancestors
+        parentInfo.properties = parentInfo.properties or {}
+        @_set parentInfo.properties, id, true
+        return
+
     # set column alias as field of prop
     # must be called step by step
     _selectProp: (prop, ancestors)->
@@ -260,8 +285,6 @@ module.exports = class RowMap
                 @_setField @_getUniqueId(prop, ancestors), true
             return
 
-        select = @options.select
-
         id = @_getUniqueId prop, ancestors
         info = @_getSetInfo id
 
@@ -271,7 +294,7 @@ module.exports = class RowMap
 
         column = @_getColumn id
         columnAlias = @_uniqColAlias()
-        select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
+        @options.select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
         @_set info, 'field', columnAlias
         # info.field = columnAlias
         parentInfo = @_getInfo @_getUniqueId null, ancestors
@@ -281,14 +304,14 @@ module.exports = class RowMap
         @_set info, 'selectAll', parentInfo.selectAll
         # info.selectAll = parentInfo.selectAll
 
-        if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'marked'
+        if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'selectedAll'
             parentProp = prop
             properties = @manager.getDefinition(info.className).availableProperties
             info.properties = {}
             for prop of properties
                 @_set info.properties, @_getUniqueId(prop, parentProp, ancestors), true
                 # info.properties[@_getUniqueId prop, parentProp, ancestors] = true
-            info.marked = true
+            info.selectedAll = true
         return
 
     # Is called step by step .i.e. parent is supposed to be defined
@@ -328,25 +351,33 @@ module.exports = class RowMap
         return [prop, ancestors]
 
     # Is called step by step .i.e. parent is supposed to be defined
-    _getSetInfo: (id, extra)->
+    _getSetInfo: (id, asIs)->
         info = @_getInfo id
         return info if info
+
         [prop, ancestors] = @_getPropAncestors id
+
+        if asIs
+            return @_setInfo id, attribute: prop
+
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         definition = @manager.getDefinition parentInfo.className
         availableProperty = definition.availableProperties[prop]
         if 'undefined' is typeof availableProperty
             throw new Error "Property '#{prop}' is not defined for '#{parentInfo.className}'"
         propDef = availableProperty.definition
-        info = _.extend {attribute: prop}, extra
+
+        # info = _.extend {attribute: prop}, extra
+        info = attribute: prop
+
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
             @_set info, 'className', propDef.className
 
         if propDef.hasOwnProperty('handlers') and propDef.handlers.hasOwnProperty 'read'
             @_set info, 'read', propDef.handlers.read
 
-        if _.isObject(overrides = @options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
-            @_set info, 'read', handlers.read
+        # if _.isObject(overrides = @options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
+        #     @_set info, 'read', handlers.read
 
         @_setInfo id, info
 
@@ -472,15 +503,15 @@ module.exports = class RowMap
 
     _uniqTabAlias: ->
         tableAlias = 'TBL_' + @_tabId++
-        while @_tableAliases.hasOwnProperty tableAlias
-            tableAlias = 'TBL_' + @_tabId++
+        # while @_tableAliases.hasOwnProperty tableAlias
+        #     tableAlias = 'TBL_' + @_tabId++
         @_tableAliases[tableAlias] = true
         tableAlias
 
     _uniqColAlias: ->
         columnAlias = 'COL_' + @_colId++
-        while @_columnAliases.hasOwnProperty columnAlias
-            columnAlias = 'COL_' + @_colId++
+        # while @_columnAliases.hasOwnProperty columnAlias
+        #     columnAlias = 'COL_' + @_colId++
         @_columnAliases[columnAlias] = true
         columnAlias
 
@@ -531,7 +562,7 @@ module.exports = class RowMap
 
         ancestors or []
 
-    # # replace fields by corresponding column
+    # replace fields by corresponding column
     parse: (query)->
         _replaceField query, (field)=>
             @_getSetColumn field
@@ -539,8 +570,8 @@ module.exports = class RowMap
 fieldPatternTest = new RegExp '(?:[\'"`]|\\' + STATIC.FIELD_CHAR_BEGIN + '(?:[^\\' + STATIC.FIELD_CHAR_BEGIN + '\\' + STATIC.FIELD_CHAR_END + ']+)\\' + STATIC.FIELD_CHAR_END + ')'
 fieldPattern = new RegExp '(?:([\'"`])|\\' + STATIC.FIELD_CHAR_BEGIN + '([^\\' + STATIC.FIELD_CHAR_BEGIN + '\\' + STATIC.FIELD_CHAR_END + ']+)\\' + STATIC.FIELD_CHAR_END + ')', 'g'
 _replaceField = (str, callback)->
-    if not fieldPatternTest.test str
-        return str
+    # if not fieldPatternTest.test str
+    #     return str
 
     ignoreUntil = false
     str.replace fieldPattern, (match, group0, group1, index, str)=>
@@ -553,3 +584,30 @@ _replaceField = (str, callback)->
             # reset ignore, no more in string
             ignoreUntil = false
         return match
+
+_readFields = (values, select, block)->
+    if values instanceof Array
+        for value in values
+            if Array.isArray value
+                for val in value
+                    _coerce.call @, val
+            else
+                _coerce.call @, value
+
+        select[block].apply select, values if select
+    else
+        ret = _coerce.call @, values
+        select[block] values if select
+
+    ret or values
+
+_coerce = (str)->
+    if str instanceof squel.cls.Expression
+        return _replaceField str.toString(), (field)=>
+            @_getSetColumn field
+    else if 'string' is typeof str
+        return _replaceField str.toString(), (field)=>
+            @_getSetColumn field
+
+    return str
+        

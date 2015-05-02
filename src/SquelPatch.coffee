@@ -24,7 +24,7 @@ class cls.HavingBlock extends cls.Block
             finalCondition = t.text
             finalValues = t.values
         else
-            for idx in [0...condition.length]
+            for idx in [0...condition.length] by 1
                 c = condition.charAt(idx)
                 if '?' is c and 0 < values.length
                     nextValue = values.shift()
@@ -56,7 +56,7 @@ class cls.HavingBlock extends cls.Block
             if 0 < having.values.length
                 # replace placeholders with actual parameter values
                 pIndex = 0
-                for idx in [0...having.text.length]
+                for idx in [0...having.text.length] by 1
                     c = having.text.charAt(idx)
                     if '?' is c
                         havingStr += @_formatValue( having.values[pIndex++] )

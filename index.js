@@ -1,7 +1,7 @@
 require('coffee-script').register();
 
 module.exports = {
-    AdapterPool: require('./lib/AdapterPool'),
-    Connector: require('./lib/Connector'),
-    PersistenceManager: require('./lib/PersistenceManager')
+    AdapterPool: require('./src/AdapterPool'),
+    Connector: require('./src/Connector'),
+    PersistenceManager: require('./src/PersistenceManager')
 };

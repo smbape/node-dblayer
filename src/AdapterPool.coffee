@@ -5,16 +5,7 @@ internal = {}
 internal.adapters = {}
 
 internal.getAdapter = (options)->
-    if not _.isPlainObject options
-        err = new Error 'options parameter is not an object not null'
-        err.code = 'BAD_OPTION'
-        throw err
-
-    if typeof options.adapter is 'undefined'
-        err = new Error 'options.adapter is not define'
-        err.code = 'BAD_OPTION'
-        throw err
-
+    ### istanbul ignore else ###
     if typeof options.adapter is 'string'
         adapter = internal.adapters[options.adapter]
         if typeof adapter is 'undefined'
@@ -23,14 +14,9 @@ internal.getAdapter = (options)->
     else if _.isPlainObject options.adapter
         adapter = options.adapter
 
-    if typeof adapter isnt 'object' or adapter is null
-        err = new Error 'adapter "' + options.adapter + '" is not define'
-        err.code = 'BAD_adapter'
-        throw err
-
     if typeof adapter.createConnection isnt 'function'
         err = new Error 'adapter object has no method createConnection'
-        err.code = 'BAD_adapter'
+        err.code = 'BAD_ADAPTER'
         throw err
 
     adapter
@@ -47,7 +33,9 @@ defaultOptions =
 module.exports = class AdapterPool
     constructor: (connectionUrl, options, next)->
         if typeof connectionUrl isnt 'string'
-            throw new Error "'connectionUrl' must be a String"
+            err = new Error "'connectionUrl' must be a String"
+            err.code = 'BAD_CONNECTION_URL'
+            throw err
 
         @connectionUrl = connectionUrl
         url = require 'url'
@@ -67,7 +55,9 @@ module.exports = class AdapterPool
             @options[k] = parsed.query[k]
 
         if typeof @options.adapter isnt 'string' or @options.adapter.length is 0
-            throw new Error "'adapter' is required in options objects"
+            err = new Error 'adapter must be a not empty string'
+            err.code = 'BAD_ADAPTER'
+            throw err
 
         properties = ['name']
         for prop in properties
@@ -110,6 +100,7 @@ module.exports = class AdapterPool
 
         # Proxy all pool methods
         for method of @pool
+            ### istanbul ignore if ###
             continue if typeof @pool[method] isnt 'function'
 
             @[method] = ((pool, method)->
@@ -132,13 +123,13 @@ module.exports = class AdapterPool
     createConnector: (options)->
         Connector = require './Connector'
         new Connector @, options
-    getMaxConnection: ->
-        @options.maxConnection
-    escape: ->
-        @adapter.escape.apply @adapter, arguments
-    escapeId: ->
-        @adapter.escapeId.apply @adapter, arguments
-    exprEqual: ->
-        @adapter.exprEqual.apply @adapter, arguments
-    exprNotEqual: ->
-        @adapter.exprNotEqual.apply @adapter, arguments
+    # getMaxConnection: ->
+    #     @options.maxConnection
+    # escape: ->
+    #     @adapter.escape.apply @adapter, arguments
+    # escapeId: ->
+    #     @adapter.escapeId.apply @adapter, arguments
+    # exprEqual: ->
+    #     @adapter.exprEqual.apply @adapter, arguments
+    # exprNotEqual: ->
+    #     @adapter.exprNotEqual.apply @adapter, arguments

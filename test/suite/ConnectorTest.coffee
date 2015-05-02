@@ -32,6 +32,7 @@ testTable = sql.define
     columns: ['id', 'name']
 
 library = require '../../'
+AdapterPool = library.AdapterPool
 Connector = library.Connector
 STATES = Connector::STATES
 
@@ -104,6 +105,52 @@ task = (config, assert)->
                 assert.ifError err
                 pool.release connection
                 next()
+
+    testAdapter = (next)->
+        assert.throws ->
+            new AdapterPool()
+            return
+        ,  (err)->
+            err.code is 'BAD_CONNECTION_URL'
+        , 'unexpected error'
+
+        assert.throws ->
+            new AdapterPool 'url'
+            return
+        ,  (err)->
+            err.code is 'BAD_ADAPTER'
+        , 'unexpected error'
+
+        assert.throws ->
+            new AdapterPool 'url', adapter: null
+            return
+        ,  (err)->
+            err.code is 'BAD_ADAPTER'
+        , 'unexpected error'
+        
+        assert.throws ->
+            new AdapterPool 'url', adapter: ''
+            return
+        ,  (err)->
+            err.code is 'BAD_ADAPTER'
+        , 'unexpected error'
+        
+        assert.throws ->
+            new AdapterPool 'url', adapter: 1
+            return
+        ,  (err)->
+            err.code is 'BAD_ADAPTER'
+        , 'unexpected error'
+        
+        tasks = []
+        for type in ['admin', 'write', 'read']
+            ((pool)->
+                tasks.push (next)-> pool.check next
+                return
+            )(config['pool' + type.charAt(0).toUpperCase() + type.slice(1)])
+
+        async.series tasks, next
+        return
     
     testConstructor = (next)->
         pool = poolRead
@@ -112,45 +159,59 @@ task = (config, assert)->
         assert.throws ->
             new Connector()
             return
-        next()
+
+        connector.query 'select 1', next
         return
 
     testAcquire = (next)->
         pool = poolRead
         connector = poolRead.createConnector()
-        connector.release (err)->
-            assert.ifError err
-            assert.strictEqual 0, connector.getSavepointsSize()
-            connector.acquire (err)->
-                assert.ifError err
-                assert.strictEqual 1, connector.getSavepointsSize()
-                connector.release (err)->
-                    assert.ifError err
-                    assert.strictEqual 0, connector.getSavepointsSize()
-                    connector.acquire (err)->
-                        assert.ifError err
-                        assert.strictEqual 1, connector.getSavepointsSize()
-                        connector.acquire (err)->
-                            assert.ifError err
-                            assert.strictEqual 1, connector.getSavepointsSize()
-                            connector.release (err)->
-                                assert.ifError err
-                                assert.strictEqual 0, connector.getSavepointsSize()
-                                next()
-                                return
-                            return
-                        return
-                    return
+        tasks = [
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                connector.release next
                 return
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                connector.acquire next
+                return
+            (next)->
+                assert.strictEqual 1, connector.getSavepointsSize()
+                connector.release next
+                return
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                connector.acquire next
+                return
+            (next)->
+                assert.strictEqual 1, connector.getSavepointsSize()
+                connector.acquire next
+                return
+            (next)->
+                assert.strictEqual 1, connector.getSavepointsSize()
+                connector.release next
+                return
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                next()
+                return
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+
         return
 
     testAcquireTimeout = (next)->
         timeout = Math.pow 2, 6
         connector = poolRead.createConnector timeout: timeout / 2
-        connector.acquire (err)->
-            assert.ifError err
-            setTimeout ->
+
+        tasks = [
+            (next)-> connector.acquire next
+            (next)-> setTimeout next, timeout
+            (next)->
                 connector.acquire (err)->
                     assert.ok !!err
                     assert.strictEqual connector.getState(), STATES.INVALID
@@ -181,23 +242,26 @@ task = (config, assert)->
                         return
                     return
                 return
-            , timeout
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
+            return
+
         return
 
     assertInsert = (connector, id, name, next)->
         query = testTable.insert {id: id, name: name}
         query = DBUtil.getQueryString query, connector.getDialect()
-        connector.query query, (err, res)->
-            assert.ifError err
-            next()
-            return
+        connector.query query, next
         return
 
     assertExist = (connector, id, name, next)->
         query = testTable.select(testTable.star()).where testTable.id.equal(id)
         query = DBUtil.getQueryString query, connector.getDialect()
         connector.query query, (err, res)->
-            assert.ifError err
+            return next err if err
             assertResult res
             assert.equal res.rows[0].id, id
             assert.equal res.rows[0].name, name
@@ -209,7 +273,7 @@ task = (config, assert)->
         query = testTable.select(testTable.star()).where testTable.id.equal(id)
         query = DBUtil.getQueryString query, connector.getDialect()
         connector.query query, (err, res)->
-            assert.ifError err
+            return next err if err
             assert.ok _.isObject res
             assert.ok res.rows instanceof Array
             assert.strictEqual res.rows.length, 0
@@ -220,67 +284,67 @@ task = (config, assert)->
     testTransaction = (next)->
         connector = poolWrite.createConnector()
         name = 'name'
-        connector.begin (err)->
-            assert.ok !!err
-            assert.strictEqual err.code, 'NO_CONNECTION'
-            connector.acquire (err)->
-                assert.ifError err
-                assert.strictEqual 1, connector.getSavepointsSize()
+
+        tasks = [
+            (next)->
                 connector.begin (err)->
-                    assert.ifError err
-                    assert.strictEqual 2, connector.getSavepointsSize()
-                    assertInsert connector, 1, name, ->
-                        assertExist connector, 1, name, ->
-                            connector.begin (err)->
-                                assert.ifError err
-                                assert.strictEqual 3, connector.getSavepointsSize()
-                                assertInsert connector, 2, name, ->
-                                    assertExist connector, 2, name, ->
-                                        connector.begin (err)->
-                                            assert.ifError err
-                                            assert.strictEqual 4, connector.getSavepointsSize()
-                                            assertInsert connector, 3, name, ->
-                                                assertExist connector, 3, name, ->
-                                                    connector.query 'Not a valid sql statement', (err)->
-                                                        assert.ok !!err
-                                                        assert.strictEqual 3, connector.getSavepointsSize()
-                                                        async.parallel [
-                                                            (next)-> assertNotExist connector, 3, name, next
-                                                            (next)-> assertExist connector, 2, name, next
-                                                            (next)-> assertInsert connector, 4, name, next
-                                                        ], ->
-                                                            assertExist connector, 4, name, ->
-                                                                connector.commit true, (err)->
-                                                                    assert.ifError err
-                                                                    assert.strictEqual 0, connector.getSavepointsSize()
-                                                                    connector.acquire (err)->
-                                                                    async.parallel [
-                                                                        (next)-> assertExist connector, 4, name, next
-                                                                        (next)-> assertNotExist connector, 3, name, next
-                                                                        (next)-> assertExist connector, 2, name, next
-                                                                        (next)-> assertExist connector, 1, name, next
-                                                                    ], ->
-                                                                        connector.release (err)->
-                                                                            assert.ifError err
-                                                                            assert.strictEqual 0, connector.getSavepointsSize()
-                                                                            next()
-                                                                            return
-                                                                        return
-                                                                    return
-                                                                return
-                                                            return
-                                                        return
-                                                    return
-                                                return
-                                            return
-                                        return
-                                    return
-                                return
-                            return
-                        return
+                    assert.ok !!err
+                    assert.strictEqual err.code, 'NO_CONNECTION'
+                    connector.acquire next
                     return
                 return
+            (next)->
+                assert.strictEqual 1, connector.getSavepointsSize()
+                connector.begin next
+                return
+            (next)->
+                assert.strictEqual 2, connector.getSavepointsSize()
+                assertInsert connector, 1, name, next
+                return
+            (res, next)-> assertExist connector, 1, name, next
+            (next)-> connector.begin next
+            (next)->
+                assert.strictEqual 3, connector.getSavepointsSize()
+                assertInsert connector, 2, name, next
+                return
+            (res, next)-> assertExist connector, 2, name, next
+            (next)-> connector.begin next
+            (next)->
+                assert.strictEqual 4, connector.getSavepointsSize()
+                assertInsert connector, 3, name, next
+                return
+            (res, next)-> assertExist connector, 3, name, next
+            (next)->
+                connector.query 'Not a valid sql statement', (err)->
+                    assert.ok !!err
+                    assert.strictEqual 3, connector.getSavepointsSize()
+                    next()
+                return
+            (next)-> assertNotExist connector, 3, name, next
+            (next)-> assertExist connector, 2, name, next
+            (next)-> assertInsert connector, 4, name, next
+            (res, next)-> assertExist connector, 4, name, next
+            (next)-> connector.commit true, next
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                connector.acquire next
+                return
+            (next)-> assertExist connector, 4, name, next
+            (next)-> assertNotExist connector, 3, name, next
+            (next)-> assertExist connector, 2, name, next
+            (next)-> assertExist connector, 1, name, next
+            (next)-> connector.release next
+            (next)->
+                assert.strictEqual 0, connector.getSavepointsSize()
+                next()
+                return
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+        
         return
 
     testStream = (next)->
@@ -289,28 +353,37 @@ task = (config, assert)->
         num = Math.pow 2, 8
         treshold = 1000
 
-        connector.acquire (err)->
-            query = []
-            for i in [0...num] by 1
-                query.push "(#{i + treshold}, 'name_#{i}')"
+        tasks = [
+            (next)-> connector.stream 'select 1', ((row)->), next
+            (result, next)-> connector.acquire next
+            (next)->
+                query = []
+                for i in [0...num] by 1
+                    query.push "(#{i + treshold}, 'name_#{i}')"
 
-            query = "INSERT INTO test (id, name) values " + query.join ', '
-            connector.query query, (err, res)->
-                assert.ifError err
+                query = "INSERT INTO test (id, name) values " + query.join ', '
+                connector.query query, next
+                return
+            (res, next)->
                 statement = "SELECT id as \"num\" FROM test WHERE id >= #{treshold}"
                 connector.stream statement, (row)->
                     rowCount++ if row.constructor.name isnt 'OkPacket'
-                , (err, result)->
-                    connector.release()
-                    assert.ifError err
-                    assert.ok result.fields instanceof Array
-                    assert.strictEqual 1, result.fields.length
-                    assert.strictEqual 'num', result.fields[0].name
-                    assert.strictEqual rowCount, num
-                    next()
-                    return
+                , next
                 return
+            (result, next)->
+                assert.ok result.fields instanceof Array
+                assert.strictEqual 1, result.fields.length
+                assert.strictEqual 'num', result.fields[0].name
+                assert.strictEqual rowCount, num
+                connector.release next
+                return
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
             return
+        
         return
 
     # test autoRollback also with stream
@@ -319,6 +392,7 @@ task = (config, assert)->
     # 
     series = [
         setUp
+        testAdapter
         testConstructor
         testAcquire
         testAcquireTimeout

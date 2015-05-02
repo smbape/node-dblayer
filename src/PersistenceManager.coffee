@@ -81,8 +81,8 @@ PersistenceManager::insert = (model, options, callback)->
                 args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
-                        if _.isObject args[0]
-                            args[0].subError = err
+                        if args[0]
+                            args[0] = [err, args[0]]
                         else
                             args[0] = err
                     connector.release (err)->
@@ -96,6 +96,8 @@ PersistenceManager::insert = (model, options, callback)->
 
 PersistenceManager::getInsertQuery = (model, options)->
     new InsertQuery @, model, options
+
+
 
 PersistenceManager::list = (className, options, callback)->
     connector = options.connector
@@ -115,6 +117,10 @@ PersistenceManager::stream = (className, options, callback, done)->
     query.stream connector, listConnector, callback, done
 
 PersistenceManager::getSelectQuery = (className, options)->
+    if not options.where and _.isPlainObject options.attributes
+        definition = @_getDefinition className
+        options.where = _getInitializeCondition @, null, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+
     new SelectQuery @, className, options
 
 PersistenceManager::update = (model, options, callback)->
@@ -140,8 +146,8 @@ PersistenceManager::update = (model, options, callback)->
                 args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
-                        if _.isObject(err)
-                            args[0].subError = err
+                        if args[0]
+                            args[0] = [err, args[0]]
                         else
                             args[0] = err
                     connector.release (err)->
@@ -169,9 +175,9 @@ PersistenceManager::getDeleteQuery = (model, options)->
     new DeleteQuery @, model, options
 
 PersistenceManager::save = (model, options, callback)->
-    if arguments.length is 2 and 'function' is typeof options
-        callback = options
-    options = {} if not _.isPlainObject options
+    # if arguments.length is 2 and 'function' is typeof options
+    #     callback = options
+    # options = {} if not _.isPlainObject options
     (callback = ->) if 'function' isnt typeof callback
 
     className = options.className or model.className
@@ -197,7 +203,6 @@ PersistenceManager::save = (model, options, callback)->
             return
     return
 
-
 PersistenceManager::initializeOrInsert = (model, options, callback)->
     if arguments.length is 2 and 'function' is typeof options
         callback = options
@@ -222,26 +227,30 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
             return callback(err) if err
             if models.length is 1
                 model.set models[0].attributes
-                callback err, [model]
+                callback err, model.get definition.id.name
             else
                 @insert model, _.extend({}, backup, reflect: true), callback
             return
     return
 
 PersistenceManager::initialize = (model, options, callback)->
-    if arguments.length is 2
-        callback = options if 'function' is typeof options
-    options = {} if not _.isPlainObject options
+    # if arguments.length is 2
+    #     callback = options if 'function' is typeof options
+    # options = {} if not _.isPlainObject options
     (callback = ->) if 'function' isnt typeof callback
 
     if not _.isObject model
-        return callback 'No model'
+        err = new Error 'No model'
+        err.code = 'NO_MODEL'
+        return callback err
     
     className = options.className or model.className
     definition = @_getDefinition className
     options = _.extend {}, options,
-        where: _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
         models: [model]
+
+    if not options.where
+        options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
     @list className, options, callback
 
 # return where condition to be parsed by RowMap
@@ -249,12 +258,14 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
     connector = options.connector
 
     if typeof options.where is 'undefined'
-        if _.isPlainObject(definition.id) and value = model.get(definition.id.name)
+        if not model
+            attributes = options.attributes
+        else if _.isPlainObject(definition.id) and value = model.get definition.id.name
             # id is define
             attributes = {}
             attributes[definition.id.name] = value
         else
-            if definition.constraints.unique.length isnt 0
+            if definition.constraints.unique.length isnt 0 and (options.useAttributes is false or not options.attributes)
                 attributes = {}
                 # check unique constraints properties
                 for constraint, index in definition.constraints.unique
@@ -340,8 +351,8 @@ class InsertQuery
         @set = (column, value)->
             insert.set @escapeId(column), value
             fields[column] = value
-        @toParam = ->
-            return insert.toParam()
+        # @toParam = ->
+        #     return insert.toParam()
         @toString = @oriToString = ->
             return insert.toString()
 
@@ -380,9 +391,9 @@ class InsertQuery
                     continue
                 prop = pMgr._getDefinition propDef.className
 
-                # If column is not setted assume it has the same name as the column id
-                if typeof column is 'undefined'
-                    column = prop.id.column
+                # # If column is not setted assume it has the same name as the column id
+                # if typeof column is 'undefined'
+                #     column = prop.id.column
                 if parentModel is null or typeof parentModel is 'number'
                     # assume it is the id
                     value = parentModel
@@ -473,8 +484,12 @@ class InsertQuery
             return callback(err) if err
 
             if definition.id.hasOwnProperty 'column'
-                if res.hasOwnProperty 'lastInsertId'
-                    id = res.lastInsertId or fields[definition.id.column]
+                # On sqlite, lastInsertId is only valid on autoincremented id's
+                # Therefor, always take setted field when possible
+                if fields[definition.id.column]
+                    id = fields[definition.id.column]
+                else if res.hasOwnProperty 'lastInsertId'
+                    id = res.lastInsertId
                 else
                     id = (res.rows instanceof Array) and res.rows.length > 0 and res.rows[0][definition.id.column]
 
@@ -499,8 +514,8 @@ class SelectQuery
     constructor: (pMgr, className, options = {})->
         @getOptions = ->
             options
-        @getClassName = ->
-            className
+        # @getClassName = ->
+        #     className
         @toString = ->
             select.toString()
         @getRowMap = ->
@@ -512,7 +527,8 @@ class SelectQuery
         rowMap = new RowMap className, pMgr, _.extend {}, options, select: select
 
         # check
-        @toString()
+        select.toParam()
+        select.toString()
 
     stream: (streamConnector, listConnector, callback, done)->
         rowMap = @getRowMap()
@@ -587,6 +603,11 @@ class SelectQuery
         , ret, options.executeOptions
 
     list: (connector, callback)->
+        if 'function' isnt typeof callback
+            err = new Error 'List is not allowed without a callback'
+            err.code = 'LIST_CALLBACK'
+            return callback err
+
         rowMap = @getRowMap()
         query = rowMap.parse @toString()
         pMgr = @getManager()
@@ -602,7 +623,7 @@ class SelectQuery
                 if models.length isnt rows.length
                     err = new Error 'Returned rows and given number of models doesn\'t match'
                     err.extend = [models.length, rows.length]
-                    err.code = 'UNKNOWN'
+                    err.code = 'OPT_MODELS'
                     return callback err
             else
                 models= []
@@ -629,7 +650,10 @@ class SelectQuery
                     return
                 return
 
-            callback null, ret
+            if options.count
+                callback null, ret[0].count
+            else
+                callback null, ret
 
             return
         , options, options.executeOptions
@@ -666,9 +690,9 @@ class UpdateQuery
         @getManager = -> pMgr
         @getOptions = -> options
 
-        @toParam = -> update.toParam()
+        # @toParam = -> update.toParam()
         @toString = @oriToString = -> update.toString()
-        @getClassName = -> className
+        # @getClassName = -> className
         @getDefinition = -> definition
         @setChangeCondition = ->
             update.where changeCondition
