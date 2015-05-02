@@ -16,8 +16,8 @@ class PostgresClient extends pg.Client
         query = @adapter.createQuery query, params, callback
         # @emit 'query', query
         super query
-    getConnectionName: ->
-        @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database + '/' + @options.schema
+    # getConnectionName: ->
+    #     @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database + '/' + @options.schema
     stream: (query, params, callback, done)->
         if arguments.length is 3
             done = callback
@@ -44,46 +44,46 @@ class PostgresClient extends pg.Client
             done undefined, result unless hasError
             return
         stream
-    getModel: (callback)->
-        callback = (->) if typeof callback isnt 'function'
-        query = """
-            SELECT DISTINCT ON (inf.table_name, inf.ordinal_position, column_name)
-            inf.table_name AS "TABLE_NAME",
-            column_name AS "COLUMN_NAME",
-            inf.ordinal_position AS "ORDINAL_POSITION",
-            column_default AS "COLUMN_DEFAULT",
-            is_nullable AS "IS_NULLABLE",
-            udt_name AS "DATA_TYPE",
-            character_maximum_length AS "CHARACTER_MAXIMUM_LENGTH",
-            numeric_precision/8 AS "NUMERIC_PRECISION",
-            CASE
-                WHEN i.indisprimary = 't' THEN 'PRI' 
-                WHEN i.indisunique = 't' THEN 'UNI' 
-                ELSE ''
-            END AS "COLUMN_KEY",
-            CASE
-                WHEN char_length(column_default) > 6 AND substring(column_default from 1 for 7) = 'nextval' THEN 'auto_increment'
-                ELSE ''
-            END AS "EXTRA"
-            FROM information_schema.columns inf
-            INNER JOIN pg_class c
-            ON c.relname = inf.table_name
-            INNER JOIN pg_attribute a
-            ON a.attrelid = c.oid AND a.attnum > 0 AND a.attname = inf.column_name
-            INNER JOIN pg_type t
-            ON a.atttypid = t.oid
-            LEFT JOIN pg_index i
-            ON i.indrelid  = c.oid AND a.attnum = ANY(i.indkey)
-            WHERE
-            inf.table_schema = '#{@options.schema}'
-            AND inf.table_catalog = '#{@options.database}'
-            ORDER BY inf.table_name, inf.ordinal_position, column_name, i.indisprimary DESC
-        """
+    # getModel: (callback)->
+    #     callback = (->) if typeof callback isnt 'function'
+    #     query = """
+    #         SELECT DISTINCT ON (inf.table_name, inf.ordinal_position, column_name)
+    #         inf.table_name AS "TABLE_NAME",
+    #         column_name AS "COLUMN_NAME",
+    #         inf.ordinal_position AS "ORDINAL_POSITION",
+    #         column_default AS "COLUMN_DEFAULT",
+    #         is_nullable AS "IS_NULLABLE",
+    #         udt_name AS "DATA_TYPE",
+    #         character_maximum_length AS "CHARACTER_MAXIMUM_LENGTH",
+    #         numeric_precision/8 AS "NUMERIC_PRECISION",
+    #         CASE
+    #             WHEN i.indisprimary = 't' THEN 'PRI' 
+    #             WHEN i.indisunique = 't' THEN 'UNI' 
+    #             ELSE ''
+    #         END AS "COLUMN_KEY",
+    #         CASE
+    #             WHEN char_length(column_default) > 6 AND substring(column_default from 1 for 7) = 'nextval' THEN 'auto_increment'
+    #             ELSE ''
+    #         END AS "EXTRA"
+    #         FROM information_schema.columns inf
+    #         INNER JOIN pg_class c
+    #         ON c.relname = inf.table_name
+    #         INNER JOIN pg_attribute a
+    #         ON a.attrelid = c.oid AND a.attnum > 0 AND a.attname = inf.column_name
+    #         INNER JOIN pg_type t
+    #         ON a.atttypid = t.oid
+    #         LEFT JOIN pg_index i
+    #         ON i.indrelid  = c.oid AND a.attnum = ANY(i.indkey)
+    #         WHERE
+    #         inf.table_schema = '#{@options.schema}'
+    #         AND inf.table_catalog = '#{@options.database}'
+    #         ORDER BY inf.table_name, inf.ordinal_position, column_name, i.indisprimary DESC
+    #     """
 
-        @query query, (err, result)->
-            return callback(err) if err
-            DbUtil = require '../DbUtil'
-            DbUtil.computeColumnRows result.rows, callback
+    #     @query query, (err, result)->
+    #         return callback(err) if err
+    #         DbUtil = require '../DbUtil'
+    #         DbUtil.computeColumnRows result.rows, callback
 
 class PostgresQueryStream extends QueryStream
     constructor: (text, params, callback)->

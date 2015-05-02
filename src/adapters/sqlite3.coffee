@@ -183,14 +183,23 @@ class SQLite3Stream extends ArrayStream
         hasError = false
 
         @on 'data', @_onData
+        @once 'error', (err)->
+            hasError = true
+            done err
+            return
+
         @once 'end', =>
             @removeListener 'data', @_onData
+            return if hasError
+            # return done(err) if err
+            if not result.fields
+                result.fields = []
+            done null, result
             return
 
         db.each query, values, (err, row)=>
             if err
-                hasError = true
-                done err
+                @emit 'error', err
                 return
 
             if not result.fields
@@ -199,12 +208,10 @@ class SQLite3Stream extends ArrayStream
 
             @write row, 'item'
             return
-        , (err, rowCount)->
-            return if hasError
-            return done(err) if err
-            if not result.fields
-                result.fields = []
-            done err, result
+        , (err, rowCount)=>
+            @end()
+            if err
+                @emit 'error', err
             return
         return
 

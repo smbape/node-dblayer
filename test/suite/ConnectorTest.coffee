@@ -175,7 +175,7 @@ task = (config, assert)->
                 assert.strictEqual 0, connector.getSavepointsSize()
                 connector.acquire next
                 return
-            (next)->
+            (performed, next)->
                 assert.strictEqual 1, connector.getSavepointsSize()
                 connector.release next
                 return
@@ -183,11 +183,11 @@ task = (config, assert)->
                 assert.strictEqual 0, connector.getSavepointsSize()
                 connector.acquire next
                 return
-            (next)->
+            (performed, next)->
                 assert.strictEqual 1, connector.getSavepointsSize()
                 connector.acquire next
                 return
-            (next)->
+            (performed, next)->
                 assert.strictEqual 1, connector.getSavepointsSize()
                 connector.release next
                 return
@@ -210,7 +210,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> setTimeout next, timeout
+            (performed, next)-> setTimeout next, timeout
             (next)->
                 connector.acquire (err)->
                     assert.ok !!err
@@ -293,7 +293,7 @@ task = (config, assert)->
                     connector.acquire next
                     return
                 return
-            (next)->
+            (performed, next)->
                 assert.strictEqual 1, connector.getSavepointsSize()
                 connector.begin next
                 return
@@ -329,7 +329,7 @@ task = (config, assert)->
                 assert.strictEqual 0, connector.getSavepointsSize()
                 connector.acquire next
                 return
-            (next)-> assertExist connector, 4, name, next
+            (performed, next)-> assertExist connector, 4, name, next
             (next)-> assertNotExist connector, 3, name, next
             (next)-> assertExist connector, 2, name, next
             (next)-> assertExist connector, 1, name, next
@@ -356,7 +356,7 @@ task = (config, assert)->
         tasks = [
             (next)-> connector.stream 'select 1', ((row)->), next
             (result, next)-> connector.acquire next
-            (next)->
+            (performed, next)->
                 query = []
                 for i in [0...num] by 1
                     query.push "(#{i + treshold}, 'name_#{i}')"

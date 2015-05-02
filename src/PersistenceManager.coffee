@@ -64,7 +64,7 @@ PersistenceManager::insert = (model, options, callback)->
     catch err
         return callback err
     
-    connector.acquire (err)->
+    connector.acquire (err, performed)->
         return callback(err) if err
         connector.begin (err)->
             if err
@@ -85,9 +85,12 @@ PersistenceManager::insert = (model, options, callback)->
                             args[0] = [err, args[0]]
                         else
                             args[0] = err
-                    connector.release (err)->
+                    if performed
+                        connector.release (err)->
+                            callback.apply null, args
+                            return
+                    else
                         callback.apply null, args
-                        return
                     return
                 return
             return
@@ -110,6 +113,13 @@ PersistenceManager::list = (className, options, callback)->
 PersistenceManager::stream = (className, options, callback, done)->
     connector = options.connector
     listConnector = options.listConnector or connector.clone()
+
+    # if listConnector is connector or
+    # (listConnector.getInnerPool() is connector.getInnerPool() and listConnector.getMaxConnection() < 2)
+    #     err = new Error 'List connection and stream connection are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
+    #     err.code = 'STREAM_CONNECTION'
+    #     logger.warn err
+    
     try
         query = @getSelectQuery className, _.extend {dialect: connector.getDialect()}, options
     catch err
@@ -129,7 +139,7 @@ PersistenceManager::update = (model, options, callback)->
         query = @getUpdateQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
     catch err
         return callback err
-    connector.acquire (err)->
+    connector.acquire (err, performed)->
         return callback(err) if err
         connector.begin (err)->
             if err
@@ -150,9 +160,12 @@ PersistenceManager::update = (model, options, callback)->
                             args[0] = [err, args[0]]
                         else
                             args[0] = err
-                    connector.release (err)->
+                    if performed
+                        connector.release (err)->
+                            callback.apply null, args
+                            return
+                    else
                         callback.apply null, args
-                        return
                     return
                 return
             return
@@ -314,15 +327,14 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
 
     if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
         value = propDef.handlers.write value, model, options
+
     if  PRIMITIVE_TYPES.test typeof value
         where.push column + ' = ' + connector.escape value
     else if _.isObject value
         propClassName = definition.availableProperties[attr].definition.className
-        value = value.get pMgr.getIdName propClassName
-        if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
-            value = propDef.handlers.write value, model, options
-        if typeof value isnt 'undefined'
-            if value is null
+        id = value.get pMgr.getIdName propClassName
+        if typeof id isnt 'undefined'
+            if id is null
                 where.push column + ' IS NULL'
             else if PRIMITIVE_TYPES.test typeof value
                 where.push column + ' = ' + connector.escape value
@@ -511,7 +523,7 @@ class InsertQuery
         return
 
 class SelectQuery
-    constructor: (pMgr, className, options = {})->
+    constructor: (pMgr, className, options)->
         @getOptions = ->
             options
         # @getClassName = ->
@@ -560,7 +572,7 @@ class SelectQuery
             if tasks.length > 0
                 if listConnector is streamConnector or
                 (listConnector.getInnerPool() is streamConnector.getInnerPool() and listConnector.getMaxConnection() < 2)
-                    err = new Error 'To retrieve nested data, listConnector must be different from streamConnector and used pool if they are the same, must admit more than 1 connection'
+                    err = new Error 'List connection and stream connection are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
                     err.code = 'STREAM_CONNECTION'
                     stream.emit 'error', err
                     return
@@ -576,9 +588,9 @@ class SelectQuery
                         if models.length isnt 1
                             msg = 'Expecting one result. Given ' + models.length + '.'
                             if models.length is 0
-                                msg += ' You are most likely querying uncomitted data. listConnector has it\'s own transaction. Therefore only committed changes will be seen.'
+                                msg += '\n    You are most likely querying uncomitted data. listConnector has it\'s own transaction. Therefore, only committed changes will be seen.'
 
-                            msg = ' Checks those cases: database error, library bug, something else.'
+                            msg += '\n    Checks those cases: database error, library bug, something else.'
 
                             err = new Error msg
                             err.code = 'UNKNOWN'
@@ -786,7 +798,9 @@ class UpdateQuery
         update.where lockCondition
         
         # update mixin properties
-        if definition.mixins.length > 0
+        if definition.mixins.length is 0
+            @setChangeCondition()
+        else
             if @hasData
                 @toString = -> update.toString()
             else

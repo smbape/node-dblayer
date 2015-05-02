@@ -22,6 +22,7 @@
     "test": "node ./test/sm-store.test.js"
   },
   "devDependencies": {
+    "coffee-script": "*",
     "nodeunit": "*",
     "sql": "*"
     },

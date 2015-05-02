@@ -75,9 +75,7 @@ class MySQLConnection extends MySQLLibConnection
     adapter: adapter
     constructor: (options)->
         @options = _.clone options
-        super config: new ConnectionConfig(options)
-    getConnectionName: ->
-        @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database
+        super config: new ConnectionConfig options
     query: (query, params, callback)->
         stream = adapter.createQuery query, params, callback
         super stream.query
@@ -113,33 +111,33 @@ class MySQLConnection extends MySQLLibConnection
             done undefined, result unless hasError
             return
         stream
-    getModel: (callback)->
-        callback = (->) if typeof callback isnt 'function'
-        query = """
-            select 
-                tabs.TABLE_NAME,
-                cols.COLUMN_NAME,
-                cols.ORDINAL_POSITION,
-                cols.COLUMN_DEFAULT,
-                cols.IS_NULLABLE,
-                cols.DATA_TYPE,
-                cols.CHARACTER_MAXIMUM_LENGTH,
-                cols.NUMERIC_PRECISION,
-                cols.COLUMN_KEY,
-                cols.EXTRA
-            from
-                information_schema.tables as tabs
-                    inner join
-                information_schema.columns as cols ON cols.TABLE_SCHEMA = tabs.TABLE_SCHEMA
-                    and cols.TABLE_NAME = tabs.TABLE_NAME
-            where
-                tabs.TABLE_SCHEMA = '#{@options.database}'
-            order by tabs.TABLE_NAME
-        """
-        @query query, (err, result)->
-            return callback(err) if err
-            DbUtil = require '../DbUtil'
-            DbUtil.computeColumnRows result.rows, callback
+    # getModel: (callback)->
+    #     callback = (->) if typeof callback isnt 'function'
+    #     query = """
+    #         select 
+    #             tabs.TABLE_NAME,
+    #             cols.COLUMN_NAME,
+    #             cols.ORDINAL_POSITION,
+    #             cols.COLUMN_DEFAULT,
+    #             cols.IS_NULLABLE,
+    #             cols.DATA_TYPE,
+    #             cols.CHARACTER_MAXIMUM_LENGTH,
+    #             cols.NUMERIC_PRECISION,
+    #             cols.COLUMN_KEY,
+    #             cols.EXTRA
+    #         from
+    #             information_schema.tables as tabs
+    #                 inner join
+    #             information_schema.columns as cols ON cols.TABLE_SCHEMA = tabs.TABLE_SCHEMA
+    #                 and cols.TABLE_NAME = tabs.TABLE_NAME
+    #         where
+    #             tabs.TABLE_SCHEMA = '#{@options.database}'
+    #         order by tabs.TABLE_NAME
+    #     """
+    #     @query query, (err, result)->
+    #         return callback(err) if err
+    #         DbUtil = require '../DbUtil'
+    #         DbUtil.computeColumnRows result.rows, callback
 
 _.extend adapter, require './common'
 _.extend adapter,

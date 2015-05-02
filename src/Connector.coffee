@@ -120,7 +120,7 @@ module.exports = class Connector extends EventEmitter
 
     _acquire: (callback)->
         # check if connection has already been acquired
-        return callback null if @savepoints > 0
+        return callback null, false if @savepoints > 0
 
         @pool.acquire (err, connection)=>
             return callback err if err
@@ -140,7 +140,7 @@ module.exports = class Connector extends EventEmitter
                         , true
             , @timeout
             logger.trace 'acquire connection'
-            callback null
+            callback null, true
         return
 
     query: (query, callback, options)->
@@ -218,6 +218,14 @@ module.exports = class Connector extends EventEmitter
         return
 
     begin: (callback, options)->
+        if @savepoints is 0
+            # No automatic acquire because there cannot be an automatic release
+            # Programmer may or may not perform a query/stream with the connection.
+            # Therefore, there is no way to know when to release connection
+            err = new Error 'Connector has no active connection'
+            err.code = 'NO_CONNECTION'
+            return callback err
+
         ret = =>
             @_giveResource()
             callback.apply null, arguments if typeof callback is 'function'
@@ -258,18 +266,18 @@ module.exports = class Connector extends EventEmitter
         return
 
     rollback: (callback, all = false)->
-        if typeof callback is 'boolean'
-            _all = callback
-        else if typeof all is 'boolean'
-            _all = all
+        # if typeof callback is 'boolean'
+        #     _all = callback
+        # else if typeof all is 'boolean'
+        #     _all = all
 
-        if typeof callback is 'function'
-            _callback = callback
-        else if typeof all is 'function'
-            _callback = all
+        # if typeof callback is 'function'
+        #     _callback = callback
+        # else if typeof all is 'function'
+        #     _callback = all
 
-        callback = _callback
-        all = _all
+        # callback = _callback
+        # all = _all
         
         ret = =>
             @_giveResource()

@@ -19,12 +19,31 @@ task = (config, assert)->
     poolAdmin = config.poolAdmin
 
     setUp = (next)->
-        next()
+        [pMgr, model, connector, Model] = setUpMapping()
+        tasks = [
+            # clean every thing that has been created
+            (next)-> connector.acquire next
+            (next)-> connector.begin next
+            (next)->connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassI').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassH').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassG').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassF').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassE').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassD').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassC').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassB').table), next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassA').table), next
+            (next)-> connector.commit next
+            (next)-> connector.release next
+        ]
+
+        async.series tasks, (err)->
+            assert.ifError err
+            next()
+            return
         return
 
-    tearDown = (next)->
-        next()
-        return
+    tearDown = setUp
 
     assertPartialThrows = (mapping, className, given, expected)->
         mapping[className] = given
@@ -1181,7 +1200,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)-> assertPersist pMgr, model, 'A', id, connector, next
             (row, next)-> connector.rollback next, true
@@ -1208,7 +1227,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> query.execute connector, next
             (id, next)-> assertPersist pMgr, model, 'B', id, connector, next
             (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
@@ -1237,7 +1256,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)-> assertPersist pMgr, model, 'D', id, connector, next
             (row, next)->
@@ -1273,7 +1292,7 @@ task = (config, assert)->
         rowE = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)-> assertPersist pMgr, model, 'E', id, connector, next
             (row, next)->
@@ -1309,6 +1328,13 @@ task = (config, assert)->
             return
         return
 
+    assertProperties = (letters, pModel, model)->
+        for letter in letters
+            for index in [1..3] by 1
+                prop = 'prop' + letter + index
+                assert.strictEqual model.get(prop), pModel.get prop
+        return
+
     assertListUnique = (pMgr, options, next)->
         classNameLetter = options.classNameLetter
         model = options.model
@@ -1317,11 +1343,7 @@ task = (config, assert)->
         assertList pMgr, options, (err, models)->
             return next err if err
             assert.strictEqual models.length, 1
-            pModel = models[0]
-            for letter in letters
-                for index in [1..3]
-                    prop = 'prop' + letter + index
-                    assert.strictEqual model.get(prop), pModel.get prop
+            assertProperties models[0], models
             next err, models[0]
             return
         return
@@ -1348,7 +1370,7 @@ task = (config, assert)->
         id1 = id2 = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 id1 = id
@@ -1454,7 +1476,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -1492,7 +1514,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -1530,7 +1552,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -1594,12 +1616,12 @@ task = (config, assert)->
         modelF.set 'propClassE', modelE
 
         newE1Value = 'value1'
-        newF1Value = 'value2'
+        newFC1Value = 'value2'
 
         options = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)->
                 pMgr.insert modelE, {connector: connector}, next
@@ -1624,9 +1646,8 @@ task = (config, assert)->
                 # List must returned property class properties
                 assertPropSubClass model, modelD, modelE
                 modelE.set 'propA1', newE1Value
-                modelF.set 'propC1', newF1Value
+                modelF.set 'propC1', newFC1Value
                 modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
                 pMgr.insert modelE, {connector: connector}, next
                 return
             (id, next)->
@@ -1634,7 +1655,7 @@ task = (config, assert)->
                 pMgr.insert modelF, {connector: connector}, next
                 return
             (id, next)->
-                options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
+                options.listOptions.where = '{propC1} = ' + connector.escape newFC1Value
                 assertListUnique pMgr, options, next
                 return
             (model, next)->
@@ -1651,7 +1672,7 @@ task = (config, assert)->
                 # Test filter on property class sub property
                 options.listOptions.where = [
                     '{propClassE:propA1} = ' + connector.escape newE1Value
-                    '{propC1} = ' + connector.escape newF1Value
+                    '{propC1} = ' + connector.escape newFC1Value
                 ]
                 assertListUnique pMgr, options, next
                 return
@@ -1661,12 +1682,24 @@ task = (config, assert)->
                 # Test filter on property class sub property
                 options.listOptions.where = [
                     '{propClassE:propA1} = ' + connector.escape 'propA1Value'
-                    '{propC1} = ' + connector.escape newF1Value
+                    '{propC1} = ' + connector.escape newFC1Value
                 ]
                 pMgr.list 'ClassF', options.listOptions, next
                 return
             (models, next)->
                 assert.strictEqual models.length, 0
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)-> pMgr.insert modelF, {connector: connector}, next
+            (id, next)-> pMgr.list 'ClassF', {
+                connector: connector
+                where: '{propC1} = ' + connector.escape modelF.get 'propC1'
+            }, next
+            (models, next)->
+                assert.strictEqual models.length, 3
+                for model in models
+                    assertProperties options.letters, model, modelF
+                    assertPropSubClass model, modelD, modelE
                 next()
                 return
             (next)-> connector.rollback next, true
@@ -1705,7 +1738,7 @@ task = (config, assert)->
         id0 = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)->
                 idName = pMgr.getIdName 'ClassD'
@@ -1731,7 +1764,7 @@ task = (config, assert)->
                 model.className = 'ClassD'
                 options =
                     connector: connector
-                    attributes: creationDate: creationDate
+                    attributes: creationDate: modelD.get 'creationDate'
                 pMgr.initialize model, options, next
                 return
             (models, next)->
@@ -1838,7 +1871,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
             (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
@@ -1861,6 +1894,9 @@ task = (config, assert)->
             (id, msg, next)-> pMgr.update modelE, {connector: connector}, next
             (id, msg, next)-> pMgr.update modelF, {connector: connector}, next
             (id, msg, next)->
+                pMgr.update modelF, {connector: connector}, next
+            (id, msg, next)->
+                assert.strictEqual msg, 'no-update'
                 options =
                     classNameLetter: 'F'
                     model: modelF
@@ -1936,7 +1972,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
             (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
             (id, next)-> pMgr.insert modelF, {connector: connector}, next
@@ -1994,7 +2030,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.save modelD, {connector: connector}, next
             (id, next)->
                 assert.strictEqual id, modelD.get pMgr.getIdName modelD.className
@@ -2100,7 +2136,7 @@ task = (config, assert)->
         options = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.save modelD, {connector: connector}, next
             (id, next)-> pMgr.insert modelF, {connector: connector}, next
             (id, next)-> 
@@ -2115,30 +2151,44 @@ task = (config, assert)->
             (model, next)->
                 assertPropSubClass model, modelD
                 assert.strictEqual model.get('propClassE'), null
-
-                modelF.set 'propClassE', ''
-                assertListUnique pMgr, options, next
+                _options = _.clone options
+                _options.listOptions =
+                    connector: connector
+                    attributes:
+                        propClassE: null
+                assertListUnique pMgr, _options, next
                 return
+            (model, next)-> pMgr.delete model, {connector: connector}, next
+            (res, next)->
+                modelF.set 'propClassE', ''
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)-> assertListUnique pMgr, options, next
             (model, next)->
                 assertPropSubClass model, modelD
                 assert.strictEqual model.get('propClassE'), null
-
+                pMgr.delete model, {connector: connector}, next
+                return
+            (res, next)->
                 modelF.set 'propClassD', modelD.get pMgr.getIdName 'ClassD'
                 modelF.remove 'propClassE'
-                assertListUnique pMgr, options, next
+                pMgr.insert modelF, {connector: connector}, next
                 return
+            (id, next)-> assertListUnique pMgr, options, next
             (model, next)->
                 assertPropSubClass model, modelD
                 assert.strictEqual model.get('propClassE'), null
-
+                pMgr.delete model, {connector: connector}, next
+                return
+            (res, next)-> 
                 modelF.set 'propClassD', parseInt modelD.get(pMgr.getIdName 'ClassD'), 10
                 modelF.remove 'propClassE'
-                assertListUnique pMgr, options, next
+                pMgr.insert modelF, {connector: connector}, next
                 return
+            (id, next)-> assertListUnique pMgr, options, next
             (model, next)->
                 assertPropSubClass model, modelD
                 assert.strictEqual model.get('propClassE'), null
-
                 pMgr.save modelF, {connector: connector}, next
                 return
             (id, next)->
@@ -2189,7 +2239,7 @@ task = (config, assert)->
         idD = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.save modelD, {connector: connector}, next
             (id, next)->
                 idD = id
@@ -2228,6 +2278,18 @@ task = (config, assert)->
             next()
             return
 
+        return
+
+    streamList = (pMgr, className, options, next)->
+        models = []
+
+        pMgr.stream className, options, (model)->
+            models.push model
+            return
+        , (err, fields)->
+            assert.ifError err
+            next err, models
+            return
         return
 
     assertStream = (pMgr, options, callback, next)->
@@ -2281,7 +2343,7 @@ task = (config, assert)->
         id1 = id2 = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 id1 = id
@@ -2369,7 +2431,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -2403,7 +2465,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -2437,7 +2499,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert model, {connector: connector}, next
             (id, next)->
                 options =
@@ -2456,6 +2518,147 @@ task = (config, assert)->
             assert.ifError err
             next()
             return
+
+        return
+
+    testStreamPropSubClass = (next)->
+        logger.debug 'begin testStreamPropSubClass'
+        _next = next
+        next = ->
+            logger.debug 'finish testStreamPropSubClass'
+            _next()
+
+        [pMgr, model, connector, Model] = setUpMapping()
+        modelF = model.clone()
+        modelF.className = 'ClassF'
+        modelE = model.clone()
+        modelE.className = 'ClassE'
+        modelD = model.clone()
+        modelD.className = 'ClassD'
+        modelF.set 'propClassD', modelD
+        modelF.set 'propClassE', modelE
+
+        newE1Value = 'value1'
+        newF1Value = 'value2'
+
+        # Every modification needs to be committed
+        listConnector = poolRead.createConnector()
+
+        options = listOptions = null
+        tasks = [
+            (next)-> connector.acquire next
+            (performed, next)-> pMgr.insert modelD, {connector: connector, reflect: true}, next
+            (id, next)->
+                pMgr.insert modelE, {connector: connector}, next
+                return
+            (id, next)->
+                # modelE will be used for multiple insert.
+                # Using reflect will cause every related class to have an id, therefore preventing new insertion of the same object
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        where: '{' + pMgr.getIdName('ClassF') + '} = ' + id
+                        connector: connector
+                        listConnector: listConnector
+                assertStreamUnique pMgr, options, next
+                return
+            (model, next)->
+                # List must returned property class properties
+                assertPropSubClass model, modelD, modelE
+                modelE.set 'propA1', newE1Value
+                modelF.set 'propC1', newF1Value
+                modelE.remove pMgr.getIdName 'ClassE'
+                modelF.remove pMgr.getIdName 'ClassF'
+                pMgr.insert modelE, {connector: connector}, next
+                return
+            (id, next)->
+                modelE.set pMgr.getIdName('ClassE'), id
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)->
+                options.listOptions.where = '{propC1} = ' + connector.escape newF1Value
+                assertStreamUnique pMgr, options, next
+                return
+            (model, next)->
+                # Check persistence of new values
+                assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
+                options.listOptions.where = '{propClassE:propA1} = ' + connector.escape newE1Value
+                assertStreamUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape newE1Value
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                assertStreamUnique pMgr, options, next
+                return
+            (model, next)->
+                assertPropSubClass model, modelD, modelE
+
+                # Test filter on property class sub property
+                options.listOptions.where = [
+                    '{propClassE:propA1} = ' + connector.escape 'propA1Value'
+                    '{propC1} = ' + connector.escape newF1Value
+                ]
+                streamList pMgr, 'ClassF', options.listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 0
+                pMgr.insert modelF, {connector: connector}, next
+                return
+            (id, next)-> pMgr.insert modelF, {connector: connector, listConnector: listConnector}, next
+            (id, next)->
+                listOptions = 
+                    connector: connector
+                    listConnector: listConnector
+                    where: '{propC1} = ' + connector.escape modelF.get 'propC1'
+                    count: true
+
+                pMgr.list 'ClassF', listOptions, next
+                return
+            (count, next)->
+                # Sqlite mess with stream
+                assert.strictEqual count, 3
+                delete listOptions.count
+
+                streamList pMgr, 'ClassF', listOptions, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 3
+                for model in models
+                    assertProperties options.letters, model, modelF
+                    assertPropSubClass model, modelD, modelE
+                next()
+                return
+            
+            # clean every thing that has been created
+            (next)-> connector.begin next
+            (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassF').table), next
+            (res, next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassE').table), next
+            (res, next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassD').table), next
+            (res, next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassC').table), next
+            (res, next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassB').table), next
+            (res, next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassA').table), next
+            (res, next)-> connector.commit next
+            (next)-> connector.release next
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
+            return
+        return
 
         return
 
@@ -2482,7 +2685,7 @@ task = (config, assert)->
         options = id0 = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.insert modelD, {connector: connector}, next
             (id, next)->
                 modelD.set pMgr.getIdName('ClassD'), id
@@ -2523,11 +2726,11 @@ task = (config, assert)->
                 # test initialize using Array attributes
                 listOptions = _.clone options.listOptions
                 delete listOptions.where
-                listOptions.attributes = [idName]
+                listOptions.attributes = ['propClassD']
                 model = new Model()
-                model.set idName, id0
+                # model.set idName, id0
                 model.className = 'ClassF'
-                pMgr.initialize model, options.listOptions, next
+                pMgr.initialize model, listOptions, next
                 return
             (models, next)->
                 assert.strictEqual models.length, 1
@@ -2537,10 +2740,9 @@ task = (config, assert)->
                 # test initialize using propClass attribute
                 listOptions = _.clone options.listOptions
                 delete listOptions.where
-                listOptions.attributes = [idName]
                 model = new Model propClassD: modelD
                 model.className = 'ClassF'
-                pMgr.initialize model, options.listOptions, next
+                pMgr.initialize model, listOptions, next
                 return
             (models, next)->
                 assert.strictEqual models.length, 1
@@ -2634,7 +2836,7 @@ task = (config, assert)->
         pModels = null
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.list 'User', options, next
             (models, next)-> 
                 assert.ok models.length > 0
@@ -2706,7 +2908,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
@@ -2778,7 +2980,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
@@ -2854,7 +3056,7 @@ task = (config, assert)->
 
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)-> pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
@@ -2890,7 +3092,7 @@ task = (config, assert)->
         id0 = id1 = id2 = 0
         tasks = [
             (next)-> connector.acquire next
-            (next)-> connector.begin next
+            (performed, next)-> connector.begin next
             (next)->
                 model.className = 'ClassG'
                 _model = model.clone()
@@ -2974,6 +3176,7 @@ task = (config, assert)->
                 assert.strictEqual id1, models[1].idG
 
                 model = _model
+                model.remove 'propG2'
 
                 # insert with only one unique contraints setted
                 model.set 'propG1', 'valueG13'
@@ -3078,6 +3281,7 @@ task = (config, assert)->
         testStreamSubClass
         testStreamMixin
         testStreamMixin2
+        testStreamPropSubClass
         testStarAndInitialize
         testIssue3
         testJoin

@@ -11,8 +11,8 @@ internal.getAdapter = (options)->
         if typeof adapter is 'undefined'
             adapter = require path.join __dirname, 'adapters', options.adapter
             internal.adapters[options.adapter] = adapter
-    else if _.isPlainObject options.adapter
-        adapter = options.adapter
+    # else if _.isPlainObject options.adapter
+    #     adapter = options.adapter
 
     if typeof adapter.createConnection isnt 'function'
         err = new Error 'adapter object has no method createConnection'
@@ -112,19 +112,19 @@ module.exports = class AdapterPool
         return
 
     check: (next)->
-        throw new Error('next is not a function') if typeof next isnt 'function'
+        # throw new Error('next is not a function') if typeof next isnt 'function'
         @pool.acquire (err, connection)=>
             throw err if err
             @pool.release connection
-            next()
+            next() if 'function' is typeof next
         return
     getDialect: ->
         return @options.adapter
     createConnector: (options)->
         Connector = require './Connector'
         new Connector @, options
-    # getMaxConnection: ->
-    #     @options.maxConnection
+    getMaxConnection: ->
+        @options.maxConnection
     # escape: ->
     #     @adapter.escape.apply @adapter, arguments
     # escapeId: ->
