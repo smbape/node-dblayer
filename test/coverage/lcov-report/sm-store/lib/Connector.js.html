@@ -1188,7 +1188,7 @@
       this.timeout = this.options.timeout || MAX_ACQUIRE_TIME;
       this.resourceSem = semLib.semCreate(1, true);
       this.pool = pool;
-      this.savepoints = 0;
+      this._savepoints = 0;
       this.state = STATES.AVAILABLE;
       this.acquireTimeout = 0;
     }
@@ -1229,11 +1229,11 @@
       if (connection) {
         this._connection = connection;
       }
-      return this.savepoints++;
+      return this._savepoints++;
     };
 &nbsp;
     Connector.prototype._removeSavepoint = function() {
-      return this.savepoints--;
+      return this._savepoints--;
     };
 &nbsp;
     Connector.prototype.getState = function() {
@@ -1241,7 +1241,7 @@
     };
 &nbsp;
     Connector.prototype.getSavepointsSize = function() {
-      return this.savepoints;
+      return this._savepoints;
     };
 &nbsp;
     Connector.prototype._stateError = <span class="fstat-no" title="function not covered" >function(expected) {</span>
@@ -1314,7 +1314,7 @@
     };
 &nbsp;
     Connector.prototype._acquire = function(callback) {
-      if (this.savepoints &gt; 0) {
+      if (this._savepoints &gt; 0) {
         return callback(null, false);
       }
       this.pool.acquire((function(_this) {
@@ -1327,7 +1327,7 @@
             return _this._takeResource(STATES.FORCE_RELEASE, {
               priority: 1,
               onTake: function() {
-                <span class="missing-if-branch" title="if path not taken" >I</span>if (_this.savepoints === 0) {
+                <span class="missing-if-branch" title="if path not taken" >I</span>if (_this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >                  return _this._giveResource();</span>
                 }
                 _this.state = STATES.INVALID;
@@ -1359,7 +1359,7 @@
           if (err) {
             return ret(err);
           }
-          if (_this.savepoints === 0) {
+          if (_this._savepoints === 0) {
             logger.trace('automatic acquire for query');
             return _this._acquire(function(err) {
               <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
@@ -1415,7 +1415,7 @@
           <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
 <span class="cstat-no" title="statement not covered" >            return ret(err);</span>
           }
-          if (_this.savepoints === 0) {
+          if (_this._savepoints === 0) {
             logger.trace('automatic acquire for stream');
             return _this._acquire(function(err) {
               <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
@@ -1458,7 +1458,7 @@
 &nbsp;
     Connector.prototype.begin = function(callback, options) {
       var err, ret;
-      if (this.savepoints === 0) {
+      if (this._savepoints === 0) {
         err = new Error('Connector has no active connection');
         err.code = 'NO_CONNECTION';
         return callback(err);
@@ -1476,7 +1476,7 @@
           <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
 <span class="cstat-no" title="statement not covered" >            return ret(err);</span>
           }
-          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this.savepoints === 0) {
+          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >            err = new Error('Connector has no active connection');</span>
 <span class="cstat-no" title="statement not covered" >            err.code = 'NO_CONNECTION';</span>
 <span class="cstat-no" title="statement not covered" >            return ret(err);</span>
@@ -1488,10 +1488,10 @@
 &nbsp;
     Connector.prototype._begin = function(callback) {
       var err, query;
-      if (this.savepoints === 1) {
+      if (this._savepoints === 1) {
         query = 'BEGIN';
-      } else <span class="missing-if-branch" title="else path not taken" >E</span>if (this.savepoints &gt; 0) {
-        query = 'SAVEPOINT sp_' + (this.savepoints - 1);
+      } else <span class="missing-if-branch" title="else path not taken" >E</span>if (this._savepoints &gt; 0) {
+        query = 'SAVEPOINT sp_' + (this._savepoints - 1);
       } else {
 <span class="cstat-no" title="statement not covered" >        err = new Error('You probably have called this private method outside');</span>
 <span class="cstat-no" title="statement not covered" >        err.code = 'MESS';</span>
@@ -1528,7 +1528,7 @@
           if (err) {
             return ret(err);
           }
-          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this.savepoints === 0) {
+          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >            return ret(null);</span>
           }
           return _this._rollback(ret, all);
@@ -1538,17 +1538,17 @@
 &nbsp;
     Connector.prototype._rollback = function(callback, all, errors) {
       var query;
-      if (this.savepoints === 1) {
+      if (this._savepoints === 1) {
         <span class="missing-if-branch" title="else path not taken" >E</span>if (all) {
           return this._release(callback, errors);
         }
 <span class="cstat-no" title="statement not covered" >        return callback(errors);</span>
-      } else <span class="missing-if-branch" title="if path not taken" >I</span>if (this.savepoints === 0) {
+      } else <span class="missing-if-branch" title="if path not taken" >I</span>if (this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >        return callback(errors);</span>
-      } else if (this.savepoints === 2) {
+      } else if (this._savepoints === 2) {
         query = 'ROLLBACK';
       } else {
-        query = 'ROLLBACK TO sp_' + (this.savepoints - 2);
+        query = 'ROLLBACK TO sp_' + (this._savepoints - 2);
       }
       this._removeSavepoint();
       logger.trace('[query] - ' + query);
@@ -1602,7 +1602,7 @@
           if (err) {
             return ret(err);
           }
-          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this.savepoints === 0) {
+          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >            return ret(null);</span>
           }
           return _this._commit(ret, all);
@@ -1612,17 +1612,17 @@
 &nbsp;
     Connector.prototype._commit = function(callback, all, errors) {
       var query;
-      if (this.savepoints === 1) {
+      if (this._savepoints === 1) {
         <span class="missing-if-branch" title="else path not taken" >E</span>if (all) {
           return this._release(callback, errors);
         }
 <span class="cstat-no" title="statement not covered" >        return callback(errors);</span>
-      } else <span class="missing-if-branch" title="if path not taken" >I</span>if (this.savepoints === 0) {
+      } else <span class="missing-if-branch" title="if path not taken" >I</span>if (this._savepoints === 0) {
 <span class="cstat-no" title="statement not covered" >        return callback(errors);</span>
-      } else if (this.savepoints === 2) {
+      } else if (this._savepoints === 2) {
         query = 'COMMIT';
       } else {
-        query = 'RELEASE SAVEPOINT sp_' + (this.savepoints - 2);
+        query = 'RELEASE SAVEPOINT sp_' + (this._savepoints - 2);
       }
       logger.trace('[query] - ' + query);
       return this._connection.query(query, (function(_this) {
@@ -1664,10 +1664,10 @@
           if (err) {
             return ret(err);
           }
-          if (_this.savepoints === 0) {
+          if (_this._savepoints === 0) {
             return ret(null);
           }
-          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this.savepoints !== 1) {
+          <span class="missing-if-branch" title="if path not taken" >I</span>if (_this._savepoints !== 1) {
 <span class="cstat-no" title="statement not covered" >            err = new Error('There is a begining transaction. End it before release');</span>
 <span class="cstat-no" title="statement not covered" >            err.code = 'NO_RELEASE';</span>
 <span class="cstat-no" title="statement not covered" >            return ret(err);</span>
@@ -1695,7 +1695,7 @@
 
 </div>
 <div class="footer">
-    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sun May 03 2015 00:50:02 GMT+0200 (Paris, Madrid (heure d’été))</div>
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sun May 03 2015 10:00:50 GMT+0200 (Paris, Madrid (heure d’été))</div>
 </div>
 <script src="../../prettify.js"></script>
 <script>

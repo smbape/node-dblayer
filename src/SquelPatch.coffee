@@ -86,9 +86,9 @@ class cls.HavingBlock extends cls.Block
         ret.text = "HAVING (#{havingStr})"
         ret
 
-# SELECT query builder.
+# Redefine select query builder to add having clause
 class cls.Select extends cls.QueryBuilder
-    constructor: (options, blocks = null) ->
+    constructor: (options, blocks) ->
         blocks or= [
             new cls.StringBlock(options, 'SELECT'),
             new cls.DistinctBlock(options),

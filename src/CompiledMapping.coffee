@@ -6,16 +6,15 @@ GenericUtil = require './GenericUtil'
 modelId = 0
 class Model
     constructor: (attributes)->
-        @id = ++modelId
+        @cid = ++modelId
         if _.isPlainObject attributes
             @attributes = _.clone attributes
         else
             @attributes = {}
     clone: ->
         _clone = new @constructor()
-        # _clone.attributes = _.clone @attributes
         for own prop of @
-            if prop isnt 'id'
+            if prop isnt 'cid'
                 _clone[prop] = _.clone @[prop]
         _clone
     set: (prop, value)->
@@ -499,8 +498,6 @@ _addConstraints = (classDef, rawDefinition)->
 _setConstructor = (classDef, Ctor)->
     if 'undefined' is typeof Ctor
         Ctor = Model
-    else if GenericUtil.notEmptyString Ctor
-        Ctor = require Ctor
 
     if typeof Ctor isnt 'function'
         err = new Error "[#{classDef.className}] given constructor is not a function"

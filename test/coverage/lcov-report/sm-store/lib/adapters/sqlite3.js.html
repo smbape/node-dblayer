@@ -15,10 +15,10 @@
 <div class="header high">
     <h1>Code coverage report for <span class="entity">sm-store\lib\adapters\sqlite3.js</span></h1>
     <h2>
-        Statements: <span class="metric">88.52% <small>(162 / 183)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Statements: <span class="metric">88.2% <small>(157 / 178)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         Branches: <span class="metric">61.11% <small>(44 / 72)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
-        Functions: <span class="metric">88.1% <small>(37 / 42)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
-        Lines: <span class="metric">87.93% <small>(153 / 174)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Functions: <span class="metric">87.18% <small>(34 / 39)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Lines: <span class="metric">87.65% <small>(149 / 170)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         Ignored: <span class="metric"><span class="ignore-none">none</span></span> &nbsp;&nbsp;&nbsp;&nbsp;
     </h2>
     <div class="path"><a href="../../../index.html">All files</a> &#187; <a href="index.html">sm-store/lib/adapters/</a> &#187; sqlite3.js</div>
@@ -315,18 +315,11 @@
 288
 289
 290
-291
-292
-293
-294
-295
-296
-297</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
+291</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1</span>
 <span class="cline-any cline-yes">1</span>
 <span class="cline-any cline-yes">3</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">276</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -529,7 +522,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1</span>
 <span class="cline-any cline-yes">18</span>
-<span class="cline-any cline-yes">18</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">18</span>
@@ -556,10 +548,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">18</span>
 <span class="cline-any cline-yes">18</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1</span>
-<span class="cline-any cline-yes">276</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1</span>
@@ -621,8 +609,7 @@
 (function() {
   var ArrayStream, EventEmitter, GenericUtil, MODES, SQLite3Connection, SQLite3Query, SQLite3Stream, adapter, log4js, logger, path, sqlite3, _,
     __extends = function(child, parent) { for (var key in parent) { <span class="missing-if-branch" title="else path not taken" >E</span>if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __hasProp = {}.hasOwnProperty,
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+    __hasProp = {}.hasOwnProperty;
 &nbsp;
   path = require('path');
 &nbsp;
@@ -824,7 +811,6 @@
     __extends(SQLite3Stream, _super);
 &nbsp;
     function SQLite3Stream(args) {
-      this._onData = __bind(this._onData, this);
       SQLite3Stream.__super__.constructor.call(this, [], {
         duplex: true
       });
@@ -854,10 +840,6 @@
       this.done = 'function' === typeof done ? done : <span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >function() {</span>};</span>
     };
 &nbsp;
-    SQLite3Stream.prototype._onData = function(row) {
-      this.callback(row);
-    };
-&nbsp;
     SQLite3Stream.prototype.execute = function(db) {
       var done, hasError, query, result, values;
       query = this.text;
@@ -865,14 +847,14 @@
       done = this.done;
       result = {};
       hasError = false;
-      this.on('data', this._onData);
+      this.on('data', this.callback);
       this.once('error', <span class="fstat-no" title="function not covered" >function(err) {</span>
 <span class="cstat-no" title="statement not covered" >        hasError = true;</span>
 <span class="cstat-no" title="statement not covered" >        done(err);</span>
       });
       this.once('end', (function(_this) {
         return function() {
-          _this.removeListener('data', _this._onData);
+          _this.removeListener('data', _this.callback);
           <span class="missing-if-branch" title="if path not taken" >I</span>if (hasError) {
 <span class="cstat-no" title="statement not covered" >            return;</span>
           }
@@ -918,7 +900,7 @@
 
 </div>
 <div class="footer">
-    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sun May 03 2015 00:50:02 GMT+0200 (Paris, Madrid (heure d’été))</div>
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sun May 03 2015 10:00:50 GMT+0200 (Paris, Madrid (heure d’été))</div>
 </div>
 <script src="../../../prettify.js"></script>
 <script>

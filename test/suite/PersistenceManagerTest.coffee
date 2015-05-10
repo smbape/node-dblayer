@@ -2714,7 +2714,6 @@ task = (config, assert)->
                 idName = pMgr.getIdName 'ClassF'
                 id0 = model.get idName
                 model = new Model()
-                model.set idName, id0
                 model.className = 'ClassF'
                 pMgr.initialize model, options.listOptions, next
                 return
@@ -3217,41 +3216,23 @@ task = (config, assert)->
             return
         return
 
-    # insert class with no id
-    # insert with unique contraint values
-    # insert, update, delete with only one unique contraints setted
-    # initialize with no options
-    # initialize with array attribute option
-    # where using a value with write handler
-    # initialize using attributes prop: class
-    # insert, update, save setting propClass to null
-    # insert, update, save setting propClass to empty string
-    # insert, update, save setting propClass to string id
-    # insert, update, save setting propClass to number id
     # insert, update, save using write handler that return undefined
+    # escape boolean, array, non string
     # update, save using update handler that return undefined
-    # initalizeOrInsert with no unique contraint values
-    # initialize with no model
-    # stream using 2 times the same connector
-    # list without a callback
-    # list with models number that doesn't match given models
-    # update or delete on class name with no id
-    # update or delete with null or unsetted id
-    # update parent mixin, make sure child is consired as being updated
-    # update without change, expect no update
-    
+    # hanler write for a propclass
+    # where|having as a select query
+    # wrong mixin within array
+    # construction that is not a function
+    # define classes in random order
+    # mixins > 2 and in random order
+
     # error handling tests
     # # If parent mixin has been update, child must be considered as being updated
     # issue: update on subclass with no owned properties
-    # initialize model i.e. use database value to fill model values.
-    # initializeOrInsert
-    # OtherStream with committed transactions
     # optimistic lock
     #   update
     #   delete
-    # sort,group on mixin|parent class prop
-    # sort,group on property class prop
-    # sort, group, limit offset
+    # sort,group on mixin|parent|property class prop
     
     series = [
         setUp

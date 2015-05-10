@@ -112,11 +112,12 @@ module.exports = class AdapterPool
         return
 
     check: (next)->
-        # throw new Error('next is not a function') if typeof next isnt 'function'
+        if 'function' isnt typeof next
+            next = ->
         @pool.acquire (err, connection)=>
-            throw err if err
+            return next err if err
             @pool.release connection
-            next() if 'function' is typeof next
+            next()
         return
     getDialect: ->
         return @options.adapter

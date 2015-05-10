@@ -68,9 +68,12 @@ PersistenceManager::insert = (model, options, callback)->
         return callback(err) if err
         connector.begin (err)->
             if err
-                connector.release (err)->
-                    callback(err)
+                if performed
+                    connector.release (_err)->
+                        callback if _err then [err, _err] else err
+                        return
                     return
+                callback err
                 return
             query.execute connector, (err)->
                 if err
@@ -114,12 +117,6 @@ PersistenceManager::stream = (className, options, callback, done)->
     connector = options.connector
     listConnector = options.listConnector or connector.clone()
 
-    # if listConnector is connector or
-    # (listConnector.getInnerPool() is connector.getInnerPool() and listConnector.getMaxConnection() < 2)
-    #     err = new Error 'List connection and stream connection are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
-    #     err.code = 'STREAM_CONNECTION'
-    #     logger.warn err
-    
     try
         query = @getSelectQuery className, _.extend {dialect: connector.getDialect()}, options
     catch err
@@ -143,9 +140,12 @@ PersistenceManager::update = (model, options, callback)->
         return callback(err) if err
         connector.begin (err)->
             if err
-                connector.release (err)->
-                    callback(err)
+                if performed
+                    connector.release (_err)->
+                        callback if _err then [err, _err] else err
+                        return
                     return
+                callback err
                 return
             query.execute connector, (err)->
                 if err
@@ -262,8 +262,7 @@ PersistenceManager::initialize = (model, options, callback)->
     options = _.extend {}, options,
         models: [model]
 
-    if not options.where
-        options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+    options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
     @list className, options, callback
 
 # return where condition to be parsed by RowMap
@@ -572,6 +571,7 @@ class SelectQuery
             if tasks.length > 0
                 if listConnector is streamConnector or
                 (listConnector.getInnerPool() is streamConnector.getInnerPool() and listConnector.getMaxConnection() < 2)
+                    # preventing dead block
                     err = new Error 'List connection and stream connection are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
                     err.code = 'STREAM_CONNECTION'
                     stream.emit 'error', err
@@ -1017,6 +1017,7 @@ class DeleteQuery
         connector.query query, callback, @getOptions().executeOptions
         return
 
+# error codes abstraction
 # check: database and mapping are compatible
 # collection
 # stream with inherited =>

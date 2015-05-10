@@ -17,13 +17,13 @@ STATES =
     QUERY: 6
     FORCE_RELEASE: 6
 
-MAX_ACQUIRE_TIME = 60 * 60 * 1000
+MAX_ACQUIRE_TIME = 5 * 60 * 1000
 
 module.exports = class Connector extends EventEmitter
     STATES: STATES
     constructor: (pool, options)->
         super
-        if not GenericUtil.isObject pool
+        if not _.isObject pool
             error = new Error 'pool is not defined'
             error.code = 'POOL_UNDEFINED'
             throw error
@@ -36,7 +36,7 @@ module.exports = class Connector extends EventEmitter
         @timeout = @options.timeout or MAX_ACQUIRE_TIME
         @resourceSem = semLib.semCreate 1, true
         @pool = pool
-        @savepoints = 0
+        @_savepoints = 0
         @state = STATES.AVAILABLE
         @acquireTimeout = 0
 
@@ -65,16 +65,19 @@ module.exports = class Connector extends EventEmitter
 
     _addSavePoint: (connection)->
         @_connection = connection if connection
-        @savepoints++
+        @_savepoints++
 
     _removeSavepoint: ->
-        @savepoints--
+        @_savepoints--
+
+    # getConnection: ->
+    #     @_connection
 
     getState: ->
         return @state
 
     getSavepointsSize: ->
-        return @savepoints
+        return @_savepoints
 
     _stateError: (expected)->
         return if @state is expected
@@ -120,7 +123,7 @@ module.exports = class Connector extends EventEmitter
 
     _acquire: (callback)->
         # check if connection has already been acquired
-        return callback null, false if @savepoints > 0
+        return callback null, false if @_savepoints > 0
 
         @pool.acquire (err, connection)=>
             return callback err if err
@@ -129,7 +132,7 @@ module.exports = class Connector extends EventEmitter
                 @_takeResource STATES.FORCE_RELEASE,
                     priority: 1
                     onTake: =>
-                        if @savepoints is 0
+                        if @_savepoints is 0
                             return @_giveResource()
                         @state = STATES.INVALID
                         logger.error 'Force rollback and release cause acquire last longer than acceptable'
@@ -152,7 +155,7 @@ module.exports = class Connector extends EventEmitter
         @_takeResource STATES.QUERY, (err)=>
             return ret err if err
 
-            if @savepoints is 0
+            if @_savepoints is 0
                 logger.trace 'automatic acquire for query'
                 return @_acquire (err)=>
                     return ret err if err
@@ -188,7 +191,7 @@ module.exports = class Connector extends EventEmitter
         @_takeResource STATES.STREAM, (err)=>
             return ret err if err
 
-            if @savepoints is 0
+            if @_savepoints is 0
                 logger.trace 'automatic acquire for stream'
                 return @_acquire (err)=>
                     return ret err if err
@@ -218,11 +221,11 @@ module.exports = class Connector extends EventEmitter
         return
 
     begin: (callback, options)->
-        if @savepoints is 0
+        if @_savepoints is 0
             # No automatic acquire because there cannot be an automatic release
             # Programmer may or may not perform a query/stream with the connection.
             # Therefore, there is no way to know when to release connection
-            err = new Error 'Connector has no active connection'
+            err = new Error 'Connector has no active connection. You must acquire a connection before begining a transaction.'
             err.code = 'NO_CONNECTION'
             return callback err
 
@@ -233,22 +236,22 @@ module.exports = class Connector extends EventEmitter
         @_takeResource STATES.START_TRANSACTION, (err)=>
             return ret err if err
 
-            if @savepoints is 0
+            if @_savepoints is 0
                 # No automatic acquire because there cannot be an automatic release
                 # Programmer may or may not perform a query/stream with the connection.
                 # Therefore, there is no way to know when to release connection
-                err = new Error 'Connector has no active connection'
+                err = new Error 'Connector has no active connection. You must acquire a connection before begining a transaction.'
                 err.code = 'NO_CONNECTION'
                 return ret err
 
             @_begin ret
     _begin: (callback)->
-        if @savepoints is 1
+        if @_savepoints is 1
             # we have no transaction
             query = 'BEGIN'
-        else if @savepoints > 0
+        else if @_savepoints > 0
             # we are in a transaction, make a savepoint
-            query = 'SAVEPOINT sp_' + (@savepoints - 1)
+            query = 'SAVEPOINT sp_' + (@_savepoints - 1)
         else
             # Something mess up
             err = new Error 'You probably have called this private method outside'
@@ -285,19 +288,19 @@ module.exports = class Connector extends EventEmitter
             return
         @_takeResource STATES.ROLLBACK, (err)=>
             return ret err if err
-            return ret null if @savepoints is 0
+            return ret null if @_savepoints is 0
             @_rollback ret, all
 
     _rollback: (callback, all, errors)->
-        if @savepoints is 1
+        if @_savepoints is 1
             return @_release callback, errors if all
             return callback errors
-        else if @savepoints is 0
+        else if @_savepoints is 0
             return callback errors
-        else if @savepoints is 2
+        else if @_savepoints is 2
             query = 'ROLLBACK'
         else
-            query = 'ROLLBACK TO sp_' + (@savepoints - 2)
+            query = 'ROLLBACK TO sp_' + (@_savepoints - 2)
         
         @_removeSavepoint()
 
@@ -336,19 +339,19 @@ module.exports = class Connector extends EventEmitter
             return
         @_takeResource STATES.COMMIT, (err)=>
             return ret err if err
-            return ret null if @savepoints is 0
+            return ret null if @_savepoints is 0
             @_commit ret, all
 
     _commit: (callback, all, errors)->
-        if @savepoints is 1
+        if @_savepoints is 1
             return @_release callback, errors if all
             return callback errors
-        else if @savepoints is 0
+        else if @_savepoints is 0
             return callback errors
-        else if @savepoints is 2
+        else if @_savepoints is 2
             query = 'COMMIT'
         else
-            query = 'RELEASE SAVEPOINT sp_' + (@savepoints - 2)
+            query = 'RELEASE SAVEPOINT sp_' + (@_savepoints - 2)
         
         logger.trace '[query] - ' + query
 
@@ -375,8 +378,8 @@ module.exports = class Connector extends EventEmitter
             return
         @_takeResource STATES.RELEASE, (err)=>
             return ret err if err
-            return ret null if @savepoints is 0
-            if @savepoints isnt 1
+            return ret null if @_savepoints is 0
+            if @_savepoints isnt 1
                 err = new Error 'There is a begining transaction. End it before release'
                 err.code = 'NO_RELEASE'
                 return ret(err)

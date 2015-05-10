@@ -82,6 +82,7 @@ class SQLite3Connection extends EventEmitter
         stream = new SQLite3Stream arguments
         stream.execute @db
         stream
+
     end:->
         logger.debug 'close connection'
         @db.close()
@@ -170,10 +171,6 @@ class SQLite3Stream extends ArrayStream
         @done = if 'function' is typeof done then done else ->
         return
 
-    _onData: (row)=>
-        @callback row
-        return
-
     execute: (db)->
         query = @text
         values = @values
@@ -182,14 +179,14 @@ class SQLite3Stream extends ArrayStream
         result = {}
         hasError = false
 
-        @on 'data', @_onData
+        @on 'data', @callback
         @once 'error', (err)->
             hasError = true
             done err
             return
 
         @once 'end', =>
-            @removeListener 'data', @_onData
+            @removeListener 'data', @callback
             return if hasError
             # return done(err) if err
             if not result.fields
@@ -214,6 +211,5 @@ class SQLite3Stream extends ArrayStream
                 @emit 'error', err
             return
         return
-
 
 # Stream: error, fields, data, end
