@@ -749,8 +749,7 @@ class UpdateQuery
                         # assume it is the id
                         value = parentModel
                 else
-                    prop = pMgr._getDefinition propDef.className
-                    value = parentModel.get prop.id.name
+                    value = parentModel.get pMgr._getDefinition(propDef.className).id.name
             else
                 value = model.get prop
 
