@@ -17,9 +17,9 @@ JOIN_FUNC =
     left: 'left_join'
     right: 'right_join'
 
-_handleRead = (value, propDef)->
+_handleRead = (value, model, propDef)->
     if typeof propDef.read is 'function'
-        value = propDef.read value
+        value = propDef.read value, model
     value
 
 _createModel = (className = @className)->
@@ -27,14 +27,14 @@ _createModel = (className = @className)->
     Ctor = definition.ctor
     new Ctor()
 _setModelValue = (model, prop, value, propDef)->
-    model.set prop, _handleRead value, propDef
+    model.set prop, _handleRead value, model, propDef
 _getModelValue = (model, prop)->
     model.get prop
 
 _createPlainObject = (className)->
     {}
 _setPlainObjectValue = (model, prop, value, propDef)->
-    model[prop] = _handleRead value, propDef
+    model[prop] = _handleRead value, model, propDef
 _getPlainObjectValue = (model, prop)->
     model[prop]
 
@@ -57,7 +57,8 @@ module.exports = class RowMap
 
         @_processJoins()
         @_processFields()
-        @_processOptions()
+        @_processColumns()
+        @_processBlocks()
 
     _initialize: ->
         if @options.type is 'json' or @options.count
@@ -108,9 +109,7 @@ module.exports = class RowMap
 
             @_joining[id] = true
 
-            condition = _readFields.call @, options.condition
-            # condition = _replaceField options.condition.toString(), (field)=>
-            #     @_getSetColumn field
+            condition = _coerce.call @, options.condition
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
                 
@@ -161,7 +160,17 @@ module.exports = class RowMap
 
         return
 
-    _processOptions: ->
+    _processColumns: ->
+        columns = @options.columns
+        if _.isEmpty columns
+            return
+
+        for prop, field of columns
+            @_selectCustomField prop, field
+
+        return
+
+    _processBlocks: ->
         select = @options.select
         for block in ['where', 'group', 'having', 'order', 'limit', 'offset']
             option = @options[block]
@@ -251,24 +260,44 @@ module.exports = class RowMap
         return
 
     _selectCount: ->
-        prop = 'count'
+        @_selectCustomField 'count',
+            column: 'count(1)'
+            read: (value)->
+                parseInt value, 10
+        return
+
+    _selectCustomField: (prop, field)->
         ancestors = [STATIC.ROOT]
+        type = typeof field
+
+        if 'undefined' is type
+            column = prop
+        else if 'string' is type
+            column = field
+        else if _.isPlainObject field
+            column = field.column
+            handlerRead = field.read
 
         id = @_getUniqueId prop, ancestors
         info = @_getSetInfo id, true
-        @_set info, 'read', (value)->
-            parseInt value, 10
 
         if info.hasOwnProperty 'field'
             # this property has already been selected
             return
 
-        column = 'count(1)'
         columnAlias = @_uniqColAlias()
+        column = _coerce.call @, column
         @options.select.field column, columnAlias
+
+        # map columnAlias to prop
         @_set info, 'field', columnAlias
+
+        @_set info, 'read', handlerRead if 'function' is typeof handlerRead
+
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         parentInfo.properties = parentInfo.properties or {}
+
+        # mark current prop as field of parent prop
         @_set parentInfo.properties, id, true
         return
 
@@ -594,18 +623,18 @@ _readFields = (values, select, block)->
             else
                 _coerce.call @, value
 
-        select[block].apply select, values if select
+        select[block].apply select, values
     else
         ret = _coerce.call @, values
-        select[block] values if select
+        select[block] values
 
     ret or values
 
 _coerce = (str)->
-    if str instanceof squel.cls.Expression
-        return _replaceField str.toString(), (field)=>
+    if 'string' is typeof str
+        return _replaceField str, (field)=>
             @_getSetColumn field
-    else if 'string' is typeof str
+    else if _.isObject(str) and not Array.isArray str
         return _replaceField str.toString(), (field)=>
             @_getSetColumn field
 

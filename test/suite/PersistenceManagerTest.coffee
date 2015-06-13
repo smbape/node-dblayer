@@ -1020,11 +1020,11 @@ task = (config, assert)->
             className: 'ClassA'
 
         handlersCreation =
-            insert: (options)->
+            insert: (model, options, extra)->
                 new Date()
-            read: (value, options)->
+            read: (value, model, options)->
                 moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss').toDate()
-            write: (value, options)->
+            write: (value, model, options)->
                 moment(value).utc().format 'YYYY-MM-DD HH:mm:ss'
 
         handlersModification = _.extend {}, handlersCreation, update: handlersCreation.insert
@@ -2890,7 +2890,7 @@ task = (config, assert)->
             join:
                 translation:
                     entity: 'Translation'
-                    condition: '{translation, property} = {country:property}'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
                     fields: [
                         'value'
                         'property:code'
@@ -3030,7 +3030,7 @@ task = (config, assert)->
                     entity: 'Language'
                     type: 'left'
                     condition: '{LNG, id} = {ctry, language}'
-            order: '{id}'
+            order: [['{id}', true]]
             group: [
                 '{id}'
                 '{country}'
@@ -3216,6 +3216,62 @@ task = (config, assert)->
             return
         return
 
+    testCustomColumns = (next)->
+        logger.debug 'begin testCustomColumns'
+        _next = next
+        next = ->
+            logger.debug 'finish testCustomColumns'
+            _next()
+
+        [pMgr, model, connector, Model] = setUpMapping()
+        model.className = 'ClassA'
+
+        tasks = [
+            (next)-> connector.acquire next
+            (performed, next)-> connector.begin next
+            (next)->
+                model.set 'propA1', 'odd'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                model.set 'propA1', 'even'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                model.set 'propA1', 'odd'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                model.set 'propA1', 'even'
+                pMgr.insert model, {connector: connector}, next
+                return
+            (id, next)->
+                options =
+                    columns:
+                        'even':
+                            column: "CASE {propA1} WHEN #{connector.escape 'even'} THEN 1 ELSE 0 END"
+                            read: (value)->
+                                !!value
+                    connector: connector
+
+                pMgr.list 'ClassA', options, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 4
+                assert.strictEqual models[0].get('even'), false
+                assert.strictEqual models[1].get('even'), true
+                assert.strictEqual models[2].get('even'), false
+                assert.strictEqual models[3].get('even'), true
+                next()
+            (next)-> connector.rollback next, true
+        ]
+
+        async.waterfall tasks, (err)->
+            assert.ifError err
+            next()
+            return
+        return
+
     # insert, update, save using write handler that return undefined
     # escape boolean, array, non string
     # update, save using update handler that return undefined
@@ -3226,6 +3282,7 @@ task = (config, assert)->
     # define classes in random order
     # mixins > 2 and in random order
 
+    # join in messy order
     # error handling tests
     # # If parent mixin has been update, child must be considered as being updated
     # issue: update on subclass with no owned properties
@@ -3269,6 +3326,7 @@ task = (config, assert)->
         testIssue4
         testSelectBlocks
         testUniqueConstraint
+        testCustomColumns
         tearDown
     ]
 

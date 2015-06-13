@@ -103,8 +103,6 @@ PersistenceManager::insert = (model, options, callback)->
 PersistenceManager::getInsertQuery = (model, options)->
     new InsertQuery @, model, options
 
-
-
 PersistenceManager::list = (className, options, callback)->
     connector = options.connector
     try
@@ -300,7 +298,7 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
         if _.isPlainObject attributes
             for attr, value of attributes
                 _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
-        else if attributes instanceof Array
+        else if Array.isArray attributes
             for attr in attributes
                 value = model.get attr
                 _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
@@ -310,7 +308,8 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
     if isSetted
         _.isPlainObject(options.result) or (options.result = {})
         options.result.constraint = index
-    where
+
+    where or []
 
 PRIMITIVE_TYPES = /^(?:string|boolean|number)$/
 
@@ -331,9 +330,9 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
         where.push column + ' = ' + connector.escape value
     else if _.isObject value
         propClassName = definition.availableProperties[attr].definition.className
-        id = value.get pMgr.getIdName propClassName
-        if typeof id isnt 'undefined'
-            if id is null
+        value = value.get pMgr.getIdName propClassName
+        if typeof value isnt 'undefined'
+            if value is null
                 where.push column + ' IS NULL'
             else if PRIMITIVE_TYPES.test typeof value
                 where.push column + ' = ' + connector.escape value
@@ -435,7 +434,7 @@ class InsertQuery
 
             # Insert handler
             if typeof value is 'undefined' and typeof insertHandler is 'function'
-                value = insertHandler options
+                value = insertHandler model, options, {column: column}
 
             # Only set defined values
             if typeof value is 'undefined'
@@ -502,7 +501,7 @@ class InsertQuery
                 else if res.hasOwnProperty 'lastInsertId'
                     id = res.lastInsertId
                 else
-                    id = (res.rows instanceof Array) and res.rows.length > 0 and res.rows[0][definition.id.column]
+                    id = Array.isArray(res.rows) and res.rows.length > 0 and res.rows[0][definition.id.column]
 
             logger.trace '[' + definition.className + '] - INSERT ' + id
 
@@ -630,7 +629,7 @@ class SelectQuery
             rows = res.rows
             return callback(err, rows) if rows.length is 0
             ret = []
-            if options.models instanceof Array
+            if Array.isArray options.models
                 models = options.models
                 if models.length isnt rows.length
                     err = new Error 'Returned rows and given number of models doesn\'t match'
@@ -680,12 +679,13 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
         throw err
 
     id = model.get idName if idName isnt null
-    hasNoCondition = id is null or 'undefined' is typeof id
-    if hasNoCondition
+    hasNoCondition = hasNoId = id is null or 'undefined' is typeof id
+    if hasNoId
         options = _.extend {}, options, {useDefinitionColumn: true}
         where = _getInitializeCondition pMgr, model, className, definition, options
+        result = options.result
+        hasNoCondition = where.length is 0
         for condition in where
-            hasNoCondition = false
             action.where condition
     else
         action.where connector.escapeId(definition.id.column) + ' = ' + connector.escape id
@@ -694,7 +694,7 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
         err = new Error "Cannot #{name} #{className} model because id is null or undefined"
         err.code = name.toUpperCase()
         throw err
-    return options.result
+    return result
 
 class UpdateQuery
     constructor: (pMgr, model, options = {})->
@@ -731,6 +731,8 @@ class UpdateQuery
         # update owned properties
         for prop, propDef of definition.properties
             if result
+                # contraint used as discriminator must not be update
+                # causes an error on postgres
                 constraint = definition.constraints.unique[result.constraint]
                 if -1 isnt constraint.indexOf prop
                     continue
@@ -756,6 +758,12 @@ class UpdateQuery
 
             # Handlers
             handlers = propDef.handlers
+            if _.isObject(options.overrides) and _.isObject(options.overrides[prop])
+                if _.isObject(options.overrides[prop].handlers)
+                    handlers = _.extend {}, handlers, options.overrides[prop].handlers
+                dontQuote = options.overrides[prop].dontQuote
+                dontLock = options.overrides[prop].dontLock
+
             writeHandler = undefined
             updateHandler = undefined
 
@@ -771,11 +779,11 @@ class UpdateQuery
             if propDef.lock
                 lock = value
                 if typeof writeHandler is 'function'
-                    lock = writeHandler lock, options
+                    lock = writeHandler lock, model, options
                     lockCondition.and connector.exprEqual lock, connector.escapeId column
 
             if typeof updateHandler is 'function'
-                value = updateHandler options
+                value = updateHandler model, options, {column: column}
 
             # Only set defined values
             if typeof value is 'undefined'
@@ -789,10 +797,10 @@ class UpdateQuery
             if typeof value is 'undefined'
                 continue
 
-            update.set @escapeId(column), value
+            update.set @escapeId(column), value, {dontQuote: !!dontQuote}
             @hasData = true
             
-            if not propDef.lock
+            if not dontLock and not propDef.lock
                 changeCondition.or connector.exprNotEqual value, connector.escapeId column
 
         update.where lockCondition
@@ -852,16 +860,16 @@ class UpdateQuery
             return callback(err) if err
 
             # Check if parent mixin has been updated
-            if (results instanceof Array) and results.length > 0
+            if Array.isArray(results) and results.length > 0
                 for result in results
-                    if (result instanceof Array) and result.length > 0
+                    if Array.isArray(result) and result.length > 0
                         id = result[0]
                         extended = result[1]
                         if not extended
                             logger.trace '[' + definition.className + '] - UPDATE: has update ' + id
                             hasUpdate = true
                             break
-                if results[results.length - 1] instanceof Array
+                if Array.isArray results[results.length - 1]
                     id = results[results.length - 1][0]
 
             if not @hasData

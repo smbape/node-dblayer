@@ -1,13 +1,16 @@
 require('coffee-script').register();
-var log4js = require('log4js');
-var path = require('path');
-var dirname = path.dirname(__filename);
-log4js.configure(path.join(dirname, 'log4js.json'));
-var path = require('path');
-var workdir = encodeURIComponent(path.join(__dirname, '../../../databases'));
 
-// do test for each dbms
-var config = {
+var log4js = require('log4js'),
+    path = require('path'),
+    dirname = path.dirname(__filename),
+    path = require('path'),
+    workdir = encodeURIComponent(path.join(__dirname, '../../../databases')),
+    async = require('async');
+
+log4js.configure(path.join(dirname, 'log4js.json'))
+
+// DBMS configs
+var configs = {
     postgres: {
         read: "postgres://user_read:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
         write: "postgres://user_write:zulu@localhost:5432/buma?schema=test&minConnection=0&maxConnection=10&idleTimeout=3600",
@@ -33,23 +36,20 @@ var AdapterPool = library.AdapterPool,
     pools = {};
 
 var dbms, poolAdmin, poolRead, poolWrite, options, taskName, dialects;
-
-for (dbms in config) {
-    addTask(dbms);
-}
+var testSuite = module.exports;
 
 function addTask(dbms) {
-    if (!config.hasOwnProperty(dbms)) {
+    if (!configs.hasOwnProperty(dbms)) {
         return;
     }
     options = {};
-    options.poolRead = new AdapterPool(config[dbms].read, {
+    options.poolRead = new AdapterPool(configs[dbms].read, {
         name: dbms + 'PoolRead'
     });
-    options.poolWrite = new AdapterPool(config[dbms].write, {
+    options.poolWrite = new AdapterPool(configs[dbms].write, {
         name: dbms + 'PoolWrite'
     });
-    options.poolAdmin = new AdapterPool(config[dbms].admin, {
+    options.poolAdmin = new AdapterPool(configs[dbms].admin, {
         name: dbms + 'PoolAdmin'
     });
     pools[dbms] = options;
@@ -57,7 +57,7 @@ function addTask(dbms) {
     for (var i = 0; i < testSubtasks.length; i++) {
         taskName = testSubtasks[i];
         task = require('./suite/' + taskName);
-        module.exports[taskName + ' - ' + dbms] = task(options);
+        testSuite[taskName + ' - ' + dbms] = task(options);
     }
 }
 
@@ -92,9 +92,11 @@ function destroyPools(next) {
     }
 }
 
-var async = require('async');
+for (dbms in configs) {
+    addTask(dbms);
+}
+
 var assert, prop, reporter, tests;
-var testSuite = module.exports;
 
 var isNodeunit = /\bnodeunit$/.test(process.argv[1]);
 var isRequire = __filename !== process.argv[1];
@@ -127,7 +129,7 @@ function debugTests() {
                 assert.done = next;
                 fn(assert);
             });
-        })(testSuite[prop], prop);
+        }(testSuite[prop], prop));
     }
 
     return function(next) {
@@ -146,13 +148,29 @@ if (false) {
         run: run
     };
 } else {
-    var GetOpt = require('node-getopt');
-    var options = GetOpt.create([
-        ['', 'dialects=ARG', 'Database Management Systems [postgres, mysql, sqlite]'],
-        ['', 'trace', 'Show trace stack on error'],
-        ['h', 'help', 'Display this help']
-    ]).bindHelp().parseSystem().options;
-    dialects = options.hasOwnProperty('dialects') ? options.dialects.split(/\s*,\s*/) : null;
+    var program = require('commander');
+
+    program
+        .version(require('../package.json').version)
+        .option('--dialects <items>', 'A list of comma separated dialects to test', dialects, ['postgres', 'mysql', 'sqlite'])
+        .parse(process.argv);
+
+    function dialects(val) {
+        var list = val.split(/\s*,\s*/),
+            ret = [],
+            i;
+
+        for (i = 0; i < list.length; i++) {
+            if (/postgres|mysql|sqlite/.test(list[i])) {
+                ret.push(list[i]);
+            }
+        }
+
+        return ret;
+    }
+
+    var dialects = program.dialects;
+
     if (dialects && dialects.length > 0) {
 
         for (var prop in testSuite) {
@@ -163,9 +181,6 @@ if (false) {
             addTask(dialects[i]);
         }
     }
-    if (options.hasOwnProperty('trace')) {
-        run();
-    } else {
-        debugTests()();
-    }
+    
+    debugTests()();
 }
