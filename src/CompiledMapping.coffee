@@ -59,15 +59,16 @@ module.exports = class CompiledMapping
         @classes[className].id.name
 
     getDefinition: (className)->
-        @assertClassHasMapping className
-        _.cloneDeep @classes[className]
+        _.cloneDeep @_getDefinition className
 
-    # getMapping: ->
-    #     _.cloneDeep @classes
+    getMapping: ->
+        _.cloneDeep @classes
 
+    getTable: (className)->
+        @_getDefinition(className).table
+    
     getColumn: (className, prop)->
-        @assertClassHasMapping className
-        definition = @classes[className]
+        definition = @_getDefinition className
         if definition.id.name is prop
             definition.id.column
         else if definition.properties.hasOwnProperty prop

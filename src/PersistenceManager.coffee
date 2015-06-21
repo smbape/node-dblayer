@@ -775,7 +775,7 @@ class UpdateQuery
                 if typeof handlers.update is 'function'
                     updateHandler = handlers.update
 
-            if propDef.lock
+            if not dontLock and propDef.lock
                 lock = value
                 if typeof writeHandler is 'function'
                     lock = writeHandler lock, model, options
@@ -881,8 +881,8 @@ class UpdateQuery
                 @setChangeCondition()
 
             @_execute connector, (err, id, extended)->
-                hasUpdate = true if not extended
-                callback err, id, not hasUpdate and extended
+                hasUpdate = not extended
+                callback err, id, extended
                 return
             return
         return
@@ -898,15 +898,12 @@ class UpdateQuery
         connector.query query, (err, res)->
             return callback(err) if err
 
-
-            if definition.id.hasOwnProperty 'column'
-                if res.hasOwnProperty 'affectedRows'
-                    # assume it's mysql connector
-                    if res.affectedRows is 0
-                        hasNoUpdate = true
-                else if res.rows 
-                    if res.rows.length is 0
-                        hasNoUpdate = true
+            if res.hasOwnProperty 'affectedRows'
+                hasNoUpdate = res.affectedRows is 0
+            else if definition.id.hasOwnProperty('column') and res.rows
+                hasNoUpdate = res.rows.length is 0
+            else if res.hasOwnProperty 'rowCount'
+                hasNoUpdate = res.rowCount is 0
 
             id = model.get definition.id.name
 
@@ -992,8 +989,17 @@ class DeleteQuery
         @toString()
 
     execute: (connector, callback)->
+        next = (err, res)->
+            return callback(err) if err
+
+            if not res.affectedRows and res.hasOwnProperty 'rowCount'
+                res.affectedRows = res.rowCount
+
+            callback err, res
+            return
+
         if @toString is @oriToString
-            return @_execute connector, callback
+            return @_execute connector, next
 
         params = @toParam()
         idIndex = 0
@@ -1003,18 +1009,21 @@ class DeleteQuery
             if value instanceof DeleteQuery
                 ((query)->
                     tasks.push (next)->
-                        query.execute connector, (err, id)->
-                            next err
-                            return
+                        query.execute connector, next
                         return
                     return
                 )(value)
             else
                 break
 
-        @_execute connector, (err)->
-            return callback(err) if err
-            async.series tasks, callback
+        @_execute connector, (err, res)->
+            return next(err) if err
+            async.series tasks, (err, results)->
+                return next(err) if err
+                for result in results
+                    return next(new Error 'sub class has not been deleted') if result.affectedRows is 0
+                next err, res
+                return
             return
 
         return

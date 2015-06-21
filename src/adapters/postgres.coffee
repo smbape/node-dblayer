@@ -13,11 +13,9 @@ class PostgresClient extends pg.Client
         @options.schema = @options.schema or 'public'
         super
     query: (query, params, callback)->
-        query = @adapter.createQuery query, params, callback
-        # @emit 'query', query
-        super query
-    # getConnectionName: ->
-    #     @options.adapter + '://' + @options.host + ':' + @options.port + '/' + @options.database + '/' + @options.schema
+        if 'string' is typeof query and query.match /^\s*(?:insert|update|delete)\s+/i
+            return super query, params, callback
+        super new PostgresQueryStream query, params, callback
     stream: (query, params, callback, done)->
         if arguments.length is 3
             done = callback
@@ -44,6 +42,7 @@ class PostgresClient extends pg.Client
             done undefined, result unless hasError
             return
         stream
+
     # getModel: (callback)->
     #     callback = (->) if typeof callback isnt 'function'
     #     query = """
@@ -91,8 +90,11 @@ class PostgresQueryStream extends QueryStream
             callback = params
             params = []
         params = [] unless params
+
         QueryStream.call @, text, params
+
         @callback = callback
+
         if typeof callback is 'function'
             errored = false
             @on 'error', (err)->
@@ -133,13 +135,11 @@ _.extend adapter,
                 callback err, connection
         # client.once 'connect', client.emit.bind(client, 'open')
         client
-    createQuery: (text, params, callback)->
-        new PostgresQueryStream text, params, callback
-    escape: (str)->
-        type = typeof str
+    escape: (value)->
+        type = typeof value
         if type is 'number'
-            return str
+            return value
         if type is 'boolean'
-            return if type then '1' else '0'
-        PostgresClient::escapeLiteral str
+            return if value then 'TRUE' else 'FALSE'
+        PostgresClient::escapeLiteral value
     escapeId: PostgresClient::escapeIdentifier

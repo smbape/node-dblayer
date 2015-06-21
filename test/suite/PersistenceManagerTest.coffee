@@ -1894,7 +1894,9 @@ task = (config, assert)->
             (id, msg, next)-> pMgr.update modelE, {connector: connector}, next
             (id, msg, next)-> pMgr.update modelF, {connector: connector}, next
             (id, msg, next)->
+                assert.strictEqual typeof msg, 'undefined'
                 pMgr.update modelF, {connector: connector}, next
+                return
             (id, msg, next)->
                 assert.strictEqual msg, 'no-update'
                 options =
@@ -1988,11 +1990,20 @@ task = (config, assert)->
             (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
             (id, next)-> assertCount pMgr, [4, 2, 6, 2, 2, 2], connector, next
             (next)-> pMgr.delete modelF, {connector: connector}, next
-            (res, next)-> assertCount pMgr, [4, 2, 5, 2, 2, 1], connector, next
+            (res, next)->
+                assert.strictEqual res.affectedRows, 1
+                assertCount pMgr, [4, 2, 5, 2, 2, 1], connector, next
+                return
             (next)-> pMgr.delete modelE, {connector: connector}, next
-            (res, next)-> assertCount pMgr, [3, 1, 4, 2, 1, 1], connector, next
+            (res, next)->
+                assert.strictEqual res.affectedRows, 1
+                assertCount pMgr, [3, 1, 4, 2, 1, 1], connector, next
+                return
             (next)-> pMgr.delete modelD, {connector: connector}, next
-            (res, next)-> assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, next
+            (res, next)->
+                assert.strictEqual res.affectedRows, 1
+                assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, next
+                return
             (next)-> connector.rollback next, true
         ]
 

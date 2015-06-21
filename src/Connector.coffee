@@ -262,7 +262,7 @@ module.exports = class Connector extends EventEmitter
 
         @_connection.query query, (err, res)=>
             return callback err if err
-            logger.trace 'begin transaction'
+            # logger.trace 'begin transaction'
             @_addSavePoint()
             callback null
             return
