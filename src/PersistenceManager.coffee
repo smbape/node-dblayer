@@ -11,6 +11,25 @@ semLib = require 'sem-lib'
 
 module.exports = class PersistenceManager extends CompiledMapping
 
+isValidModelInstance = (model)->
+    if not model or 'object' isnt typeof model
+        err = new Error 'Invalid model'
+        err.code = 'INVALID_MODEL'
+        return err
+
+    for method in ['get', 'set', 'unset', 'toJSON']
+        if 'function' isnt typeof model[method]
+            err = new Error "method #{method} was not found"
+            err.code = 'INVALID_MODEL'
+            return err
+
+    return true
+
+assertValidModelInstance = (model)->
+    err = isValidModelInstance model
+    if err instanceof Error
+        throw err
+
 PersistenceManager::dialects =
     postgres:
         squelOptions:
@@ -186,6 +205,8 @@ PersistenceManager::getDeleteQuery = (model, options)->
     new DeleteQuery @, model, options
 
 PersistenceManager::save = (model, options, callback)->
+    callback err if (err = isValidModelInstance model) instanceof Error
+
     # if arguments.length is 2 and 'function' is typeof options
     #     callback = options
     # options = {} if not _.isPlainObject options
@@ -215,6 +236,8 @@ PersistenceManager::save = (model, options, callback)->
     return
 
 PersistenceManager::initializeOrInsert = (model, options, callback)->
+    callback err if (err = isValidModelInstance model) instanceof Error
+
     if arguments.length is 2 and 'function' is typeof options
         callback = options
     options = {} if not _.isPlainObject options
@@ -245,9 +268,8 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
     return
 
 PersistenceManager::initialize = (model, options, callback)->
-    # if arguments.length is 2
-    #     callback = options if 'function' is typeof options
-    # options = {} if not _.isPlainObject options
+    callback err if (err = isValidModelInstance model) instanceof Error
+
     (callback = ->) if 'function' isnt typeof callback
 
     if not _.isObject model
@@ -341,6 +363,8 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
 
 class InsertQuery
     constructor: (pMgr, model, options = {})->
+        assertValidModelInstance model
+
         @getModel = -> model
         @getManager = -> pMgr
         @getOptions = -> options
@@ -698,6 +722,8 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
 
 class UpdateQuery
     constructor: (pMgr, model, options = {})->
+        assertValidModelInstance model
+
         @getModel = -> model
         @getManager = -> pMgr
         @getOptions = -> options
@@ -935,6 +961,8 @@ class UpdateQuery
 
 class DeleteQuery
     constructor: (pMgr, model, options = {})->
+        assertValidModelInstance model
+
         @toParam = ->
             remove.toParam()
         @toString = @oriToString = ->

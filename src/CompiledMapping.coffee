@@ -28,7 +28,7 @@ class Model
         return @
     get: (prop)->
         @attributes[prop]
-    remove: (prop)->
+    unset: (prop)->
         delete @attributes[prop]
     toJSON: ->
         @attributes

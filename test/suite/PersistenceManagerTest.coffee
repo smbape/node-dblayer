@@ -708,6 +708,9 @@ task = (config, assert)->
         class Model
             get: (prop)->
                 return prop + 'Value'
+            set: ->
+            unset: ->
+            toJSON: ->
 
         model = new Model()
 
@@ -727,6 +730,9 @@ task = (config, assert)->
                 if prop.substring(0, 9) is 'propClass'
                     return new Model()
                 return prop + 'Value'
+            set: ->
+            unset: ->
+            toJSON: ->
 
         model = new Model()
 
@@ -850,6 +856,9 @@ task = (config, assert)->
                 if prop.substring(0, 9) is 'propClass'
                     return new Model()
                 return prop + 'Value'
+            set: ->
+            unset: ->
+            toJSON: ->
         model = new Model()
         assertInsertQueryThrows mapping, model, 'ClassD', 'NO_ID'
         
@@ -861,6 +870,9 @@ task = (config, assert)->
                 if prop.substring(0, 9) is 'propClass'
                     return new Model()
                 return prop + 'Value'
+            set: ->
+            unset: ->
+            toJSON: ->
         model = new Model()
 
         mapping['ClassD'] =
@@ -884,6 +896,9 @@ task = (config, assert)->
                 if prop.substring(0, 9) is 'propClass'
                     return new Model prop.substring 9
                 return prop + @preffix + 'Value'
+            set: ->
+            unset: ->
+            toJSON: ->
         model = new Model()
         model.className = 'ClassB'
 
@@ -1647,7 +1662,7 @@ task = (config, assert)->
                 assertPropSubClass model, modelD, modelE
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newFC1Value
-                modelE.remove pMgr.getIdName 'ClassE'
+                modelE.unset pMgr.getIdName 'ClassE'
                 pMgr.insert modelE, {connector: connector}, next
                 return
             (id, next)->
@@ -1796,11 +1811,11 @@ task = (config, assert)->
                 return
             (id, next)->
                 assert.strictEqual id, modelF.get pMgr.getIdName 'ClassF'
-                modelD.remove pMgr.getIdName 'ClassC'
-                modelD.remove pMgr.getIdName 'ClassD'
-                modelE.remove pMgr.getIdName 'ClassC'
-                modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
+                modelD.unset pMgr.getIdName 'ClassC'
+                modelD.unset pMgr.getIdName 'ClassD'
+                modelE.unset pMgr.getIdName 'ClassC'
+                modelE.unset pMgr.getIdName 'ClassE'
+                modelF.unset pMgr.getIdName 'ClassF'
                 modelD.set 'propA1', newD1Value
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newF1Value
@@ -1876,11 +1891,11 @@ task = (config, assert)->
             (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
             (id, next)-> pMgr.insert modelF, {connector: connector, reflect: true}, next
             (id, next)->
-                modelD.remove pMgr.getIdName 'ClassC'
-                modelD.remove pMgr.getIdName 'ClassD'
-                modelE.remove pMgr.getIdName 'ClassC'
-                modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
+                modelD.unset pMgr.getIdName 'ClassC'
+                modelD.unset pMgr.getIdName 'ClassD'
+                modelE.unset pMgr.getIdName 'ClassC'
+                modelE.unset pMgr.getIdName 'ClassE'
+                modelF.unset pMgr.getIdName 'ClassF'
                 pMgr.insert modelD, {connector: connector, reflect: true}, next
                 return
             (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
@@ -1980,10 +1995,10 @@ task = (config, assert)->
             (id, next)-> pMgr.insert modelF, {connector: connector}, next
             (id, next)-> assertCount pMgr, [2, 1, 3, 1, 1, 1], connector, next
             (next)->
-                modelD.remove pMgr.getIdName 'ClassC'
-                modelD.remove pMgr.getIdName 'ClassD'
-                modelE.remove pMgr.getIdName 'ClassC'
-                modelE.remove pMgr.getIdName 'ClassE'
+                modelD.unset pMgr.getIdName 'ClassC'
+                modelD.unset pMgr.getIdName 'ClassD'
+                modelE.unset pMgr.getIdName 'ClassC'
+                modelE.unset pMgr.getIdName 'ClassE'
                 pMgr.insert modelD, {connector: connector, reflect: true}, next
                 return
             (id, next)-> pMgr.insert modelE, {connector: connector, reflect: true}, next
@@ -2053,11 +2068,11 @@ task = (config, assert)->
                 return
             (id, next)->
                 assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
-                modelD.remove pMgr.getIdName 'ClassC'
-                modelD.remove pMgr.getIdName 'ClassD'
-                modelE.remove pMgr.getIdName 'ClassC'
-                modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
+                modelD.unset pMgr.getIdName 'ClassC'
+                modelD.unset pMgr.getIdName 'ClassD'
+                modelE.unset pMgr.getIdName 'ClassC'
+                modelE.unset pMgr.getIdName 'ClassE'
+                modelF.unset pMgr.getIdName 'ClassF'
                 pMgr.save modelD, {connector: connector}, next
                 return
             (id, next)->
@@ -2182,7 +2197,7 @@ task = (config, assert)->
                 return
             (res, next)->
                 modelF.set 'propClassD', modelD.get pMgr.getIdName 'ClassD'
-                modelF.remove 'propClassE'
+                modelF.unset 'propClassE'
                 pMgr.insert modelF, {connector: connector}, next
                 return
             (id, next)-> assertListUnique pMgr, options, next
@@ -2193,7 +2208,7 @@ task = (config, assert)->
                 return
             (res, next)-> 
                 modelF.set 'propClassD', parseInt modelD.get(pMgr.getIdName 'ClassD'), 10
-                modelF.remove 'propClassE'
+                modelF.unset 'propClassE'
                 pMgr.insert modelF, {connector: connector}, next
                 return
             (id, next)-> assertListUnique pMgr, options, next
@@ -2584,8 +2599,8 @@ task = (config, assert)->
                 assertPropSubClass model, modelD, modelE
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newF1Value
-                modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
+                modelE.unset pMgr.getIdName 'ClassE'
+                modelF.unset pMgr.getIdName 'ClassF'
                 pMgr.insert modelE, {connector: connector}, next
                 return
             (id, next)->
@@ -2761,8 +2776,8 @@ task = (config, assert)->
 
                 modelE.set 'propA1', newE1Value
                 modelF.set 'propC1', newF1Value
-                modelE.remove pMgr.getIdName 'ClassE'
-                modelF.remove pMgr.getIdName 'ClassF'
+                modelE.unset pMgr.getIdName 'ClassE'
+                modelF.unset pMgr.getIdName 'ClassF'
                 pMgr.insert modelE, {connector: connector}, next
                 return
             (id, next)->
@@ -3131,12 +3146,12 @@ task = (config, assert)->
                 return
             (count, next)->
                 assert.strictEqual count, 3
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 pMgr.initializeOrInsert model, {connector: connector}, next
                 return
             (id, next)->
                 assert.strictEqual id, id2
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 pMgr.save model, {connector: connector}, next
                 return
             (id, msg, next)->
@@ -3146,14 +3161,14 @@ task = (config, assert)->
                 return
             (count, next)->
                 assert.strictEqual count, 3
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 model.set 'propG1', 'valueG10'
                 model.set 'propG2', 'valueG20'
                 pMgr.initialize model, {connector: connector}, next
                 return
             (models, next)->
                 assert.strictEqual id0, model.get pMgr.getIdName model.className
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 model.set 'propG1', 'valueG11'
                 model.set 'propG2', 'valueG21'
                 model.set 'propG3', 'valueG34'
@@ -3162,13 +3177,13 @@ task = (config, assert)->
             (id, msg, next)->
                 assert.strictEqual 'function', typeof next
                 assert.strictEqual id1, id
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 pMgr.save model, {connector: connector}, next
                 return
             (id, msg, next)->
                 assert.strictEqual 'function', typeof next
                 assert.strictEqual id1, id
-                model.remove pMgr.getIdName model.className
+                model.unset pMgr.getIdName model.className
                 model.set 'propG1', 'valueG12'
                 model.set 'propG2', 'valueG22'
                 pMgr.delete model, {connector: connector}, next
@@ -3186,7 +3201,7 @@ task = (config, assert)->
                 assert.strictEqual id1, models[1].idG
 
                 model = _model
-                model.remove 'propG2'
+                model.unset 'propG2'
 
                 # insert with only one unique contraints setted
                 model.set 'propG1', 'valueG13'

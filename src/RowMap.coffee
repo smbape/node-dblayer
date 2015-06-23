@@ -12,7 +12,7 @@ STATIC =
     ROOT: 'root'
 
 JOIN_FUNC =
-    inner: 'join'
+    default: 'join'
     outer: 'outer_join'
     left: 'left_join'
     right: 'right_join'
@@ -113,9 +113,10 @@ module.exports = class RowMap
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
             else if 'undefined' is typeof options.type
-                hasJoin = JOIN_FUNC.inner
+                hasJoin = JOIN_FUNC.default
             else if 'string' is typeof options.type
                 type = options.type.toUpperCase()
+                hasJoin = JOIN_FUNC.default
             else
                 err = new Error "#{id} has an invalid join type"
                 err.code = 'JOIN_TYPE'
@@ -130,7 +131,7 @@ module.exports = class RowMap
             @_tables[id] = tableAlias
             @_infos[id] =
                 className: className
-                hasJoin: JOIN_FUNC.inner
+                hasJoin: JOIN_FUNC.default
             @_rootInfo = @_infos[id]
         else
             err = new Error "#{id} has no joining condition"
@@ -436,7 +437,7 @@ module.exports = class RowMap
             if parentInfo.hasJoin is JOIN_FUNC.left
                 joinFunc = JOIN_FUNC.left
             else
-                joinFunc = JOIN_FUNC.inner
+                joinFunc = JOIN_FUNC.default
 
         # join while mixin prop
         while mixin = availableProperty.mixin
