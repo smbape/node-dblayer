@@ -103,7 +103,7 @@ module.exports = class RowMap
             @_tables[id] = tableAlias
             @_infos[id] = className: className
             if @_joining.hasOwnProperty id
-                err = new Error "#{id} is already being join. Look at stack to find the circular reference"
+                err = new Error "#{id} has already been joined. Look at stack to find the circular reference"
                 err.code = 'CIRCULAR_REF'
                 throw err
 
@@ -112,10 +112,17 @@ module.exports = class RowMap
             condition = _coerce.call @, options.condition
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
-                
-            else
+            else if 'undefined' is typeof options.type
                 hasJoin = JOIN_FUNC.inner
-            select[hasJoin] @escapeId(table), tableAlias, condition
+            else if 'string' is typeof options.type
+                type = options.type.toUpperCase()
+            else
+                err = new Error "#{id} has an invalid join type"
+                err.code = 'JOIN_TYPE'
+                throw err
+
+
+            select[hasJoin] @escapeId(table), tableAlias, condition, type
             delete @_joining[id]
             @_infos[id].hasJoin = hasJoin
         else if _.isEmpty @_tables
