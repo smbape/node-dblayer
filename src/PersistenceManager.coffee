@@ -637,6 +637,10 @@ class SelectQuery
             return
         , ret, options.executeOptions
 
+    toQueryString: (rowMap)->
+        rowMap or (rowMap = @getRowMap())
+        rowMap.parse @toString()
+
     list: (connector, callback)->
         if 'function' isnt typeof callback
             err = new Error 'List is not allowed without a callback'
@@ -644,7 +648,7 @@ class SelectQuery
             return callback err
 
         rowMap = @getRowMap()
-        query = rowMap.parse @toString()
+        query = @toQueryString rowMap
         pMgr = @getManager()
         options= @getOptions()
 

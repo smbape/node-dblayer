@@ -1038,9 +1038,9 @@ task = (config, assert)->
             insert: (model, options, extra)->
                 new Date()
             read: (value, model, options)->
-                moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss').toDate()
+                moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
             write: (value, model, options)->
-                moment(value).utc().format 'YYYY-MM-DD HH:mm:ss'
+                moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
 
         handlersModification = _.extend {}, handlersCreation, update: handlersCreation.insert
 

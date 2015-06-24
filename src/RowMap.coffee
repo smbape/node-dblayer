@@ -109,7 +109,6 @@ module.exports = class RowMap
 
             @_joining[id] = true
 
-            condition = _coerce.call @, options.condition
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
             else if 'undefined' is typeof options.type
@@ -123,7 +122,14 @@ module.exports = class RowMap
                 throw err
 
 
+            # make necessary joins
+            condition = _coerce.call @, options.condition
+
             select[hasJoin] @escapeId(table), tableAlias, condition, type
+
+            # make necessary joins
+            # condition = _coerce.call @, options.condition
+
             delete @_joining[id]
             @_infos[id].hasJoin = hasJoin
         else if _.isEmpty @_tables
@@ -453,9 +459,7 @@ module.exports = class RowMap
                 table = mixinDef.table
                 tableAlias = @_uniqTabAlias()
                 select[joinFunc] connector.escapeId(table), tableAlias, connector.escapeId(tableAlias) + '.' + idColumn + ' = ' + joinColumn
-                @_mixins[mixinId] =
-                    # table: table
-                    tableAlias: tableAlias
+                @_mixins[mixinId] = tableAlias: tableAlias
             else
                 tableAlias = @_mixins[mixinId].tableAlias
 

@@ -6,9 +6,9 @@ mapping = module.exports
 
 handlersDate = 
     read: (value, options)->
-        moment.utc(value, 'YYYY-MM-DD HH:mm:ss').toDate()
+        moment.utc(value, 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
     write: (value, model, options)->
-        moment(value).utc().format 'YYYY-MM-DD HH:mm:ss'
+        moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
 
 handlersCreation = _.extend
     insert: (options)->
