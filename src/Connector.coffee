@@ -111,6 +111,7 @@ module.exports = class Connector extends EventEmitter
         @resourceSem.semGive()
 
     acquire: (callback)->
+        logger.debug 'acquire', @pool.options.name
         ret = =>
             @_giveResource()
             callback.apply null, arguments if typeof callback is 'function'
@@ -372,6 +373,7 @@ module.exports = class Connector extends EventEmitter
             callback null
 
     release: (callback)->
+        logger.debug 'release', @pool.options.name
         ret = =>
             @_giveResource()
             callback.apply null, arguments if typeof callback is 'function'

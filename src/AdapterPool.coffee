@@ -30,6 +30,12 @@ defaultOptions =
     maxConnection: 1
     idleTimeout: 10 * 60 #idle for 10 minutes
 
+levelMap =
+    error: 'error'
+    warn: 'warn'
+    info: 'debug'
+    verbose: 'trace'
+
 module.exports = class AdapterPool
     constructor: (connectionUrl, options, next)->
         if typeof connectionUrl isnt 'string'
@@ -97,6 +103,10 @@ module.exports = class AdapterPool
             max: @options.maxConnection
             min: @options.minConnection
             idleTimeoutMillis: @options.idleTimeout * 1000
+
+            log: (str, level)->
+                logger[levelMap[level]] str
+                return
 
         # Proxy all pool methods
         for method of @pool
