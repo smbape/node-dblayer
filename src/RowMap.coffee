@@ -225,7 +225,8 @@ module.exports = class RowMap
             if index is allAncestors.length - 1
                 continue
 
-            @_joinProp id
+            parentInfo = info
+            @_joinProp id, parentInfo
             info = @_getInfo id
             if info.hasOwnProperty('properties') and not info.setted
                 for prop of info.properties
@@ -267,9 +268,8 @@ module.exports = class RowMap
             if parentInfo
                 parentInfo.properties = parentInfo.properties or {}
                 @_set parentInfo.properties, id, true
-                # parentInfo.properties[id] = true
 
-            @_joinProp id
+            @_joinProp id, parentInfo
 
         return
 
@@ -358,7 +358,7 @@ module.exports = class RowMap
         return
 
     # Is called step by step .i.e. parent is supposed to be defined
-    _joinProp: (id, hasJoin)->
+    _joinProp: (id, parentInfo)->
         info = @_getInfo id
 
         if info.hasOwnProperty 'hasJoin'
@@ -377,6 +377,11 @@ module.exports = class RowMap
         table = propDef.table
         tableAlias = @_uniqTabAlias()
         select = @options.select
+
+        if parentInfo
+            parentDef = @manager.getDefinition parentInfo.className
+            if parentDef.properties.hasOwnProperty(info.attribute) and not parentDef.properties[info.attribute].nullable and parentInfo.hasJoin is JOIN_FUNC.default
+                hasJoin = JOIN_FUNC.default
 
         if typeof hasJoin is 'undefined'
             hasJoin = JOIN_FUNC.left

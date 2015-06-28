@@ -336,22 +336,22 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 PRIMITIVE_TYPES = /^(?:string|boolean|number)$/
 
 _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, options)->
-    if typeof value is 'undefined' or not definition.availableProperties.hasOwnProperty attr
+    if typeof value is 'undefined'
         return
 
-    propDef = definition.availableProperties[attr].definition
     if options.useDefinitionColumn
         column = connector.escapeId definition.properties[attr].column
     else
         column = '{' + attr + '}'
 
+    propDef = definition.availableProperties[attr].definition
     if _.isPlainObject(propDef.handlers) and typeof propDef.handlers.write is 'function'
         value = propDef.handlers.write value, model, options
 
     if  PRIMITIVE_TYPES.test typeof value
         where.push column + ' = ' + connector.escape value
     else if _.isObject value
-        propClassName = definition.availableProperties[attr].definition.className
+        propClassName = propDef.className
         value = value.get pMgr.getIdName propClassName
         if typeof value isnt 'undefined'
             if value is null
@@ -862,7 +862,8 @@ class UpdateQuery
         #         if block.fields.length is 0
         #             hasNoUpdate = true
         #         break
-        @toString()
+        
+        @toString() if @hasData
 
     execute: (connector, callback)->
         if @toString is @oriToString
@@ -873,7 +874,7 @@ class UpdateQuery
         tasks = []
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
-            if value instanceof UpdateQuery
+            if value instanceof UpdateQuery and value.hasData
                 ((query, connector)->
                     tasks.push (next)->
                         query.execute connector, next
