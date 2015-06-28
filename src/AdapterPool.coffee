@@ -105,7 +105,7 @@ module.exports = class AdapterPool
             idleTimeoutMillis: @options.idleTimeout * 1000
 
             log: (str, level)->
-                logger[levelMap[level]] str
+                # logger[levelMap[level]] str
                 return
 
         # Proxy all pool methods
