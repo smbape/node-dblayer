@@ -91,12 +91,12 @@ module.exports = class AdapterPool
             name: @options.name
 
             create: (callback)=>
-                logger.debug "create #{@options.name}"
+                logger.debug "#{@options.name} create"
                 @adapter.createConnection @options, callback
                 return
 
             destroy: (client)=>
-                logger.debug "destroy #{@options.name}"
+                logger.debug "#{@options.name} destroy"
                 client.end()
                 return
 
