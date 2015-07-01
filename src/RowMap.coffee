@@ -186,6 +186,7 @@ module.exports = class RowMap
 
     _processBlocks: ->
         select = @options.select
+
         for block in ['where', 'group', 'having', 'order', 'limit', 'offset']
             option = @options[block]
 
@@ -207,6 +208,9 @@ module.exports = class RowMap
             for opt in option
                 _readFields.call @, opt, select, block
         
+        if @options.distinct
+            select.distinct()
+
         return
 
     _getSetColumn: (field)->
