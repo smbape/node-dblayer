@@ -215,10 +215,14 @@ PersistenceManager::save = (model, options, callback)->
     className = options.className or model.className
     definition = @_getDefinition className
 
-    where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
-        useDefinitionColumn: false
-        useAttributes: false
-
+    try
+        where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
+            useDefinitionColumn: false
+            useAttributes: false
+    catch err
+        callback err
+        return
+    
     if where.length is 0
         @insert model, _.extend({}, options, reflect: true), callback
     else
@@ -246,10 +250,14 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
     className = options.className or model.className
     definition = @_getDefinition className
 
-    where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
-        useDefinitionColumn: false
-        useAttributes: false
-
+    try
+        where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
+            useDefinitionColumn: false
+            useAttributes: false
+    catch err
+        callback err
+        return
+    
     if where.length is 0
         @insert model, _.extend({}, options, reflect: true), callback
     else
@@ -282,7 +290,12 @@ PersistenceManager::initialize = (model, options, callback)->
     options = _.extend {}, options,
         models: [model]
 
-    options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+    try
+        options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+    catch err
+        callback err
+        return
+    
     @list className, options, callback
 
 # return where condition to be parsed by RowMap
@@ -939,7 +952,11 @@ class UpdateQuery
             id = model.get definition.id.name
 
             if 'undefined' is typeof id
-                where = _getInitializeCondition pMgr, model, definition.className, definition, _.extend {}, options, useDefinitionColumn: false
+                try
+                    where = _getInitializeCondition pMgr, model, definition.className, definition, _.extend {}, options, useDefinitionColumn: false
+                catch err
+                    callback err
+                    return
             else if definition.id.hasOwnProperty 'column'
                 where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
 
