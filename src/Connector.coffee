@@ -17,7 +17,7 @@ STATES =
     QUERY: 6
     FORCE_RELEASE: 6
 
-MAX_ACQUIRE_TIME = 5 * 60 * 1000
+MAX_ACQUIRE_TIME = 1 * 60 * 1000
 
 module.exports = class Connector extends EventEmitter
     STATES: STATES
@@ -131,6 +131,7 @@ module.exports = class Connector extends EventEmitter
 
         @pool.acquire (err, connection)=>
             return callback err if err
+            logger.debug @pool.options.name, 'acquired'
             @_addSavePoint connection
             @acquireTimeout = setTimeout =>
                 @_takeResource STATES.FORCE_RELEASE,
@@ -146,7 +147,6 @@ module.exports = class Connector extends EventEmitter
                             @_giveResource()
                         , true
             , @timeout
-            logger.debug @pool.options.name, 'acquired'
             callback null, true
         return
 
@@ -160,12 +160,12 @@ module.exports = class Connector extends EventEmitter
             return ret err if err
 
             if @_savepoints is 0
-                logger.trace @pool.options.name, 'automatic acquire for query'
+                logger.debug @pool.options.name, 'automatic acquire for query'
                 return @_acquire (err)=>
                     return ret err if err
                     @_query query, (err)=>
                         args = Array::slice.call arguments, 0
-                        logger.trace @pool.options.name, 'automatic release for query'
+                        logger.debug @pool.options.name, 'automatic release for query'
                         @_release (err)=>
                             args[0] = err
                             ret.apply @, args
@@ -181,7 +181,7 @@ module.exports = class Connector extends EventEmitter
 
         @_connection.query query, (err, res)=>
             if err and options.autoRollback isnt false
-                logger.trace @pool.options.name, 'automatic rollback on query error'
+                logger.error @pool.options.name, 'automatic rollback on query error'
                 return @_rollback callback, false, err
             callback err, res
 
@@ -195,10 +195,10 @@ module.exports = class Connector extends EventEmitter
             return ret err if err
 
             if @_savepoints is 0
-                logger.trace @pool.options.name, 'automatic acquire for stream'
+                logger.debug @pool.options.name, 'automatic acquire for stream'
                 return @_acquire (err)=>
                     return ret err if err
-                    logger.trace @pool.options.name, 'automatic release for stream'
+                    logger.debug @pool.options.name, 'automatic release for stream'
                     @_stream query, callback, (err)=>
                         args = Array::slice.call arguments, 0
                         @_release (err)=>
@@ -217,7 +217,7 @@ module.exports = class Connector extends EventEmitter
             callback row, stream
         , (err)=>
             if err and options.autoRollback isnt false
-                logger.trace @pool.options.name, 'automatic rollback on stream error'
+                logger.error @pool.options.name, 'automatic rollback on stream error'
                 return @_rollback done, false, err
             done.apply null, arguments
         return
@@ -231,6 +231,7 @@ module.exports = class Connector extends EventEmitter
             err.code = 'NO_CONNECTION'
             return callback err
 
+        logger.debug @pool.options.name, 'begin'
         ret = =>
             @_giveResource()
             callback.apply null, arguments if typeof callback is 'function'
@@ -265,26 +266,17 @@ module.exports = class Connector extends EventEmitter
         @_connection.query query, (err, res)=>
             return callback err if err
             @_addSavePoint()
+            logger.debug @pool.options.name, 'begun'
             callback null
             return
         return
 
     rollback: (callback, all = false)->
-        # if typeof callback is 'boolean'
-        #     _all = callback
-        # else if typeof all is 'boolean'
-        #     _all = all
-
-        # if typeof callback is 'function'
-        #     _callback = callback
-        # else if typeof all is 'function'
-        #     _callback = all
-
-        # callback = _callback
-        # all = _all
+        logger.debug @pool.options.name, 'rollback'
         
         ret = =>
             @_giveResource()
+            logger.debug @pool.options.name, 'rollbacked'
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.ROLLBACK, (err)=>
@@ -334,8 +326,10 @@ module.exports = class Connector extends EventEmitter
         callback = _callback
         all = _all
         
+        logger.debug @pool.options.name, 'commit'
         ret = =>
             @_giveResource()
+            logger.debug @pool.options.name, 'comitted'
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.COMMIT, (err)=>
@@ -379,7 +373,9 @@ module.exports = class Connector extends EventEmitter
             return
         @_takeResource STATES.RELEASE, (err)=>
             return ret err if err
-            return ret null if @_savepoints is 0
+            if @_savepoints is 0
+                logger.debug @pool.options.name, 'already released'
+                return ret null
             if @_savepoints isnt 1
                 err = new Error 'There is a begining transaction. End it before release'
                 err.code = 'NO_RELEASE'
@@ -389,8 +385,8 @@ module.exports = class Connector extends EventEmitter
 
     _release: (callback, errors)->
         clearTimeout @acquireTimeout
-        logger.trace @pool.options.name, 'release connection'
         @pool.release @_connection
+        logger.debug @pool.options.name, 'released'
         @_removeSavepoint()
         callback(errors)
         return
