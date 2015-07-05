@@ -2,9 +2,11 @@ pg = require 'pg'
 QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
 logger = log4js.getLogger 'PostgresAdapter'
+common = require './common'
+_.extend adapter, common
 
 adapter = module.exports
-_.extend adapter, require './common'
+_.extend adapter, common
 
 class PostgresClient extends pg.Client
     adapter: adapter
@@ -143,3 +145,9 @@ _.extend adapter,
             return if value then 'TRUE' else 'FALSE'
         PostgresClient::escapeLiteral value
     escapeId: PostgresClient::escapeIdentifier
+    escapeSearch: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].search
+    escapeBeginWith: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].begin
+    escapeEndWith: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].end

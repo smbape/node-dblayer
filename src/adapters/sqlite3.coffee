@@ -1,6 +1,5 @@
 path = require 'path'
 _ = require 'lodash'
-GenericUtil = require '../GenericUtil'
 sqlite3 = require 'sqlite3'
 EventEmitter = require('events').EventEmitter
 log4js = global.log4js or (global.log4js = require 'log4js')
@@ -12,6 +11,8 @@ MODES =
     CREATE: [Math.pow(2, 2), sqlite3.OPEN_CREATE]
 
 adapter = module.exports
+
+common = require './common'
 
 _.extend adapter,
     name: 'sqlite3'
@@ -40,7 +41,13 @@ _.extend adapter,
             mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
 
         new SQLite3Connection filename, mode, callback
-, require('./common'), GenericUtil.sql
+    escapeId: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].id
+    escape: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].literal
+    escapeSearch: (value)->
+        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].search
+, common
 
 class SQLite3Connection extends EventEmitter
     adapter: adapter

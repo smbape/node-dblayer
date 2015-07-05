@@ -45,14 +45,6 @@ module.exports = class Connector extends EventEmitter
 
     getDialect: ->
         @pool.getDialect()
-    escape: ->
-        @pool.adapter.escape.apply @pool.adapter, arguments
-    escapeId: ->
-        @pool.adapter.escapeId.apply @pool.adapter, arguments
-    exprEqual: ->
-        @pool.adapter.exprEqual.apply @pool.adapter, arguments
-    exprNotEqual: ->
-        @pool.adapter.exprNotEqual.apply @pool.adapter, arguments
     
     # getPool: ->
     #     @pool
@@ -390,3 +382,18 @@ module.exports = class Connector extends EventEmitter
         @_removeSavepoint()
         callback(errors)
         return
+
+    escape: ->
+        @pool.adapter.escape.apply @pool.adapter, arguments
+    escapeId: ->
+        @pool.adapter.escapeId.apply @pool.adapter, arguments
+    escapeSearch: ->
+        @pool.adapter.escapeSearch.apply @pool.adapter, arguments
+    escapeBeginWith: ->
+        @pool.adapter.escapeBeginWith.apply @pool.adapter, arguments
+    escapeEndWith: ->
+        @pool.adapter.escapeEndWith.apply @pool.adapter, arguments
+    exprEqual: ->
+        @pool.adapter.exprEqual.apply @pool.adapter, arguments
+    exprNotEqual: ->
+        @pool.adapter.exprNotEqual.apply @pool.adapter, arguments
