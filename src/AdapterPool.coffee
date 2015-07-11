@@ -38,65 +38,116 @@ levelMap =
 
 module.exports = class AdapterPool
     constructor: (connectionUrl, options, next)->
-        if typeof connectionUrl isnt 'string'
+        if arguments.length is 1
+            if connectionUrl isnt null and 'object' is typeof connectionUrl
+                options = connectionUrl
+                connectionUrl = null
+
+        else if arguments.length is 2
+            if 'function' is typeof options
+                next = options
+                options = null
+
+            if connectionUrl isnt null and 'object' is typeof connectionUrl
+                options = connectionUrl
+                connectionUrl = null
+
+        if connectionUrl and typeof connectionUrl isnt 'string'
             err = new Error "'connectionUrl' must be a String"
             err.code = 'BAD_CONNECTION_URL'
             throw err
 
-        @connectionUrl = connectionUrl
-        url = require 'url'
-        
-        parsed = url.parse connectionUrl, true, true
-        @options = {}
-        @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
-        @options.database = parsed.pathname and parsed.pathname.substring(1)
-        @options.host = parsed.hostname
-        @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
-        if parsed.auth
-            auth = parsed.auth.split(':')
-            @options.user = auth[0]
-            @options.password = auth[1]
+        if options and 'object' isnt typeof options
+            err = new Error "'options' must be an object"
+            err.code = 'BAD_OPTION'
+            throw err
 
-        for k of parsed.query
-            @options[k] = parsed.query[k]
+        if connectionUrl
+            @connectionUrl = connectionUrl
+            url = require 'url'
+            
+            parsed = url.parse connectionUrl, true, true
+            @options = {}
+            @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
+            @options.database = parsed.pathname and parsed.pathname.substring(1)
+            @options.host = parsed.hostname
+            @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
+            if parsed.auth
+                auth = parsed.auth.split(':')
+                @options.user = auth[0]
+                @options.password = auth[1]
+
+            for key of parsed.query
+                @options[key] = parsed.query[key]
+
+            _.extend @options, options
+        else if options
+            @options = _.clone options
+            parsed = query: {}
+            parsed.protocol = @options.adapter + '/'
+            parsed.pathname = '/' + @options.database
+            parsed.hostname = @options.host
+            parsed.port = @options.port if GenericUtil.isNumeric @options.port
+            if 'string' is typeof @options.user and @options.user.length > 0
+                if 'string' is typeof @options.password and @options.password.length > 0
+                    parsed.auth = @options.user + ':' + @options.password
+                else
+                    parsed.auth = @options.user
+
+            except = ['adapter', 'database', 'port', 'user', 'password']
+            for key of @options
+                if -1 is except.indexOf key
+                    parsed.query[key] = @options[key]
+            @connectionUrl = url.format parsed
+        else
+            err = new Error "Invalid arguments. Usage: options[, fn]; url[, fn]: url, options[, fn]"
+            err.code = 'INVALID_ARGUMENTS'
+            throw err
 
         if typeof @options.adapter isnt 'string' or @options.adapter.length is 0
             err = new Error 'adapter must be a not empty string'
             err.code = 'BAD_ADAPTER'
             throw err
 
-        properties = ['name']
-        for prop in properties
-            @options[prop] = options[prop] if typeof options[prop] isnt 'undefined'
+        for prop in ['name']
+            @options[prop] = options[prop] if typeof options.hasOwnProperty prop
 
-        if GenericUtil.isNumeric @options.maxConnection
-            @options.maxConnection = parseInt @options.maxConnection, 10
-        else
-            @options.maxConnection = defaultOptions.maxConnection
+        for prop in ['minConnection', 'maxConnection', 'idleTimeout']
+            if GenericUtil.isNumeric @options.maxConnection
+                @options[prop] = parseInt @options[prop], 10
+            else
+                @options[prop] = defaultOptions[prop]
 
-        if GenericUtil.isNumeric @options.minConnection
-            @options.minConnection = parseInt @options.minConnection, 10
-        else
-            @options.minConnection = defaultOptions.minConnection
-        
-        if GenericUtil.isNumeric @options.idleTimeout
-            @options.idleTimeout = parseInt @options.idleTimeout, 10
-        else
-            @options.idleTimeout = defaultOptions.idleTimeout
-        
         @adapter = internal.getAdapter @options
 
         GenericPool = require 'generic-pool'
-        @pool = GenericPool.Pool
+        pool = @pool = GenericPool.Pool
             name: @options.name
 
             create: (callback)=>
                 logger.debug "#{@options.name} create"
-                @adapter.createConnection @options, callback
+                @adapter.createConnection @options, (err, client)->
+                    return callback(err, null) if err
+
+                    client.on 'error', (err)->
+                        pool.emit 'error', err
+                        pool.destroy client
+                        return
+
+                    # Remove connection from pool on disconnect
+                    client.on 'end', (err)->
+                        pool.destroy client
+                        return
+
+                    callback null, client
+
+                    return
                 return
 
             destroy: (client)=>
+                return if client._destroying
                 logger.debug "#{@options.name} destroy"
+                client._destroying = true
                 client.end()
                 return
 

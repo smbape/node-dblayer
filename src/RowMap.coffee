@@ -1,6 +1,7 @@
 _ = require 'lodash'
 path = require 'path'
 GenericUtil = require './GenericUtil'
+PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'
 squel = require 'squel'
@@ -10,6 +11,9 @@ STATIC =
     FIELD_CHAR_BEGIN: '{'
     FIELD_CHAR_END: '}'
     ROOT: 'root'
+
+fieldHolderParser = new PlaceHolderParser STATIC.FIELD_CHAR_BEGIN, STATIC.FIELD_CHAR_END
+placeHolderParser = new PlaceHolderParser()
 
 JOIN_FUNC =
     default: 'join'
@@ -42,7 +46,9 @@ _getPlainObjectValue = (model, prop)->
 module.exports = class RowMap
     static: LIMIT: 500
     # Class that do the mapping between className, queries to execute and properties of className
-    constructor: (@className, @manager, @options = {})->
+    constructor: (@className, @manager, options = {}, skip)->
+        @options = _.clone options
+        return if skip
         _.extend @,
             _infos: {}
             _tableAliases: {}
@@ -53,12 +59,23 @@ module.exports = class RowMap
             _mixins: {}
             _joining: {}
         
+        @select = options.select
+        @values = options.values
+        delete @options.select
+        delete @options.values
+
         @_initialize()
+        @_initRootElement @className, @_getUniqueId()
 
         @_processJoins()
         @_processFields()
         @_processColumns()
         @_processBlocks()
+
+    setValues: (@values)->
+
+    setValue: (key, value)->
+        @values[key] = value
 
     _initialize: ->
         if @options.type is 'json' or @options.count
@@ -78,8 +95,6 @@ module.exports = class RowMap
             @escapeId = (str)->
                 str
 
-        @_initRootElement @className, @_getUniqueId()
-
         return
      
     _initRootElement: (className, id, options = {})->
@@ -98,7 +113,7 @@ module.exports = class RowMap
         table = definition.table
         tableAlias = @_uniqTabAlias()
 
-        select = @options.select
+        select = @select
         if options.hasOwnProperty 'condition'
             @_tables[id] = tableAlias
             @_infos[id] = className: className
@@ -185,7 +200,7 @@ module.exports = class RowMap
         return
 
     _processBlocks: ->
-        select = @options.select
+        select = @select
 
         for block in ['where', 'group', 'having', 'order', 'limit', 'offset']
             option = @options[block]
@@ -299,18 +314,18 @@ module.exports = class RowMap
         id = @_getUniqueId prop, ancestors
         info = @_getSetInfo id, true
 
+        @_set info, 'read', handlerRead if 'function' is typeof handlerRead
+
         if info.hasOwnProperty 'field'
             # this property has already been selected
             return
 
         columnAlias = @_uniqColAlias()
         column = _coerce.call @, column
-        @options.select.field column, columnAlias
+        @select.field column, columnAlias
 
         # map columnAlias to prop
         @_set info, 'field', columnAlias
-
-        @_set info, 'read', handlerRead if 'function' is typeof handlerRead
 
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         parentInfo.properties = parentInfo.properties or {}
@@ -341,7 +356,7 @@ module.exports = class RowMap
 
         column = @_getColumn id
         columnAlias = @_uniqColAlias()
-        @options.select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
+        @select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
         @_set info, 'field', columnAlias
         # info.field = columnAlias
         parentInfo = @_getInfo @_getUniqueId null, ancestors
@@ -380,7 +395,7 @@ module.exports = class RowMap
         idColumn = connector.escapeId propDef.id.column
         table = propDef.table
         tableAlias = @_uniqTabAlias()
-        select = @options.select
+        select = @select
 
         if parentInfo
             parentDef = @manager.getDefinition parentInfo.className
@@ -402,15 +417,14 @@ module.exports = class RowMap
         prop = ancestors.pop()
         return [prop, ancestors]
 
-    # Is called step by step .i.e. parent is supposed to be defined
-    _getSetInfo: (id, asIs)->
-        info = @_getInfo id
-        return info if info
+    _updateInfos: ->
+        for id, info of @_infos
+            [prop, ancestors] = @_getPropAncestors id
+            @_updateInfo info, prop, ancestors if ancestors.length > 0
+        return
 
-        [prop, ancestors] = @_getPropAncestors id
-
-        if asIs
-            return @_setInfo id, attribute: prop
+    _updateInfo: (info, prop, ancestors)->
+        return if info.asIs
 
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         definition = @manager.getDefinition parentInfo.className
@@ -418,9 +432,6 @@ module.exports = class RowMap
         if 'undefined' is typeof availableProperty
             throw new Error "Property '#{prop}' is not defined for '#{parentInfo.className}'"
         propDef = availableProperty.definition
-
-        # info = _.extend {attribute: prop}, extra
-        info = attribute: prop
 
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
             @_set info, 'className', propDef.className
@@ -431,6 +442,20 @@ module.exports = class RowMap
         # if _.isObject(overrides = @options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
         #     @_set info, 'read', handlers.read
 
+        return
+
+    # Is called step by step .i.e. parent is supposed to be defined
+    _getSetInfo: (id, asIs)->
+        info = @_getInfo id
+        return info if info
+
+        [prop, ancestors] = @_getPropAncestors id
+
+        return @_setInfo id, attribute: prop, asIs: asIs if asIs
+
+        # info = _.extend {attribute: prop}, extra
+        info = attribute: prop
+        @_updateInfo info, prop, ancestors
         @_setInfo id, info
 
     # Get parent prop column alias, mixins join
@@ -444,7 +469,7 @@ module.exports = class RowMap
         parentId = @_getUniqueId null, ancestors
         availableProperty = @_getAvailableProperty prop, ancestors, id
         connector = @options.connector
-        select = @options.select
+        select = @select
         tableAlias = @_tables[parentId]
 
         if availableProperty.mixin
@@ -510,7 +535,7 @@ module.exports = class RowMap
 
         propClassName = info.className
         childModel = @_getValue model, prop
-        if not GenericUtil.isObject childModel
+        if childModel is null or 'object' isnt typeof childModel
             childModel = @_create propClassName
             @_setValue model, prop, childModel, info
 
@@ -612,28 +637,18 @@ module.exports = class RowMap
 
         ancestors or []
 
-    # replace fields by corresponding column
-    parse: (query)->
-        _replaceField query, (field)=>
+    toQueryString: ->
+        fieldHolderParser.replace @select.toString(), (field)=>
             @_getSetColumn field
 
-fieldPatternTest = new RegExp '(?:[\'"`]|\\' + STATIC.FIELD_CHAR_BEGIN + '(?:[^\\' + STATIC.FIELD_CHAR_BEGIN + '\\' + STATIC.FIELD_CHAR_END + ']+)\\' + STATIC.FIELD_CHAR_END + ')'
-fieldPattern = new RegExp '(?:([\'"`])|\\' + STATIC.FIELD_CHAR_BEGIN + '([^\\' + STATIC.FIELD_CHAR_BEGIN + '\\' + STATIC.FIELD_CHAR_END + ']+)\\' + STATIC.FIELD_CHAR_END + ')', 'g'
-_replaceField = (str, callback)->
-    # if not fieldPatternTest.test str
-    #     return str
+    getTemplate: (force)->
+        return @template if force isnt true and @template
+        @template = placeHolderParser.unsafeCompile @toQueryString()
+        # @template = placeHolderParser.safeCompile @toQueryString()
 
-    ignoreUntil = false
-    str.replace fieldPattern, (match, group0, group1, index, str)=>
-        if not ignoreUntil
-            if GenericUtil.notEmptyString group0
-                ignoreUntil = group0
-            else
-                return callback group1
-        else if ignoreUntil is match
-            # reset ignore, no more in string
-            ignoreUntil = false
-        return match
+    # replace fields by corresponding column
+    toString: ->
+        @getTemplate() @values
 
 _readFields = (values, select, block)->
     if values instanceof Array
@@ -653,10 +668,10 @@ _readFields = (values, select, block)->
 
 _coerce = (str)->
     if 'string' is typeof str
-        return _replaceField str, (field)=>
+        return fieldHolderParser.replace str, (field)=>
             @_getSetColumn field
     else if _.isObject(str) and not Array.isArray str
-        return _replaceField str.toString(), (field)=>
+        return fieldHolderParser.replace str.toString(), (field)=>
             @_getSetColumn field
 
     return str

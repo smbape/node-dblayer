@@ -557,31 +557,110 @@ class InsertQuery
 
         return
 
-class SelectQuery
+# _fnIds = {}
+
+# _serialize = (cacheId, key, value)->
+#     if 'function' is typeof value
+#         # TOFIX: if mutilple functions have the same string, we are screwed
+#         str = value.toString()
+#         _fnIds[cacheId] or (_fnIds[cacheId] = {})
+#         _fnIds[cacheId][str] = value
+#         return str
+
+#     value
+
+# _desirialize = (cacheId, key, value)->
+#     if value and typeof value is 'string' and /function\b/.test value.substr(0, 9)
+#         return _fnIds[cacheId][value]
+#     value
+
+_getCacheId = (options)->
+    json = {}
+    for opt in ['dialect', 'type', 'count', 'attributes', 'fields', 'join', 'where', 'group', 'having', 'order', 'limit', 'offset']
+        if options.hasOwnProperty opt
+            if Array.isArray options[opt]
+                json[opt] = []
+                for val in options[opt]
+                    if Array.isArray val
+                        arr = []
+                        json[opt].push arr
+                        for item in val
+                            arr.push JSON.stringify item
+                    else
+                        json[opt].push JSON.stringify val
+            else
+                json[opt] = JSON.stringify options[opt]
+    
+    JSON.stringify json
+
+PersistenceManager::addCachedRowMap = (cacheId, className, rowMap)->
+    # keeping references of complex object makes the hole process slow
+    # don't know why
+    logger.trace 'add cache', className, cacheId
+    # serialize = (key, value)->
+    #     _serialize cacheId, key, value
+    json = _.pick rowMap, ['_infos', '_tableAliases', '_tabId', '_columnAliases', '_colId', '_tables', '_mixins', '_joining']
+    cache = @classes[className].cache[cacheId] =
+        rowMap: JSON.stringify json
+        template: rowMap.getTemplate()
+        select: JSON.stringify rowMap.select
+
+PersistenceManager::getCachedRowMap = (cacheId, className, options)->
+    cache = @classes[className].cache[cacheId]
+    return if not cache
+    logger.trace 'read cache', className, cacheId
+    rowMap = new RowMap className, @, options, true
+    select = new squel.select.constructor()
+    # desirialize = (key, value)->
+    #     _desirialize cacheId, key, value
+    _.extend select, JSON.parse cache.select
+    _.extend rowMap, JSON.parse cache.rowMap
+    rowMap.template = cache.template
+    rowMap.select = select
+    rowMap.values = options.values
+    rowMap._initialize()
+    rowMap._processColumns()
+    rowMap._selectCount() if options.count
+    rowMap._updateInfos()
+    rowMap
+
+PersistenceManager.SelectQuery = PersistenceManager::SelectQuery = class SelectQuery
     constructor: (pMgr, className, options)->
-        @getOptions = ->
-            options
-        # @getClassName = ->
-        #     className
-        @toString = ->
+        if arguments.length is 1
+            if arguments[0] instanceof RowMap
+                @rowMap = arguments[0]
+                return @
+            else
+                throw new Error 'Given parameter do not resolve to a RowMap'
+
+        useCache = options.cache isnt false
+        cacheId = _getCacheId options if useCache
+
+        if not useCache or not rowMap = pMgr.getCachedRowMap cacheId, className, options
+            select = squel.select pMgr.getSquelOptions options.dialect
+            rowMap = new RowMap className, pMgr, _.extend {}, options, select: select
+
+            # check
+            select.toParam()
             select.toString()
-        @getRowMap = ->
-            rowMap
-        @getManager = ->
-            pMgr
+            if useCache
+                @cacheId = cacheId
+                pMgr.addCachedRowMap cacheId, className, rowMap
 
-        select = squel.select pMgr.getSquelOptions options.dialect
-        rowMap = new RowMap className, pMgr, _.extend {}, options, select: select
-
-        # check
-        select.toParam()
-        select.toString()
+        @rowMap = rowMap
+        return @
+    toString: ->
+        @rowMap.toString()
 
     stream: (streamConnector, listConnector, callback, done)->
-        rowMap = @getRowMap()
-        query = rowMap.parse @toString()
-        pMgr = @getManager()
-        options= @getOptions()
+        (callback = ->) if 'function' isnt typeof callback
+        (done = ->) if 'function' isnt typeof done
+
+        rowMap = @rowMap
+        query = rowMap.toString()
+        pMgr = rowMap.manager
+        options = rowMap.options
+
         models= options.models or []
         doneSem = semLib.semCreate()
         doneSem.semGive()
@@ -601,7 +680,7 @@ class SelectQuery
                     return
             return
 
-        streamConnector.stream query, (row, stream)=>
+        streamConnector.stream query, (row, stream)->
             tasks = []
             model = rowMap.initModel row, null, tasks
             if tasks.length > 0
@@ -650,20 +729,16 @@ class SelectQuery
             return
         , ret, options.executeOptions
 
-    toQueryString: (rowMap)->
-        rowMap or (rowMap = @getRowMap())
-        rowMap.parse @toString()
+    toQueryString: ->
+        @toString()
 
     list: (connector, callback)->
-        if 'function' isnt typeof callback
-            err = new Error 'List is not allowed without a callback'
-            err.code = 'LIST_CALLBACK'
-            return callback err
+        (callback = ->) if 'function' isnt typeof callback
 
-        rowMap = @getRowMap()
-        query = @toQueryString rowMap
-        pMgr = @getManager()
-        options= @getOptions()
+        rowMap = @rowMap
+        query = rowMap.toString()
+        pMgr = rowMap.manager
+        options = rowMap.options
 
         connector.query query, (err, res)->
             return callback(err) if err
@@ -709,7 +784,7 @@ class SelectQuery
 
             return
         , options, options.executeOptions
-        query
+        @
 
 _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, definition, options)->
     idName = pMgr.getIdName className

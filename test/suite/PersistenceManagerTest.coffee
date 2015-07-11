@@ -1409,20 +1409,26 @@ task = (config, assert)->
             (id, next)->
                 id2 = id
                 options.listOptions.where = [
-                    '{idA} = ' + id
-                    '{propA1} = ' + connector.escape model.get 'propA1'
+                    '{idA} = __idA__'
+                    '{propA1} = __propA1__'
                 ]
+                options.listOptions.values =
+                    idA: id
+                    propA1: connector.escape model.get 'propA1'
                 # Inserting new items should not changed properties of existing items
                 assertListUnique pMgr, options, next
                 return
             (_model, next)->
                 # Test where condition
                 column = '{propA1}'
-                condition1 = column + ' = ' + connector.escape 'propA1Value' 
-                condition2 = column +  ' = ' + connector.escape 'value' 
+                condition1 = column + ' = __val1__' 
+                condition2 = column +  ' = __val2__'
                 options.listOptions.where = [
                     squel.expr().and( condition1 ).or condition2 
                 ]
+                options.listOptions.values =
+                    val1: connector.escape 'propA1Value'
+                    val2: connector.escape 'value'
                 assertList pMgr, options, next
                 return
             (models, next)->
@@ -1766,7 +1772,7 @@ task = (config, assert)->
                 assert.ok modificationDate instanceof Date
                 creationDate = moment creationDate
                 modificationDate = moment modificationDate
-                assert.strictEqual modificationDate.diff(creationDate), 0
+                assert.ok Math.abs(modificationDate.diff(creationDate)) < 2
 
                 now = moment()
 
@@ -1803,7 +1809,7 @@ task = (config, assert)->
                 assert.strictEqual id, modelE.get pMgr.getIdName 'ClassE'
                 modificationDate = moment modelE.get 'modificationDate'
                 creationDate = moment modelE.get 'creationDate'
-                assert.strictEqual modificationDate.diff(creationDate), 0
+                assert.ok Math.abs(modificationDate.diff(creationDate)) < 2
                 now = moment()
                 assert.ok Math.abs(now.diff(creationDate)) < 1500
                 assert.ok Math.abs(now.diff(modificationDate)) < 1500
@@ -2165,7 +2171,7 @@ task = (config, assert)->
             (performed, next)-> connector.begin next
             (next)-> pMgr.save modelD, {connector: connector}, next
             (id, next)-> pMgr.insert modelF, {connector: connector}, next
-            (id, next)-> 
+            (id, next)->
                 options =
                     classNameLetter: 'F'
                     model: modelF
@@ -3067,17 +3073,20 @@ task = (config, assert)->
                 '{LNG, key}'
             ]
             having: [
-                '{LNG, key} = ' + connector.escape 'FR'
+                '{LNG, key} = __fr__'
                 [
                     '{LNG, key} IN ?', ['FR']
                 ]
-                squel.expr().and '{LNG, key} <> ' + connector.escape 'EN'
+                squel.expr().and '{LNG, key} <> __en__'
                 [
                     '{country:property:code} = ?', strCode
                 ]
             ]
             limit: 10
             offset: 0
+            values:
+                fr: connector.escape 'FR'
+                en: connector.escape 'EN'
 
         tasks = [
             (next)-> connector.acquire next
@@ -3356,4 +3365,8 @@ task = (config, assert)->
         tearDown
     ]
 
-    async.series series, assert.done
+    timerInit = new Date().getTime()
+    async.series series, (err)->
+        logger.info 'Finished in ', new Date().getTime() - timerInit
+        assert.done err
+        return

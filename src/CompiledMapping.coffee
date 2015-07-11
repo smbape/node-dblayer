@@ -96,6 +96,7 @@ module.exports = class CompiledMapping
             dependencies:
                 resolved: {}
                 mixins: []
+            cache: {}
 
         @classes[className] = classDef
 

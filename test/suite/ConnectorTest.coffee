@@ -111,7 +111,7 @@ task = (config, assert)->
             new AdapterPool()
             return
         ,  (err)->
-            err.code is 'BAD_CONNECTION_URL'
+            err.code is 'INVALID_ARGUMENTS'
         , 'unexpected error'
 
         assert.throws ->
