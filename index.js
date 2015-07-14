@@ -1,5 +1,4 @@
-var lib = './src/';
-require('coffee-script').register();
+var lib = './lib/';
 
 module.exports = {
     AdapterPool: require(lib + 'AdapterPool'),

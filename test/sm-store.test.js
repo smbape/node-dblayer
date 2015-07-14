@@ -4,7 +4,7 @@ var log4js = require('log4js'),
     path = require('path'),
     dirname = path.dirname(__filename),
     path = require('path'),
-    workdir = encodeURIComponent(path.join(__dirname, '../../../databases')),
+    workdir = encodeURIComponent(path.join(__dirname, 'databases')),
     async = require('async');
 
 log4js.configure(path.join(dirname, 'log4js.json'))

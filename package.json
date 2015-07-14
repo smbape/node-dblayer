@@ -3,30 +3,36 @@
   "version": "1.0.0",
   "description": "Database layer",
   "dependencies": {
-    "mysql": "*",
-    "prepend-listener": "*",
-    "once": "*",
-    "squel": "*",
-    "pg": "*",
-    "pg-query-stream": "*",
-    "generic-pool": "*",
-    "lodash": "*",
-    "async": "*",
-    "squel": "*",
-    "log4js": "*",
-    "moment": "*",
-    "backbone": "*"
+    "async": "^1.3.0",
+    "backbone": "^1.2.1",
+    "generic-pool": "^2.2.0",
+    "lodash": "^3.10.0",
+    "log4js": "^0.6.26",
+    "moment": "^2.10.3",
+    "mysql": "^2.8.0",
+    "once": "^1.3.2",
+    "pg": "^4.4.0",
+    "pg-query-stream": "^0.7.0",
+    "prepend-listener": "0.0.0",
+    "sqlite3": "^3.0.9",
+    "squel": "^4.0.0",
+    "svn-npm-crutch": "^0.5.4"
   },
   "main": "./index.js",
   "scripts": {
-    "test": "node ./test/sm-store.test.js"
+    "test": "node ./test/sm-store.test.js",
+    "install": "node ./node_modules/svn-npm-crutch/lib/svn-npm-crutch.js"
   },
   "devDependencies": {
-    "coffee-script": "*",
-    "commander": "*",
-    "mocha": "*",
-    "nodeunit": "*",
-    "sql": "*"
+    "coffee-script": "^1.9.3",
+    "commander": "^2.8.1",
+    "mocha": "^2.2.5",
+    "nodeunit": "^0.9.1",
+    "sql": "^0.52.0"
+  },
+  "svnDependencies": {
+    "sem-lib": "http://public-svn.smbape.com:280/svn/buma/branches/tutorial/library/sem-lib",
+    "sm-array-stream": "http://public-svn.smbape.com:280/svn/buma/branches/tutorial/library/sm-array-stream"
   },
   "readmeFilename": "readme.md"
 }
