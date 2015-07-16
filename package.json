@@ -1,38 +1,39 @@
 {
-  "name": "smStore",
-  "version": "1.0.0",
-  "description": "Database layer",
-  "dependencies": {
-    "async": "^1.3.0",
-    "backbone": "^1.2.1",
-    "generic-pool": "^2.2.0",
-    "lodash": "^3.10.0",
-    "log4js": "^0.6.26",
-    "moment": "^2.10.3",
-    "mysql": "^2.8.0",
-    "once": "^1.3.2",
-    "pg": "^4.4.0",
-    "pg-query-stream": "^0.7.0",
-    "prepend-listener": "0.0.0",
-    "sqlite3": "^3.0.9",
-    "squel": "^4.0.0",
-    "svn-npm-crutch": "^0.5.4"
-  },
-  "main": "./index.js",
-  "scripts": {
-    "test": "node ./test/sm-store.test.js",
-    "install": "node ./node_modules/svn-npm-crutch/lib/svn-npm-crutch.js"
-  },
-  "devDependencies": {
-    "coffee-script": "^1.9.3",
-    "commander": "^2.8.1",
-    "mocha": "^2.2.5",
-    "nodeunit": "^0.9.1",
-    "sql": "^0.52.0"
-  },
-  "svnDependencies": {
-    "sem-lib": "http://127.0.0.1:280/svn/buma/branches/tutorial/library/sem-lib",
-    "sm-array-stream": "http://127.0.0.1:280/svn/buma/branches/tutorial/library/sm-array-stream"
-  },
-  "readmeFilename": "readme.md"
+	"name": "smStore",
+	"version": "1.0.0",
+	"description": "Database layer",
+	"dependencies": {
+		"async": "^1.3.0",
+		"backbone": "^1.2.1",
+		"generic-pool": "^2.2.0",
+		"lodash": "^3.10.0",
+		"log4js": "^0.6.26",
+		"moment": "^2.10.3",
+		"mysql": "^2.8.0",
+		"once": "^1.3.2",
+		"pg": "^4.4.0",
+		"pg-query-stream": "^0.7.0",
+		"prepend-listener": "0.0.0",
+		"sm-svn-npm-crutch": "git+http://127.0.0.1:280/git/sm-svn-npm-crutch.git",
+		"sqlite3": "^3.0.9",
+		"squel": "^4.0.0",
+		"svn-npm-crutch": "^0.5.4"
+	},
+	"main": "./index.js",
+	"scripts": {
+		"test": "node ./test/sm-store.test.js",
+		"install": "node ./node_modules/sm-svn-npm-crutch/lib/svn-npm-crutch.js"
+	},
+	"devDependencies": {
+		"coffee-script": "^1.9.3",
+		"commander": "^2.8.1",
+		"mocha": "^2.2.5",
+		"nodeunit": "^0.9.1",
+		"sql": "^0.52.0"
+	},
+	"svnDependencies": {
+		"sem-lib": "http://127.0.0.1:280/svn/buma/branches/tutorial/library/sem-lib",
+		"sm-array-stream": "http://127.0.0.1:280/svn/buma/branches/tutorial/library/sm-array-stream"
+	},
+	"readmeFilename": "readme.md"
 }
