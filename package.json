@@ -20,7 +20,8 @@
   },
   "main": "./index.js",
   "scripts": {
-    "test": "node ./test/sm-store.test.js"
+    "test": "node ./test/sm-store.test.js",
+    "install": "node ./node_modules/svn-npm-crutch/lib/svn-npm-crutch.js"
   },
   "devDependencies": {
     "coffee-script": "^1.9.3",
