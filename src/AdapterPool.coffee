@@ -24,6 +24,7 @@ internal.getAdapter = (options)->
 _ = require 'lodash'
 path = require 'path'
 GenericUtil = require './GenericUtil'
+GenericPool = require '../generic-pool'
 
 defaultOptions =
     minConnection: 0
@@ -35,6 +36,50 @@ levelMap =
     warn: 'warn'
     info: 'debug'
     verbose: 'trace'
+
+class PriorityQueue
+    constructor: (size)->
+        @_size = Math.max (+size | 0), 1
+        @_slots = []
+        @_total = null
+        for i in [0...@_size] by 1
+            @_slots.push []
+    
+    size: ->
+        if @_total is null
+            @_total = 0
+            for slot in @_slots
+                @_total += slot.length
+
+        @_total
+    enqueue: (obj, priority)->
+
+        # Convert to integer with a default value of 0.
+        priority = priority and +priority | 0 or 0;
+
+        # Clear cache for total.
+        @_total = null
+
+        if priority
+            priorityOrig = priority
+            if priority < 0 or priority >= @_size
+                 priority = size - 1
+                # put obj at the end of the line
+                logger.error "invalid priority: " + priorityOrig + " must be between 0 and " + priority
+
+        @_slots[priority].push obj
+        return
+
+    dequeue: (callback)->
+        # Clear cache for total.
+        @_total = null
+
+        for slot in @_slots
+            if slot.length
+                return slot.shift()
+
+        return null
+
 
 module.exports = class AdapterPool
     constructor: (connectionUrl, options, next)->
@@ -120,8 +165,7 @@ module.exports = class AdapterPool
 
         @adapter = internal.getAdapter @options
 
-        GenericPool = require 'generic-pool'
-        pool = @pool = GenericPool.Pool
+        _.extend @, pool = GenericPool.Pool
             name: @options.name
 
             create: (callback)=>
@@ -130,7 +174,7 @@ module.exports = class AdapterPool
                     return callback(err, null) if err
 
                     client.on 'error', (err)->
-                        pool.emit 'error', err
+                        logger.error 'error', err
                         pool.destroy client
                         return
 
@@ -159,15 +203,6 @@ module.exports = class AdapterPool
                 # logger[levelMap[level]] str
                 return
 
-        # Proxy all pool methods
-        for method of @pool
-            ### istanbul ignore if ###
-            continue if typeof @pool[method] isnt 'function'
-
-            @[method] = ((pool, method)->
-                =>
-                    pool[method].apply pool, arguments
-            )(@pool, method)
 
         @check(next) if typeof next is 'function'
         return
@@ -175,10 +210,11 @@ module.exports = class AdapterPool
     check: (next)->
         if 'function' isnt typeof next
             next = ->
-        @pool.acquire (err, connection)=>
+        @acquire (err, connection)=>
             return next err if err
-            @pool.release connection
+            @release connection
             next()
+            return
         return
     getDialect: ->
         return @options.adapter

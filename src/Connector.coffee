@@ -49,12 +49,12 @@ module.exports = class Connector extends EventEmitter
     getDialect: ->
         @pool.getDialect()
     
-    # getPool: ->
-    #     @pool
-    getInnerPool: ->
-        @pool.pool
+    getPool: ->
+        @pool
+
     # getPoolSize: ->
-    #     @pool.pool.getPoolSize()
+    #     @pool.getPoolSize()
+    
     getMaxConnection: ->
         @pool.getMaxConnection()
 

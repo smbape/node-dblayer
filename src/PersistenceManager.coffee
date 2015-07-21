@@ -685,9 +685,9 @@ PersistenceManager.SelectQuery = PersistenceManager::SelectQuery = class SelectQ
             model = rowMap.initModel row, null, tasks
             if tasks.length > 0
                 if listConnector is streamConnector or
-                (listConnector.getInnerPool() is streamConnector.getInnerPool() and listConnector.getMaxConnection() < 2)
+                (listConnector.getPool() is streamConnector.getPool() and listConnector.getMaxConnection() < 2)
                     # preventing dead block
-                    err = new Error 'List connection and stream connection are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
+                    err = new Error 'List connector and stream connector are the same. To retrieve nested data, listConnector must be different from streamConnector and if used pools are the same, they must admit more than 1 connection'
                     err.code = 'STREAM_CONNECTION'
                     stream.emit 'error', err
                     return

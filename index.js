@@ -1,3 +1,4 @@
+// require('coffee-script').register();
 var lib = './lib/';
 
 module.exports = {
