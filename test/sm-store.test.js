@@ -72,17 +72,15 @@ function destroyPools(next) {
                 hasPool = true;
             }
             (function(pool) {
-                pool.drain(function() {
-                    pool.destroyAllNow();
-                    ++count;
-                    if (count === length) {
+                pool.destroyAll(true, function() {
+                    if (++count === length) {
                         if ('function' === typeof next) {
                             next();
                         } else if ('undefined' !== typeof next) {
                             next.done();
                         }
                     }
-                });
+                })
             }(pools[dbms][items[i]]));
         }
     }
@@ -181,6 +179,6 @@ if (false) {
             addTask(dialects[i]);
         }
     }
-    
+
     debugTests()();
 }

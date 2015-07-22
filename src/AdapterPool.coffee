@@ -25,6 +25,7 @@ _ = require 'lodash'
 path = require 'path'
 GenericUtil = require './GenericUtil'
 GenericPool = require '../generic-pool'
+semLib = require 'sem-lib'
 
 defaultOptions =
     minConnection: 0
@@ -37,51 +38,108 @@ levelMap =
     info: 'debug'
     verbose: 'trace'
 
-class PriorityQueue
-    constructor: (size)->
-        @_size = Math.max (+size | 0), 1
-        @_slots = []
-        @_total = null
-        for i in [0...@_size] by 1
-            @_slots.push []
-    
-    size: ->
-        if @_total is null
-            @_total = 0
-            for slot in @_slots
-                @_total += slot.length
+class SemaphorePool extends semLib.Semaphore
+    constructor: (options = {})->
+        @_factory = {}
 
-        @_total
-    enqueue: (obj, priority)->
+        for opt in ['name', 'create', 'destroy', 'priority']
+            if options.hasOwnProperty opt
+                @_factory[opt] = options[opt]
 
-        # Convert to integer with a default value of 0.
-        priority = priority and +priority | 0 or 0;
+        for opt in ['min', 'max', 'idle']
+            if options.hasOwnProperty opt
+                @_factory[opt] = parseInt options[opt], 10
+            else
+                @_factory[opt] = 0
 
-        # Clear cache for total.
-        @_total = null
+        super @_max, true, @_priority
+        @_created = []
+        @_timers = {}
+        @_avalaible = []
+        @_ensureMinimum()
+    getName: ->
+        @_factory.name
+    acquire: (callback, opts = {})->
+        @semTake
+            priority: opts.priority
+            num: 1
+            timeOut: opts.timeOut
+            onTimeOut: opts.onTimeOut
+            onTake: =>
+                if @_avalaible.length is 0
+                    @_factory.create (err, client)=>
+                        return callback err if err
+                        @_created.push client
+                        @_removeIdle @_created.length - 1, client
+                        callback null, client
+                        return
+                    return
+                client = @_avalaible.shift()
+                @_removeIdle @_created.indexOf(client), client
+                callback null, client
+                return
+    release: (client)->
+        index = @_created.indexOf client
+        if ~index
+            @_avalaible.push client
+            @_idle index, client
+            return @semGive()
+        return false
+    _idle: (index, client)->
+        if @_factory.idle > 0
+            return if @_factory.min is @_created.length
+            @_timers[index] = setTimeout =>
+                return if @_factory.min is @_created.length
+                @destroy client
+                return
+            , @_factory.idle
+        return
+    _removeIdle: (index, client)->
+        clearTimeout @_timers[index]
+        return
+    destroy: (client)->
+        index = @_created.indexOf client
+        if ~index
+            @_created.splice index, 1
+            @_factory.destroy client
+            @_ensureMinimum()
+            return true
+        return false
+    _superDestroy: (safe, _onDestroy)->
+        SemaphorePool.__super__.destroy.call @, safe, _onDestroy
 
-        if priority
-            priorityOrig = priority
-            if priority < 0 or priority >= @_size
-                 priority = size - 1
-                # put obj at the end of the line
-                logger.error "invalid priority: " + priorityOrig + " must be between 0 and " + priority
+    destroyAll: (safe, _onDestroy)->
+        if safe isnt false
+            @_superDestroy true, =>
+                @_onDestroy()
+                _onDestroy() if 'function' is typeof _onDestroy
+                return
+        else
+            @_superDestroy false, =>
+                @_onDestroy()
+                _onDestroy() if 'function' is typeof _onDestroy
+                return
+        return
+    _onDestroy: ->
+        for client in @_created
+            @_factory.destroy client
 
-        @_slots[priority].push obj
+        for index, timer of @_timers
+            clearTimeout timer if timer
+
+        @_created.splice 0, @_created.length
+        @_avalaible.splice 0, @_avalaible.length
+        return
+    _ensureMinimum: ->
+        if @_factory.min > @_created.length
+            @acquire (err, client)->
+                return @emit 'error', err if err
+                @release client
+                @_ensureMinimum()
+                return
         return
 
-    dequeue: (callback)->
-        # Clear cache for total.
-        @_total = null
-
-        for slot in @_slots
-            if slot.length
-                return slot.shift()
-
-        return null
-
-
-module.exports = class AdapterPool
+module.exports = class AdapterPool extends SemaphorePool
     constructor: (connectionUrl, options, next)->
         if arguments.length is 1
             if connectionUrl isnt null and 'object' is typeof connectionUrl
@@ -165,22 +223,23 @@ module.exports = class AdapterPool
 
         @adapter = internal.getAdapter @options
 
-        _.extend @, pool = GenericPool.Pool
+        super
             name: @options.name
 
             create: (callback)=>
-                logger.debug "#{@options.name} create"
-                @adapter.createConnection @options, (err, client)->
+                logger.info "#{@_factory.name} create", @id
+                @adapter.createConnection @options, (err, client)=>
                     return callback(err, null) if err
 
-                    client.on 'error', (err)->
-                        logger.error 'error', err
-                        pool.destroy client
+                    client.on 'error', (err)=>
+                        # @destroy client
+                        @emit 'error', err
                         return
 
                     # Remove connection from pool on disconnect
-                    client.on 'end', (err)->
-                        pool.destroy client
+                    client.on 'end', (err)=>
+                        return if client._destroying
+                        @destroy client
                         return
 
                     callback null, client
@@ -190,19 +249,14 @@ module.exports = class AdapterPool
 
             destroy: (client)=>
                 return if client._destroying
-                logger.debug "#{@options.name} destroy"
+                logger.info "#{@_factory.name} destroy", @id
                 client._destroying = true
                 client.end()
                 return
 
             max: @options.maxConnection
             min: @options.minConnection
-            idleTimeoutMillis: @options.idleTimeout * 1000
-
-            log: (str, level)->
-                # logger[levelMap[level]] str
-                return
-
+            idle: @options.idleTimeout * 1000
 
         @check(next) if typeof next is 'function'
         return
