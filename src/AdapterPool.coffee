@@ -24,7 +24,6 @@ internal.getAdapter = (options)->
 _ = require 'lodash'
 path = require 'path'
 GenericUtil = require './GenericUtil'
-GenericPool = require '../generic-pool'
 semLib = require 'sem-lib'
 
 defaultOptions =
@@ -132,7 +131,7 @@ class SemaphorePool extends semLib.Semaphore
         return
     _ensureMinimum: ->
         if @_factory.min > @_created.length
-            @acquire (err, client)->
+            @acquire (err, client)=>
                 return @emit 'error', err if err
                 @release client
                 @_ensureMinimum()
