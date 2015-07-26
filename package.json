@@ -19,6 +19,8 @@
   },
   "main": "./index.js",
   "scripts": {
+    "prepublish": "coffee -bo lib/ src/",
+    "postinstall": "node -e \"require('fs').readdir('lib',function(e){e&&require('child_process').exec('npm run prepublish')})\"",
     "test": "node ./test/sm-store.test.js"
   },
   "devDependencies": {
