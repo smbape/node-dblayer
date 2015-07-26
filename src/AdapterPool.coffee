@@ -226,7 +226,7 @@ module.exports = class AdapterPool extends SemaphorePool
             name: @options.name
 
             create: (callback)=>
-                logger.info "#{@_factory.name} create", @id
+                logger.debug "#{@_factory.name} create", @id
                 @adapter.createConnection @options, (err, client)=>
                     return callback(err, null) if err
 
@@ -248,7 +248,7 @@ module.exports = class AdapterPool extends SemaphorePool
 
             destroy: (client)=>
                 return if client._destroying
-                logger.info "#{@_factory.name} destroy", @id
+                logger.debug "#{@_factory.name} destroy", @id
                 client._destroying = true
                 client.end()
                 return
