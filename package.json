@@ -13,7 +13,8 @@
     "pg": "^4.4.0",
     "pg-query-stream": "^0.7.0",
     "prepend-listener": "0.0.0",
-    "sm-npm-svn": "git+http://127.0.0.1:20080/git/sm-npm-svn.git",
+    "sem-lib": "git+http://127.0.0.1:20080/git/sem-lib.git",
+    "sm-array-stream": "git+http://127.0.0.1:20080/git/sm-array-stream.git",
     "sqlite3": "^3.0.9",
     "squel": "^4.0.0"
   },
@@ -29,10 +30,6 @@
     "mocha": "^2.2.5",
     "nodeunit": "^0.9.1",
     "sql": "^0.52.0"
-  },
-  "svnDependencies": {
-    "sem-lib": "http://127.0.0.1:20080/svn/buma/branches/tutorial/library/sem-lib",
-    "sm-array-stream": "http://127.0.0.1:20080/svn/buma/branches/tutorial/library/sm-array-stream"
   },
   "readmeFilename": "readme.md"
 }
