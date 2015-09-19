@@ -1,0 +1,1689 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Code coverage report for store\lib\CompiledMapping.js</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../prettify.css">
+    <link rel="stylesheet" href="../../base.css">
+    <style type='text/css'>
+        div.coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+<body>
+<div class="header high">
+    <h1>Code coverage report for <span class="entity">store\lib\CompiledMapping.js</span></h1>
+    <h2>
+        Statements: <span class="metric">92.86% <small>(338 / 364)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Branches: <span class="metric">91.45% <small>(139 / 152)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Functions: <span class="metric">93.94% <small>(31 / 33)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Lines: <span class="metric">92.84% <small>(337 / 363)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Ignored: <span class="metric"><span class="ignore-none">none</span></span> &nbsp;&nbsp;&nbsp;&nbsp;
+    </h2>
+    <div class="path"><a href="../../index.html">All files</a> &#187; <a href="index.html">store/lib/</a> &#187; CompiledMapping.js</div>
+</div>
+<div class="body">
+<pre><table class="coverage">
+<tr><td class="line-count">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+368
+369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421
+422
+423
+424
+425
+426
+427
+428
+429
+430
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440
+441
+442
+443
+444
+445
+446
+447
+448
+449
+450
+451
+452
+453
+454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+468
+469
+470
+471
+472
+473
+474
+475
+476
+477
+478
+479
+480
+481
+482
+483
+484
+485
+486
+487
+488
+489
+490
+491
+492
+493
+494
+495
+496
+497
+498
+499
+500
+501
+502
+503
+504
+505
+506
+507
+508
+509
+510
+511
+512
+513
+514
+515
+516
+517
+518
+519
+520
+521
+522
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">2637</span>
+<span class="cline-any cline-yes">2637</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2634</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">81</span>
+<span class="cline-any cline-yes">81</span>
+<span class="cline-any cline-yes">81</span>
+<span class="cline-any cline-yes">573</span>
+<span class="cline-any cline-yes">168</span>
+<span class="cline-any cline-yes">87</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">81</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">13743</span>
+<span class="cline-any cline-yes">13743</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">13740</span>
+<span class="cline-any cline-yes">1167</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">13740</span>
+<span class="cline-any cline-yes">13740</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">11886</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">99</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">285</span>
+<span class="cline-any cline-yes">285</span>
+<span class="cline-any cline-yes">285</span>
+<span class="cline-any cline-yes">1140</span>
+<span class="cline-any cline-yes">1140</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">285</span>
+<span class="cline-any cline-yes">1224</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">192</span>
+<span class="cline-any cline-yes">192</span>
+<span class="cline-any cline-yes">1047</span>
+<span class="cline-any cline-yes">1047</span>
+<span class="cline-any cline-yes">1047</span>
+<span class="cline-any cline-yes">2904</span>
+<span class="cline-any cline-yes">2904</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-yes">147</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2901</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">180</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">3450</span>
+<span class="cline-any cline-yes">3450</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">22413</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">27378</span>
+<span class="cline-any cline-yes">27378</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">23928</span>
+<span class="cline-any cline-yes">23925</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">2157</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">69</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1227</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">4299</span>
+<span class="cline-any cline-yes">4299</span>
+<span class="cline-any cline-yes">4299</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1116</span>
+<span class="cline-any cline-yes">1116</span>
+<span class="cline-any cline-yes">1116</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">486</span>
+<span class="cline-any cline-yes">486</span>
+<span class="cline-any cline-yes">486</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1227</span>
+<span class="cline-any cline-yes">1227</span>
+<span class="cline-any cline-yes">1227</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1224</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">4299</span>
+<span class="cline-any cline-yes">4299</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4293</span>
+<span class="cline-any cline-yes">4293</span>
+<span class="cline-any cline-yes">4290</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">243</span>
+<span class="cline-any cline-yes">243</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">243</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">243</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">840</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1281</span>
+<span class="cline-any cline-yes">1281</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1281</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1242</span>
+<span class="cline-any cline-yes">1242</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-yes">1239</span>
+<span class="cline-any cline-yes">207</span>
+<span class="cline-any cline-yes">1032</span>
+<span class="cline-any cline-yes">1020</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1227</span>
+<span class="cline-any cline-yes">1224</span>
+<span class="cline-any cline-yes">66</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1158</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1221</span>
+<span class="cline-any cline-yes">1221</span>
+<span class="cline-any cline-yes">66</span>
+<span class="cline-any cline-yes">1155</span>
+<span class="cline-any cline-yes">1053</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">102</span>
+<span class="cline-any cline-yes">102</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1221</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1218</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1218</span>
+<span class="cline-any cline-yes">465</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1218</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1215</span>
+<span class="cline-any cline-yes">597</span>
+<span class="cline-any cline-yes">597</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-yes">447</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">585</span>
+<span class="cline-any cline-yes">618</span>
+<span class="cline-any cline-yes">513</span>
+<span class="cline-any cline-yes">105</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1200</span>
+<span class="cline-any cline-yes">1194</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">495</span>
+<span class="cline-any cline-yes">495</span>
+<span class="cline-any cline-yes">495</span>
+<span class="cline-any cline-yes">465</span>
+<span class="cline-any cline-yes">465</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1032</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1200</span>
+<span class="cline-any cline-yes">1200</span>
+<span class="cline-any cline-yes">345</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">855</span>
+<span class="cline-any cline-yes">2925</span>
+<span class="cline-any cline-yes">2925</span>
+<span class="cline-any cline-yes">2256</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2925</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-yes">2763</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-yes">363</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-yes">282</span>
+<span class="cline-any cline-yes">282</span>
+<span class="cline-any cline-yes">282</span>
+<span class="cline-any cline-yes">1128</span>
+<span class="cline-any cline-yes">1128</span>
+<span class="cline-any cline-yes">1128</span>
+<span class="cline-any cline-yes">744</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2919</span>
+<span class="cline-any cline-yes">180</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1194</span>
+<span class="cline-any cline-yes">1194</span>
+<span class="cline-any cline-yes">885</span>
+<span class="cline-any cline-yes">309</span>
+<span class="cline-any cline-yes">177</span>
+<span class="cline-any cline-yes">132</span>
+<span class="cline-any cline-yes">123</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1185</span>
+<span class="cline-any cline-yes">1185</span>
+<span class="cline-any cline-yes">513</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1185</span>
+<span class="cline-any cline-yes">1185</span>
+<span class="cline-any cline-yes">894</span>
+<span class="cline-any cline-yes">894</span>
+<span class="cline-any cline-yes">864</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">894</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">894</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">891</span>
+<span class="cline-any cline-yes">891</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">888</span>
+<span class="cline-any cline-yes">888</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">888</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">879</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">876</span>
+<span class="cline-any cline-yes">876</span>
+<span class="cline-any cline-yes">69</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-yes">12</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">840</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">348</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">267</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">849</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-yes">6</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">843</span>
+<span class="cline-any cline-yes">843</span>
+<span class="cline-any cline-yes">4908</span>
+<span class="cline-any cline-yes">4908</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">126</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">996</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">138</span>
+<span class="cline-any cline-yes">138</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-yes">240</span>
+<span class="cline-any cline-yes">240</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">150</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-yes">432</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1134</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// Generated by CoffeeScript 1.10.0
+var CompiledMapping, GenericUtil, Model, _, _addConstraints, _addMixins, _addProperties, _resolve, _setConstructor, log4js, logger, modelId,
+  hasProp = {}.hasOwnProperty;
+&nbsp;
+log4js = global.log4js || (<span class="branch-1 cbranch-no" title="branch not covered" >global.log4js = require('log4js'))</span>;
+&nbsp;
+logger = log4js.getLogger('CompiledMapping');
+&nbsp;
+_ = require('lodash');
+&nbsp;
+GenericUtil = require('./GenericUtil');
+&nbsp;
+modelId = 0;
+&nbsp;
+Model = (function() {
+  function Model(attributes) {
+    this.cid = ++modelId;
+    if (_.isPlainObject(attributes)) {
+      this.attributes = _.clone(attributes);
+    } else {
+      this.attributes = {};
+    }
+  }
+&nbsp;
+  Model.prototype.clone = function() {
+    var _clone, prop;
+    _clone = new this.constructor();
+    for (prop in this) {
+      if (!hasProp.call(this, prop)) continue;
+      if (prop !== 'cid') {
+        _clone[prop] = _.clone(this[prop]);
+      }
+    }
+    return _clone;
+  };
+&nbsp;
+  Model.prototype.set = function(prop, value) {
+    var attr;
+    if (_.isPlainObject(prop)) {
+      for (attr in prop) {
+        this.set(attr, prop[attr]);
+      }
+      return this;
+    }
+    if (prop === 'id') {
+      this.id = value;
+    }
+    this.attributes[prop] = value;
+    return this;
+  };
+&nbsp;
+  Model.prototype.get = function(prop) {
+    return this.attributes[prop];
+  };
+&nbsp;
+  Model.prototype.unset = function(prop) {
+    return delete this.attributes[prop];
+  };
+&nbsp;
+  Model.prototype.toJSON = function() {
+    return this.attributes;
+  };
+&nbsp;
+  return Model;
+&nbsp;
+})();
+&nbsp;
+module.exports = CompiledMapping = (function() {
+  function CompiledMapping(mapping) {
+    var classDef, className, definition, i, len, prop, ref, ref1, ref2, value;
+    ref = ['classes', 'resolved', 'unresolved', 'tables'];
+    for (i = 0, len = ref.length; i &lt; len; i++) {
+      prop = ref[i];
+      this[prop] = {};
+    }
+    for (className in mapping) {
+      _resolve(className, mapping, this);
+    }
+    ref1 = this.classes;
+    for (className in ref1) {
+      classDef = ref1[className];
+      ref2 = classDef.properties;
+      for (prop in ref2) {
+        value = ref2[prop];
+        if (value.hasOwnProperty('className') &amp;&amp; !value.hasOwnProperty('column')) {
+          definition = this._getDefinition(value.className);
+          value.column = definition.id.column;
+        }
+        this._addColumn(className, value.column, prop);
+      }
+    }
+    this.resolved = true;
+  }
+&nbsp;
+  CompiledMapping.prototype.Model = Model;
+&nbsp;
+  CompiledMapping.prototype.getIdName = function(className) {
+    this.assertClassHasMapping(className);
+    return this.classes[className].id.name;
+  };
+&nbsp;
+  CompiledMapping.prototype.getDefinition = function(className) {
+    return _.cloneDeep(this._getDefinition(className));
+  };
+&nbsp;
+  CompiledMapping.prototype.getMapping = <span class="fstat-no" title="function not covered" >function() {</span>
+<span class="cstat-no" title="statement not covered" >    return _.cloneDeep(this.classes);</span>
+  };
+&nbsp;
+  CompiledMapping.prototype.getTable = <span class="fstat-no" title="function not covered" >function(className) {</span>
+<span class="cstat-no" title="statement not covered" >    return this._getDefinition(className).table;</span>
+  };
+&nbsp;
+  CompiledMapping.prototype.getColumn = function(className, prop) {
+    var definition;
+    definition = this._getDefinition(className);
+    if (definition.id.name === prop) {
+      return definition.id.column;
+    } else <span class="missing-if-branch" title="else path not taken" >E</span>if (definition.properties.hasOwnProperty(prop)) {
+      return definition.properties[prop].column;
+    }
+  };
+&nbsp;
+  CompiledMapping.prototype.assertClassHasMapping = function(className) {
+    var err;
+    if (!this.classes.hasOwnProperty(className)) {
+      err = new Error("No mapping were found for class '" + className + "'");
+      err.code = 'UNDEF_CLASS';
+      throw err;
+    }
+  };
+&nbsp;
+  CompiledMapping.prototype._getDefinition = function(className) {
+    this.assertClassHasMapping(className);
+    return this.classes[className];
+  };
+&nbsp;
+  CompiledMapping.prototype._startResolving = function(className) {
+    var classDef;
+    this.unresolved[className] = true;
+    classDef = {
+      className: className,
+      properties: {},
+      availableProperties: {},
+      columns: {},
+      dependencies: {
+        resolved: {},
+        mixins: []
+      },
+      cache: {}
+    };
+    return this.classes[className] = classDef;
+  };
+&nbsp;
+  CompiledMapping.prototype._markResolved = function(className) {
+    delete this.unresolved[className];
+    this.resolved[className] = true;
+  };
+&nbsp;
+  CompiledMapping.prototype._hasResolved = function(className) {
+    return this.resolved.hasOwnProperty(className);
+  };
+&nbsp;
+  CompiledMapping.prototype._isResolving = function(className) {
+    return this.unresolved.hasOwnProperty(className);
+  };
+&nbsp;
+  CompiledMapping.prototype._hasTable = function(table) {
+    return this.tables.hasOwnProperty(table);
+  };
+&nbsp;
+  CompiledMapping.prototype._hasColumn = function(className, column) {
+    var definition;
+    definition = this.classes[className];
+    return definition.columns.hasOwnProperty(column);
+  };
+&nbsp;
+  CompiledMapping.prototype._getResolvedDependencies = function(className) {
+    var definition;
+    definition = this.classes[className];
+    return definition.dependencies.resolved;
+  };
+&nbsp;
+  CompiledMapping.prototype._setResolvedDependency = function(className, dependency) {
+    var definition;
+    definition = this.classes[className];
+    definition.dependencies.resolved[dependency] = true;
+  };
+&nbsp;
+  CompiledMapping.prototype._hasResolvedDependency = function(className, dependency) {
+    var definition;
+    definition = this.classes[className];
+    return definition.dependencies.resolved[dependency];
+  };
+&nbsp;
+  CompiledMapping.prototype._addTable = function(className) {
+    var definition, err;
+    definition = this.classes[className];
+    if (this._hasTable(definition.table)) {
+      err = new Error("[" + definition.className + "] table '" + definition.table + "' already exists");
+      err.code = 'DUP_TABLE';
+      throw err;
+    }
+    this.tables[definition.table] = true;
+  };
+&nbsp;
+  CompiledMapping.prototype._addColumn = function(className, column, prop) {
+    var definition, err;
+    if (this._hasColumn(className, column)) {
+      err = new Error("[" + className + "] column '" + column + "' already exists");
+      err.code = 'DUP_COLUMN';
+      throw err;
+    }
+    definition = this.classes[className];
+    if (GenericUtil.notEmptyString(column)) {
+      definition.columns[column] = prop;
+    } else {
+      err = new Error("[" + className + "] column must be a not empty string");
+      err.code = 'COLUMN';
+      throw err;
+    }
+  };
+&nbsp;
+  CompiledMapping.prototype._addMixin = function(className, mixin) {
+    var definition, dependencyClassName, i, index, mixinClassName, mixins, obj, parents, ref;
+    definition = this.classes[className];
+    mixins = definition.dependencies.mixins;
+    mixinClassName = mixin.className;
+    parents = [];
+    for (index = i = ref = mixins.length - 1; i &gt;= 0; index = i += -1) {
+      dependencyClassName = mixins[index].className;
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (dependencyClassName === mixinClassName) {
+<span class="cstat-no" title="statement not covered" >        return;</span>
+      }
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (this._hasResolvedDependency(dependencyClassName, mixinClassName)) {
+<span class="cstat-no" title="statement not covered" >        return;</span>
+      }
+      if (this._hasResolvedDependency(mixinClassName, dependencyClassName)) {
+        parents.push(dependencyClassName);
+      }
+    }
+    obj = {
+      className: mixinClassName
+    };
+    if (GenericUtil.notEmptyString(mixin.column)) {
+      obj.column = mixin.column;
+    } else {
+      obj.column = this.classes[mixinClassName].id.column;
+    }
+    mixins.push(obj);
+    return parents;
+  };
+&nbsp;
+  return CompiledMapping;
+&nbsp;
+})();
+&nbsp;
+_resolve = function(className, mapping, compiled) {
+  var classDef, err, id, idClassDef, idIsMandatory, rawDefinition;
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof className !== 'string' || className.length === 0) {
+<span class="cstat-no" title="statement not covered" >    err = new Error('class is undefined');</span>
+<span class="cstat-no" title="statement not covered" >    err.code = 'UNDEF_CLASS';</span>
+<span class="cstat-no" title="statement not covered" >    throw err;</span>
+  }
+  if (compiled._hasResolved(className)) {
+    return;
+  }
+  rawDefinition = mapping[className];
+  if (!_.isPlainObject(rawDefinition)) {
+    err = new Error("Class '" + className + "'' is undefined");
+    err.code = 'UNDEF_CLASS';
+    throw err;
+  }
+  classDef = compiled._startResolving(className);
+  if (!rawDefinition.hasOwnProperty('table')) {
+    classDef.table = className;
+  } else if (GenericUtil.notEmptyString(rawDefinition.table)) {
+    classDef.table = rawDefinition.table;
+  } else {
+    err = new Error("[" + classDef.className + "] table is not a string");
+    err.code = 'TABLE';
+    throw err;
+  }
+  compiled._addTable(classDef.className);
+  if (typeof rawDefinition.id === 'string') {
+    classDef.id = {
+      name: rawDefinition.id
+    };
+  } else if (typeof rawDefinition.id !== 'undefined' &amp;&amp; !_.isPlainObject(rawDefinition.id)) {
+    err = new Error("[" + classDef.className + "] id property must be a not null plain object");
+    err.code = 'ID';
+    throw err;
+  }
+  idIsMandatory = true;
+  if (classDef.hasOwnProperty('id')) {
+    id = classDef.id;
+  } else if (rawDefinition.hasOwnProperty('id')) {
+    id = rawDefinition.id;
+  } else {
+    idIsMandatory = false;
+    id = {};
+  }
+  if (!_.isPlainObject(id)) {
+    err = new Error("[" + classDef.className + "] id is not well defined. Expecting String|{name: String}|{className: String}. Given " + id);
+    err.code = 'ID';
+    throw err;
+  }
+  classDef.id = {
+    name: null
+  };
+  if (GenericUtil.notEmptyString(id.column)) {
+    classDef.id.column = id.column;
+  }
+  if (id.hasOwnProperty('name') &amp;&amp; id.hasOwnProperty('className')) {
+    err = new Error("[" + classDef.className + "] name and className are mutally exclusive properties for id");
+    err.code = 'INCOMP_ID';
+    throw err;
+  }
+  if (GenericUtil.notEmptyString(id.name)) {
+    classDef.id.name = id.name;
+    if (!id.hasOwnProperty('column')) {
+      classDef.id.column = id.name;
+    } else if (!GenericUtil.notEmptyString(id.column)) {
+      err = new Error("[" + classDef.className + "] column must be a not empty string for id");
+      err.code = 'ID_COLUMN';
+      throw err;
+    }
+    compiled._addColumn(className, classDef.id.column, classDef.id.name);
+  } else if (GenericUtil.notEmptyString(id.className)) {
+    classDef.id.className = id.className;
+  } else if (idIsMandatory) {
+    err = new Error("[" + classDef.className + "] name xor className must be defined as a not empty string for id");
+    err.code = 'ID';
+    throw err;
+  }
+  _addProperties(classDef, rawDefinition.properties);
+  _addMixins(compiled, classDef, rawDefinition, id, mapping);
+  _addConstraints(classDef, rawDefinition);
+  if (typeof classDef.id.className === 'string') {
+    idClassDef = compiled.classes[classDef.id.className];
+    classDef.id.name = idClassDef.id.name;
+    if (!classDef.id.hasOwnProperty('column')) {
+      classDef.id.column = idClassDef.id.column;
+      compiled._addColumn(classDef.className, classDef.id.column, classDef.id.name);
+    }
+  }
+  if (typeof classDef.id.name === 'string') {
+    classDef.availableProperties[classDef.id.name] = {
+      definition: classDef.id
+    };
+  }
+  _setConstructor(classDef, rawDefinition.ctor);
+  compiled._markResolved(classDef.className);
+};
+&nbsp;
+_addProperties = function(classDef, rawProperties) {
+  var err, handler, handlerType, handlers, i, len, prop, propDef, rawPropDef, ref;
+  if (!_.isPlainObject(rawProperties)) {
+    return;
+  }
+  for (prop in rawProperties) {
+    rawPropDef = rawProperties[prop];
+    if (typeof rawPropDef === 'string') {
+      rawPropDef = {
+        column: rawPropDef
+      };
+    }
+    if (!_.isPlainObject(rawPropDef)) {
+      err = new Error("[" + classDef.className + "] property '" + prop + "' must be an object or a string");
+      err.code = 'PROP';
+      throw err;
+    }
+    classDef.properties[prop] = propDef = {};
+    if (GenericUtil.notEmptyString(rawPropDef.column)) {
+      propDef.column = rawPropDef.column;
+    }
+    classDef.availableProperties[prop] = {
+      definition: propDef
+    };
+    if (rawPropDef.hasOwnProperty('className')) {
+      propDef.className = rawPropDef.className;
+    }
+    if (rawPropDef.hasOwnProperty('handlers')) {
+      propDef.handlers = handlers = {};
+      ref = ['insert', 'update', 'read', 'write'];
+      for (i = 0, len = ref.length; i &lt; len; i++) {
+        handlerType = ref[i];
+        handler = rawPropDef.handlers[handlerType];
+        if (typeof handler === 'function') {
+          handlers[handlerType] = handler;
+        }
+      }
+    }
+    if (rawPropDef.hasOwnProperty('lock')) {
+      propDef.lock = typeof rawPropDef.lock === 'boolean' &amp;&amp; rawPropDef.lock;
+    }
+  }
+};
+&nbsp;
+_addMixins = function(compiled, classDef, rawDefinition, id, mapping) {
+  var _mixin, className, err, i, len, mixin, mixinDef, mixins, parents, prop, resolved, seenMixins;
+  if (!rawDefinition.hasOwnProperty('mixins')) {
+    mixins = [];
+  } else if (GenericUtil.notEmptyString(rawDefinition.mixins)) {
+    mixins = [rawDefinition.mixins];
+  } else if (Array.isArray(rawDefinition.mixins)) {
+    mixins = rawDefinition.mixins.slice(0);
+  } else {
+    err = new Error("[" + classDef.className + "] mixins property can only be a string or an array of strings");
+    err.code = 'MIXINS';
+    throw err;
+  }
+  classDef.mixins = [];
+  if (GenericUtil.notEmptyString(id.className)) {
+    mixins.unshift(id.className);
+  }
+  seenMixins = {};
+  for (i = 0, len = mixins.length; i &lt; len; i++) {
+    mixin = mixins[i];
+    if (typeof mixin === 'string') {
+      mixin = {
+        className: mixin
+      };
+    }
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!_.isPlainObject(mixin)) {
+<span class="cstat-no" title="statement not covered" >      err = new Error("[" + classDef.className + "] mixin can only be a string or a not null object");</span>
+<span class="cstat-no" title="statement not covered" >      err.code = 'MIXIN';</span>
+<span class="cstat-no" title="statement not covered" >      throw err;</span>
+    }
+    if (!mixin.hasOwnProperty('className')) {
+      err = new Error("[" + classDef.className + "] mixin has no className property");
+      err.code = 'MIXIN';
+      throw err;
+    }
+    className = mixin.className;
+    if (seenMixins[className]) {
+      err = new Error("[" + classDef.className + "] mixin [" + mixin.className + "]: duplicate mixin. Make sure it's not also and id className");
+      err.code = 'DUP_MIXIN';
+      throw err;
+    }
+    seenMixins[className] = true;
+    _mixin = {
+      className: className
+    };
+    if (GenericUtil.notEmptyString(mixin.column)) {
+      _mixin.column = mixin.column;
+    } else if (mixin.hasOwnProperty('column')) {
+      err = new Error("[" + classDef.className + "] mixin [" + mixin.className + "]: Column is not a string or is empty");
+      err.code = 'MIXIN_COLUMN';
+      throw err;
+    }
+    classDef.mixins.push(_mixin);
+    if (!compiled._hasResolved(className)) {
+      if (compiled._isResolving(className)) {
+        err = new Error("[" + classDef.className + "] mixin [" + mixin.className + "]: Circular reference detected: -&gt; '" + className + "'");
+        err.code = 'CIRCULAR_REF';
+        throw err;
+      }
+      _resolve(className, mapping, compiled);
+    }
+    compiled._setResolvedDependency(classDef.className, className);
+    if (!_mixin.hasOwnProperty('column')) {
+      _mixin.column = compiled.classes[_mixin.className].id.column;
+    }
+    if (classDef.id.className !== _mixin.className) {
+      compiled._addColumn(classDef.className, _mixin.column, compiled.classes[_mixin.className].id.name);
+    }
+    resolved = compiled._getResolvedDependencies(className);
+    for (className in resolved) {
+      compiled._setResolvedDependency(classDef.className, className);
+    }
+    parents = compiled._addMixin(classDef.className, mixin);
+    if (Array.isArray(parents) &amp;&amp; parents.length &gt; 0) {
+      err = new Error("[" + classDef.className + "] mixin '" + mixin + "' depends on mixins " + parents + ". Add only mixins with no relationship or you have a problem in your design");
+      err.code = 'RELATED_MIXIN';
+      err.extend = parents;
+      throw err;
+    }
+    mixinDef = compiled.classes[_mixin.className];
+    for (prop in mixinDef.availableProperties) {
+      <span class="missing-if-branch" title="else path not taken" >E</span>if (!classDef.availableProperties.hasOwnProperty(prop)) {
+        classDef.availableProperties[prop] = {
+          mixin: _mixin,
+          definition: mixinDef.availableProperties[prop].definition
+        };
+      }
+    }
+  }
+};
+&nbsp;
+_addConstraints = function(classDef, rawDefinition) {
+  var ERR_CODE, constraint, constraints, err, i, index, j, len, len1, prop, properties, rawConstraints;
+  classDef.constraints = constraints = {
+    unique: []
+  };
+  rawConstraints = rawDefinition.constraints;
+  if (_.isPlainObject(rawConstraints)) {
+    rawConstraints = [rawConstraints];
+  }
+  if (!Array.isArray(rawConstraints)) {
+    return;
+  }
+  ERR_CODE = 'CONSTRAINT';
+  for (index = i = 0, len = rawConstraints.length; i &lt; len; index = ++i) {
+    constraint = rawConstraints[index];
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!_.isPlainObject(constraint)) {
+<span class="cstat-no" title="statement not covered" >      err = new Error("[" + classDef.className + "] constraint at index " + index + " is not a plain object");</span>
+<span class="cstat-no" title="statement not covered" >      err.code = ERR_CODE;</span>
+<span class="cstat-no" title="statement not covered" >      throw err;</span>
+    }
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (constraint.type !== 'unique') {
+<span class="cstat-no" title="statement not covered" >      err = new Error("[" + classDef.className + "] constraint at index " + index + " is not supported. Supported constraint type is 'unique'");</span>
+<span class="cstat-no" title="statement not covered" >      err.code = ERR_CODE;</span>
+<span class="cstat-no" title="statement not covered" >      throw err;</span>
+    }
+    properties = constraint.properties;
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (GenericUtil.notEmptyString(properties)) {
+<span class="cstat-no" title="statement not covered" >      properties = [properties];</span>
+    }
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!Array.isArray(properties)) {
+<span class="cstat-no" title="statement not covered" >      err = new Error("[" + classDef.className + "] constraint at index " + index + ": properties must be a not empty string or an array of strings");</span>
+<span class="cstat-no" title="statement not covered" >      err.code = ERR_CODE;</span>
+<span class="cstat-no" title="statement not covered" >      throw err;</span>
+    }
+    for (j = 0, len1 = properties.length; j &lt; len1; j++) {
+      prop = properties[j];
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (!classDef.properties.hasOwnProperty(prop)) {
+<span class="cstat-no" title="statement not covered" >        err = new Error("[" + classDef.className + "] - constraint at index " + index + ": property " + prop + " is not owned");</span>
+<span class="cstat-no" title="statement not covered" >        err.code = ERR_CODE;</span>
+<span class="cstat-no" title="statement not covered" >        throw err;</span>
+      }
+    }
+    constraints.unique.push(properties.slice(0));
+  }
+};
+&nbsp;
+_setConstructor = function(classDef, Ctor) {
+  var err;
+  if ('undefined' === typeof Ctor) {
+    Ctor = Model;
+  }
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof Ctor !== 'function') {
+<span class="cstat-no" title="statement not covered" >    err = new Error("[" + classDef.className + "] given constructor is not a function");</span>
+<span class="cstat-no" title="statement not covered" >    err.code = 'CTOR';</span>
+<span class="cstat-no" title="statement not covered" >    throw err;</span>
+  }
+  classDef.ctor = Ctor;
+};
+&nbsp;</pre></td></tr>
+</table></pre>
+
+</div>
+<div class="footer">
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sat Sep 19 2015 10:19:30 GMT+0200 (Paris, Madrid (heure d’été))</div>
+</div>
+<script src="../../prettify.js"></script>
+<script>
+window.onload = function () {
+        if (typeof prettyPrint === 'function') {
+            prettyPrint();
+        }
+};
+</script>
+<script src="../../sorter.js"></script>
+</body>
+</html>

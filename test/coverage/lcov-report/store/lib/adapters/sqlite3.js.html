@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Code coverage report for store\lib\adapters\sqlite3.js</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../../prettify.css">
+    <link rel="stylesheet" href="../../../base.css">
+    <style type='text/css'>
+        div.coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+<body>
+<div class="header high">
+    <h1>Code coverage report for <span class="entity">store\lib\adapters\sqlite3.js</span></h1>
+    <h2>
+        Statements: <span class="metric">87.78% <small>(158 / 180)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Branches: <span class="metric">61.11% <small>(44 / 72)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Functions: <span class="metric">85.37% <small>(35 / 41)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Lines: <span class="metric">87.21% <small>(150 / 172)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Ignored: <span class="metric"><span class="ignore-none">none</span></span> &nbsp;&nbsp;&nbsp;&nbsp;
+    </h2>
+    <div class="path"><a href="../../../index.html">All files</a> &#187; <a href="index.html">store/lib/adapters/</a> &#187; sqlite3.js</div>
+</div>
+<div class="body">
+<pre><table class="coverage">
+<tr><td class="line-count">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">9</span>
+<span class="cline-any cline-yes">4</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7068</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">200</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-yes">3</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">762</span>
+<span class="cline-any cline-yes">196</span>
+<span class="cline-any cline-yes">196</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">196</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">196</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">566</span>
+<span class="cline-any cline-yes">65</span>
+<span class="cline-any cline-yes">65</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">65</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">65</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">501</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">501</span>
+<span class="cline-any cline-yes">501</span>
+<span class="cline-any cline-yes">514</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">514</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">501</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">501</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">500</span>
+<span class="cline-any cline-yes">500</span>
+<span class="cline-any cline-yes">252</span>
+<span class="cline-any cline-yes">2565</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">248</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">500</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">276</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">276</span>
+<span class="cline-any cline-yes">17</span>
+<span class="cline-any cline-yes">171</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">17</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">276</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-yes">18</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// Generated by CoffeeScript 1.10.0
+var ArrayStream, EventEmitter, MODES, SQLite3Connection, SQLite3Query, SQLite3Stream, _, adapter, common, log4js, logger, path, sqlite3,
+  extend = function(child, parent) { for (var key in parent) { <span class="missing-if-branch" title="else path not taken" >E</span>if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+  hasProp = {}.hasOwnProperty;
+&nbsp;
+path = require('path');
+&nbsp;
+_ = require('lodash');
+&nbsp;
+sqlite3 = require('sqlite3');
+&nbsp;
+EventEmitter = require('events').EventEmitter;
+&nbsp;
+log4js = global.log4js || (<span class="branch-1 cbranch-no" title="branch not covered" >global.log4js = require('log4js'))</span>;
+&nbsp;
+logger = log4js.getLogger('SQLite3Adapter');
+&nbsp;
+MODES = {
+  READ: [Math.pow(2, 0), sqlite3.OPEN_READONLY],
+  WRITE: [Math.pow(2, 1), sqlite3.OPEN_READWRITE],
+  CREATE: [Math.pow(2, 2), sqlite3.OPEN_CREATE]
+};
+&nbsp;
+adapter = module.exports;
+&nbsp;
+common = require('./common');
+&nbsp;
+_.extend(adapter, {
+  name: 'sqlite3',
+  createConnection: function(options, callback) {
+    var database, filename, mode, name, opt_mode, value;
+    database = options.database || '';
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (options.host) {
+      filename = path.join(options.host, database);
+    } else {
+<span class="cstat-no" title="statement not covered" >      filename = database;</span>
+    }
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (options.workdir) {
+      filename = path.join(options.workdir, filename);
+    }
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!filename || filename === '/:memory') {
+<span class="cstat-no" title="statement not covered" >      filename = ':memory:';</span>
+    }
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (!isNaN(options.mode)) {
+      mode = 0;
+      opt_mode = parseInt(options.mode, 10);
+      for (name in MODES) {
+        value = MODES[name];
+        if (value[0] === (value[0] &amp; opt_mode)) {
+          mode |= value[1];
+        }
+      }
+    }
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!mode) {
+<span class="cstat-no" title="statement not covered" >      mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE;</span>
+    }
+    return new SQLite3Connection(filename, mode, callback);
+  },
+  escapeId: function(value) {
+    return common._escape(value, common._escapeConfigs[common.CONSTANTS.POSTGRES].id);
+  },
+  escape: function(value) {
+    return common._escape(value, common._escapeConfigs[common.CONSTANTS.POSTGRES].literal);
+  },
+  escapeSearch: <span class="fstat-no" title="function not covered" >function(value) {</span>
+<span class="cstat-no" title="statement not covered" >    return common._escape(value, common._escapeConfigs[common.CONSTANTS.POSTGRES].search);</span>
+  }
+}, common);
+&nbsp;
+SQLite3Connection = (function(superClass) {
+  extend(SQLite3Connection, superClass);
+&nbsp;
+  SQLite3Connection.prototype.adapter = adapter;
+&nbsp;
+  function SQLite3Connection(filename, mode, callback) {
+    SQLite3Connection.__super__.constructor.call(this);
+    logger.debug('SQLite3Connection', filename);
+    this.db = new sqlite3.Database(filename, mode);
+    this.db.serialize();
+    this.db.on('error', (function(_this) {
+      return <span class="fstat-no" title="function not covered" >function(err) {</span>
+<span class="cstat-no" title="statement not covered" >        _this.emit('error', err);</span>
+      };
+    })(this));
+    this.db.once('error', callback);
+    this.db.once('open', (function(_this) {
+      return function() {
+        _this.db.removeListener('error', callback);
+        callback(null, _this);
+      };
+    })(this));
+    this.db.on('close', (function(_this) {
+      return function() {
+        _this.emit('end');
+      };
+    })(this));
+    return;
+  }
+&nbsp;
+  SQLite3Connection.prototype.query = function() {
+    var query;
+    query = new SQLite3Query(arguments);
+    query.execute(this.db);
+    return query;
+  };
+&nbsp;
+  SQLite3Connection.prototype.stream = function(query, values, callback, done) {
+    var stream;
+    stream = new SQLite3Stream(arguments);
+    stream.execute(this.db);
+    return stream;
+  };
+&nbsp;
+  SQLite3Connection.prototype.end = function() {
+    logger.debug('close connection');
+    this.db.close();
+  };
+&nbsp;
+  return SQLite3Connection;
+&nbsp;
+})(EventEmitter);
+&nbsp;
+SQLite3Query = (function(superClass) {
+  extend(SQLite3Query, superClass);
+&nbsp;
+  function SQLite3Query(args) {
+    this.init.apply(this, args);
+  }
+&nbsp;
+  SQLite3Query.prototype.init = function(text, values, callback) {
+    this.text = text;
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (Array.isArray(values)) {
+<span class="cstat-no" title="statement not covered" >      this.values = values;</span>
+    } else {
+      this.values = [];
+      <span class="missing-if-branch" title="else path not taken" >E</span>if (arguments.length === 2 &amp;&amp; 'function' === typeof values) {
+        callback = values;
+      }
+    }
+    this.callback = 'function' === typeof callback ? callback : <span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >function() {</span>};</span>
+  };
+&nbsp;
+  SQLite3Query.prototype.execute = function(db) {
+    var callback, hasError, query, result, values;
+    query = this.text;
+    values = this.values;
+    callback = this.callback;
+    if (query.match(/^\s*insert\s+/i)) {
+      db.run(query, values, function(err) {
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
+<span class="cstat-no" title="statement not covered" >          return callback(err);</span>
+        }
+        callback(err, {
+          lastInsertId: this.lastID
+        });
+      });
+      return;
+    }
+    if (query.match(/^\s*(?:update|delete)\s+/i)) {
+      db.run(query, values, function(err) {
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
+<span class="cstat-no" title="statement not covered" >          return callback(err);</span>
+        }
+        callback(err, {
+          changedRows: this.changes,
+          affectedRows: this.changes
+        });
+      });
+      return;
+    }
+    result = {
+      rows: []
+    };
+    hasError = false;
+    db.each(query, values, function(err, row) {
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
+<span class="cstat-no" title="statement not covered" >        if (!hasError) {</span>
+<span class="cstat-no" title="statement not covered" >          hasError = true;</span>
+<span class="cstat-no" title="statement not covered" >          callback(err);</span>
+        }
+<span class="cstat-no" title="statement not covered" >        return;</span>
+      }
+      result.rows.push(row);
+    }, function(err, rowCount) {
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (hasError) {
+<span class="cstat-no" title="statement not covered" >        return;</span>
+      }
+      if (err) {
+        return callback(err);
+      }
+      result.rowCount = rowCount;
+      if (rowCount &gt; 0) {
+        result.fields = Object.keys(result.rows[0]).map(function(name) {
+          return {
+            name: name
+          };
+        });
+      } else {
+        result.fields = [];
+      }
+      callback(err, result);
+    });
+  };
+&nbsp;
+  return SQLite3Query;
+&nbsp;
+})(EventEmitter);
+&nbsp;
+ArrayStream = require('array-stream');
+&nbsp;
+SQLite3Stream = (function(superClass) {
+  extend(SQLite3Stream, superClass);
+&nbsp;
+  function SQLite3Stream(args) {
+    SQLite3Stream.__super__.constructor.call(this, [], {
+      duplex: true
+    });
+    this.init.apply(this, args);
+  }
+&nbsp;
+  SQLite3Stream.prototype.init = function(text, values, callback, done) {
+    this.text = text;
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (Array.isArray(values)) {
+<span class="cstat-no" title="statement not covered" >      this.values = values;</span>
+    } else {
+      this.values = [];
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (arguments.length === 2) {
+<span class="cstat-no" title="statement not covered" >        if ('function' === typeof values) {</span>
+<span class="cstat-no" title="statement not covered" >          done = values;</span>
+        }
+      } else <span class="missing-if-branch" title="else path not taken" >E</span>if (arguments.length === 3) {
+        <span class="missing-if-branch" title="else path not taken" >E</span>if ('function' === typeof callback) {
+          done = callback;
+        }
+        <span class="missing-if-branch" title="else path not taken" >E</span>if ('function' === typeof values) {
+          callback = values;
+        }
+      }
+    }
+    this.callback = 'function' === typeof callback ? callback : <span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >function() {</span>};</span>
+    this.done = 'function' === typeof done ? done : <span class="fstat-no" title="function not covered" ><span class="branch-1 cbranch-no" title="branch not covered" >function() {</span>};</span>
+  };
+&nbsp;
+  SQLite3Stream.prototype.execute = function(db) {
+    var done, hasError, query, result, values;
+    query = this.text;
+    values = this.values;
+    done = this.done;
+    result = {};
+    hasError = false;
+    this.on('data', this.callback);
+    this.once('error', <span class="fstat-no" title="function not covered" >function(err) {</span>
+<span class="cstat-no" title="statement not covered" >      hasError = true;</span>
+<span class="cstat-no" title="statement not covered" >      done(err);</span>
+    });
+    this.once('end', (function(_this) {
+      return function() {
+        _this.removeListener('data', _this.callback);
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (hasError) {
+<span class="cstat-no" title="statement not covered" >          return;</span>
+        }
+        if (!result.fields) {
+          result.fields = [];
+        }
+        done(null, result);
+      };
+    })(this));
+    db.each(query, values, (function(_this) {
+      return function(err, row) {
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
+<span class="cstat-no" title="statement not covered" >          _this.emit('error', err);</span>
+<span class="cstat-no" title="statement not covered" >          return;</span>
+        }
+        if (!result.fields) {
+          result.fields = Object.keys(row).map(function(name) {
+            return {
+              name: name
+            };
+          });
+          _this.emit('fields', result.fields);
+        }
+        _this.write(row, 'item');
+      };
+    })(this), (function(_this) {
+      return function(err, rowCount) {
+        _this.end();
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (err) {
+<span class="cstat-no" title="statement not covered" >          _this.emit('error', err);</span>
+        }
+      };
+    })(this));
+  };
+&nbsp;
+  return SQLite3Stream;
+&nbsp;
+})(ArrayStream);
+&nbsp;</pre></td></tr>
+</table></pre>
+
+</div>
+<div class="footer">
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sat Sep 19 2015 10:19:30 GMT+0200 (Paris, Madrid (heure d’été))</div>
+</div>
+<script src="../../../prettify.js"></script>
+<script>
+window.onload = function () {
+        if (typeof prettyPrint === 'function') {
+            prettyPrint();
+        }
+};
+</script>
+<script src="../../../sorter.js"></script>
+</body>
+</html>
