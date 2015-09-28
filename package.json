@@ -13,8 +13,8 @@
     "pg": "^4.4.0",
     "pg-query-stream": "^0.7.0",
     "prepend-listener": "0.0.0",
-    "sem-lib": "git+https://github.com/smbape/sem-lib.git",
-    "array-stream": "git+https://github.com/smbape/array-stream.git",
+    "sem-lib": "git+https://gitlab.smbape.com/smbape/node-sem-lib.git",
+    "array-stream": "git+https://gitlab.smbape.com/smbape/node-array-stream.git",
     "sqlite3": "^3.0.9",
     "squel": "^4.0.0"
   },
