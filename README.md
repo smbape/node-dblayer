@@ -1,4 +1,4 @@
-sm-store
+store
 =======
 
 Experimental ORM, QueryBuilder, QueryTemplating.
