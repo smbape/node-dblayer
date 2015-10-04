@@ -157,7 +157,7 @@ class SQLite3Query extends EventEmitter
             return
         return
 
-ArrayStream = require 'array-stream'
+ArrayStream = require 'duplex-arraystream'
 class SQLite3Stream extends ArrayStream
     constructor: (args)->
         super [], duplex: true
