@@ -175,9 +175,10 @@ module.exports = class AdapterPool extends SemaphorePool
             @options.host = parsed.hostname
             @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
             if parsed.auth
-                auth = parsed.auth.split(':')
-                @options.user = auth[0]
-                @options.password = auth[1]
+                # treat the first : as separator since password may contain : as well
+                index = parsed.auth.indexOf ':'
+                @options.user = parsed.auth.substring 0, index
+                @options.password = parsed.auth.substring index + 1
 
             for key of parsed.query
                 @options[key] = parsed.query[key]
