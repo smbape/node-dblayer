@@ -103,7 +103,6 @@ module.exports = class Connector extends EventEmitter
         @resource = 1
         @state = STATES.AVAILABLE if @state isnt STATES.INVALID
         if @waiting.length
-            @resource = 0
             [state, callback, prior] = @waiting.shift()
             @_takeResource state, callback, prior
         return
