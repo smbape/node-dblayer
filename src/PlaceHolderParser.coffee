@@ -29,7 +29,7 @@ module.exports = class PlaceHolderParser
             reg.push '\\b'
 
         reg.push ')'
-        
+
         @reg = new RegExp reg.join(''), 'g'
 
     parse: (str)->

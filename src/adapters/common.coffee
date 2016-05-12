@@ -96,7 +96,7 @@ module.exports._escape = _escape = (str, opts)->
         for iStr in str
             ret[ret.length] = _escape iStr, opts
         return '(' + ret.join(', ') + ')'
-    
+
     str = '' + str if 'string' isnt type
     str = str.replace opts.matcher, (match, char, index, str)->
         opts.replace[char]

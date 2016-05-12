@@ -45,7 +45,6 @@ class cls.HavingBlock extends cls.Block
                 text: finalCondition
                 values: finalValues
 
-
     buildStr: (queryBuilder) ->
         if 0 >= @havings.length then return ""
 
@@ -66,7 +65,6 @@ class cls.HavingBlock extends cls.Block
                 havingStr += having.text
 
         "HAVING (#{havingStr})"
-
 
     buildParam: (queryBuilder) ->
         ret = 

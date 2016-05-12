@@ -188,7 +188,7 @@ module.exports = class AdapterPool extends SemaphorePool
         if connectionUrl
             @connectionUrl = connectionUrl
             url = require 'url'
-            
+
             parsed = url.parse connectionUrl, true, true
             @options = {}
             @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)

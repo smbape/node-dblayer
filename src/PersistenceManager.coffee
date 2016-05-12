@@ -82,7 +82,7 @@ PersistenceManager::insert = (model, options, callback)->
         query = @getInsertQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
     catch err
         return callback err
-    
+
     connector.acquire (err, performed)->
         return callback(err) if err
         connector.begin (err)->
@@ -222,7 +222,7 @@ PersistenceManager::save = (model, options, callback)->
     catch err
         callback err
         return
-    
+
     if where.length is 0
         @insert model, _.extend({}, options, reflect: true), callback
     else
@@ -257,7 +257,7 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
     catch err
         callback err
         return
-    
+
     if where.length is 0
         @insert model, _.extend({}, options, reflect: true), callback
     else
@@ -284,7 +284,7 @@ PersistenceManager::initialize = (model, options, callback)->
         err = new Error 'No model'
         err.code = 'NO_MODEL'
         return callback err
-    
+
     className = options.className or model.className
     definition = @_getDefinition className
     options = _.extend {}, options,
@@ -295,7 +295,7 @@ PersistenceManager::initialize = (model, options, callback)->
     catch err
         callback err
         return
-    
+
     @list className, options, callback
 
 # return where condition to be parsed by RowMap
@@ -329,7 +329,7 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 
             attributes = options.attributes or model.toJSON() if not isSetted and options.useAttributes isnt false
         where = []
-        
+
         if _.isPlainObject attributes
             for attr, value of attributes
                 _addWhereCondition pMgr, model, attr, value, definition, connector, where, options
@@ -590,7 +590,7 @@ _getCacheId = (options)->
                         json[opt].push JSON.stringify val
             else
                 json[opt] = JSON.stringify options[opt]
-    
+
     JSON.stringify json
 
 PersistenceManager::addCachedRowMap = (cacheId, className, rowMap)->
@@ -696,7 +696,7 @@ PersistenceManager.SelectQuery = PersistenceManager::SelectQuery = class SelectQ
                 doneSem.semTake
                     priority: 1
                     timeout: timeout
-                
+
                 async.eachSeries tasks, (task, next)->
                     pMgr.list task.className , _.extend({connector: listConnector, dialect: options.dialect}, task.options), (err, models)->
                         return next(err) if err
@@ -805,7 +805,7 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
             action.where condition
     else
         action.where connector.escapeId(definition.id.column) + ' = ' + connector.escape id
-    
+
     if hasNoCondition
         err = new Error "Cannot #{name} #{className} model because id is null or undefined"
         err.code = name.toUpperCase()
@@ -916,12 +916,12 @@ class UpdateQuery
 
             update.set @escapeId(column), value, {dontQuote: !!dontQuote}
             @hasData = true
-            
+
             if not dontLock and not propDef.lock
                 changeCondition.or connector.exprNotEqual value, connector.escapeId column
 
         update.where lockCondition
-        
+
         # update mixin properties
         if definition.mixins.length is 0
             @setChangeCondition()
@@ -950,7 +950,7 @@ class UpdateQuery
         #         if block.fields.length is 0
         #             hasNoUpdate = true
         #         break
-        
+
         @toString() if @hasData
 
     execute: (connector, callback)->

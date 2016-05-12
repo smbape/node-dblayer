@@ -58,7 +58,7 @@ module.exports = class RowMap
             _tables: {}
             _mixins: {}
             _joining: {}
-        
+
         @select = options.select
         @values = options.values
         delete @options.select
@@ -96,7 +96,7 @@ module.exports = class RowMap
                 str
 
         return
-     
+
     _initRootElement: (className, id, options = {})->
         if @_tables.hasOwnProperty id
             return
@@ -135,7 +135,6 @@ module.exports = class RowMap
                 err = new Error "#{id} has an invalid join type"
                 err.code = 'JOIN_TYPE'
                 throw err
-
 
             # make necessary joins
             condition = _coerce.call @, options.condition
@@ -222,7 +221,7 @@ module.exports = class RowMap
 
             for opt in option
                 _readFields.call @, opt, select, block
-        
+
         if @options.distinct
             select.distinct()
 
@@ -503,7 +502,7 @@ module.exports = class RowMap
 
         @_set info, 'column', connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
         # info.column = connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
-        
+
         info.column
 
     # Return the model initialized using row,
@@ -561,7 +560,7 @@ module.exports = class RowMap
                     where: STATIC.FIELD_CHAR_BEGIN + @manager.getIdName(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
                     # expect only one result. limit 2 is for unique checking without returning all rows
                     limit: 2
-    
+
         return model
 
     _getUniqueId: (ancestors...)->

@@ -1,7 +1,7 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'CompiledMapping'
 _ = require 'lodash'
-GenericUtil = require './GenericUtil'
+{notEmptyString} = require './GenericUtil'
 
 modelId = 0
 class Model
@@ -66,7 +66,7 @@ module.exports = class CompiledMapping
 
     getTable: (className)->
         @_getDefinition(className).table
-    
+
     getColumn: (className, prop)->
         definition = @_getDefinition className
         if definition.id.name is prop
@@ -147,7 +147,7 @@ module.exports = class CompiledMapping
             throw err
 
         definition = @classes[className]
-        if GenericUtil.notEmptyString column
+        if notEmptyString column
             definition.columns[column] = prop
         else
             err = new Error "[#{className}] column must be a not empty string"
@@ -166,19 +166,19 @@ module.exports = class CompiledMapping
             if dependencyClassName is mixinClassName
                 # if mixinClassName already exists
                 return
-            
+
             if @_hasResolvedDependency dependencyClassName, mixinClassName
                 # if mixinClassName is a parent of another mixins dependencyClassName, ignore it
                 # depending on child => depending on parent
                 return
-            
+
             if @_hasResolvedDependency mixinClassName, dependencyClassName
                 # if mixinClassName is a child of another mixins dependencyClassName, mark it
                 # it is not allowed to depend on parent and child, you must depend on child => parent
                 parents.push dependencyClassName
 
         obj = className: mixinClassName
-        if GenericUtil.notEmptyString mixin.column
+        if notEmptyString mixin.column
             obj.column = mixin.column
         else
             obj.column = @classes[mixinClassName].id.column
@@ -193,10 +193,10 @@ _resolve = (className, mapping, compiled)->
         throw err
 
     return if compiled._hasResolved className
-    
+
     rawDefinition = mapping[className]
     if not _.isPlainObject rawDefinition
-        err = new Error "Class '#{className}'' is undefined"
+        err = new Error "Class '#{className}' is undefined"
         err.code = 'UNDEF_CLASS'
         throw err
 
@@ -206,11 +206,11 @@ _resolve = (className, mapping, compiled)->
 
     # Mark this className as being resolved. For circular reference check
     classDef = compiled._startResolving className
-    
+
     if not rawDefinition.hasOwnProperty 'table'
         # default table name is className
         classDef.table = className
-    else if GenericUtil.notEmptyString rawDefinition.table
+    else if notEmptyString rawDefinition.table
         classDef.table = rawDefinition.table
     else
         err = new Error "[#{classDef.className}] table is not a string"
@@ -235,13 +235,14 @@ _resolve = (className, mapping, compiled)->
         err.code = 'ID'
         throw err
 
-    idIsMandatory = true
     if classDef.hasOwnProperty 'id'
         id = classDef.id
+        isIdMandatory = true
     else if rawDefinition.hasOwnProperty 'id'
         id = rawDefinition.id
+        isIdMandatory = true
     else
-        idIsMandatory = false
+        isIdMandatory = false
         id = {}
 
     if not _.isPlainObject id
@@ -250,7 +251,7 @@ _resolve = (className, mapping, compiled)->
         throw err
 
     classDef.id = name: null
-    if GenericUtil.notEmptyString id.column
+    if notEmptyString id.column
         classDef.id.column = id.column
 
     if id.hasOwnProperty('name') and id.hasOwnProperty('className')
@@ -258,20 +259,20 @@ _resolve = (className, mapping, compiled)->
         err.code = 'INCOMP_ID'
         throw err
 
-    if GenericUtil.notEmptyString id.name
+    if notEmptyString id.name
         classDef.id.name = id.name
         if not id.hasOwnProperty 'column'
             # default id column is id name
             classDef.id.column = id.name
-        else if not GenericUtil.notEmptyString id.column
+        else if not notEmptyString id.column
             err = new Error "[#{classDef.className}] column must be a not empty string for id"
             err.code = 'ID_COLUMN'
             throw err
 
         compiled._addColumn className, classDef.id.column, classDef.id.name
-    else if GenericUtil.notEmptyString id.className
+    else if notEmptyString id.className
         classDef.id.className = id.className
-    else if idIsMandatory
+    else if isIdMandatory
         err = new Error "[#{classDef.className}] name xor className must be defined as a not empty string for id"
         err.code = 'ID'
         throw err
@@ -333,7 +334,7 @@ _addProperties = (classDef, rawProperties)->
             throw err
 
         classDef.properties[prop] = propDef = {}
-        if GenericUtil.notEmptyString rawPropDef.column
+        if notEmptyString rawPropDef.column
             propDef.column = rawPropDef.column
 
         # add this property as available properties for this className
@@ -368,7 +369,7 @@ _addProperties = (classDef, rawProperties)->
 _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
     if not rawDefinition.hasOwnProperty 'mixins'
         mixins = []
-    else if GenericUtil.notEmptyString(rawDefinition.mixins)
+    else if notEmptyString(rawDefinition.mixins)
         mixins = [rawDefinition.mixins]
     else if Array.isArray(rawDefinition.mixins)
         mixins = rawDefinition.mixins[0..]
@@ -378,10 +379,10 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
         throw err
 
     classDef.mixins = []
-    if GenericUtil.notEmptyString id.className
+    if notEmptyString id.className
         mixins.unshift id.className
     seenMixins = {}
-    
+
     for mixin in mixins
         if typeof mixin is 'string'
             mixin = className: mixin
@@ -405,7 +406,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
 
         seenMixins[className] = true
         _mixin = className: className
-        if GenericUtil.notEmptyString mixin.column
+        if notEmptyString mixin.column
             _mixin.column = mixin.column
         else if mixin.hasOwnProperty 'column'
             err = new Error "[#{classDef.className}] mixin [#{mixin.className}]: Column is not a string or is empty"
@@ -479,7 +480,7 @@ _addConstraints = (classDef, rawDefinition)->
             throw err
 
         properties = constraint.properties
-        if GenericUtil.notEmptyString properties
+        if notEmptyString properties
             properties = [properties]
 
         if not Array.isArray properties
@@ -494,7 +495,7 @@ _addConstraints = (classDef, rawDefinition)->
                 throw err
 
         constraints.unique.push properties[0..]
-    
+
     return
 
 _setConstructor = (classDef, Ctor)->

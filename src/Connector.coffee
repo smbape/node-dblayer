@@ -48,13 +48,13 @@ module.exports = class Connector extends EventEmitter
 
     getDialect: ->
         @pool.getDialect()
-    
+
     getPool: ->
         @pool
 
     # getPoolSize: ->
     #     @pool.getPoolSize()
-    
+
     getMaxConnection: ->
         @pool.getMaxConnection()
 
@@ -272,7 +272,7 @@ module.exports = class Connector extends EventEmitter
 
     rollback: (callback, all = false)->
         logger.trace @pool.options.name, 'rollback'
-        
+
         ret = =>
             @_giveResource()
             logger.trace @pool.options.name, 'rollbacked'
@@ -293,7 +293,7 @@ module.exports = class Connector extends EventEmitter
             query = 'ROLLBACK'
         else
             query = 'ROLLBACK TO sp_' + (@_savepoints - 2)
-        
+
         @_removeSavepoint()
 
         logger.trace @pool.options.name, '[query] - ' + query
@@ -324,7 +324,7 @@ module.exports = class Connector extends EventEmitter
 
         callback = _callback
         all = _all
-        
+
         logger.trace @pool.options.name, 'commit'
         ret = =>
             @_giveResource()
@@ -346,7 +346,7 @@ module.exports = class Connector extends EventEmitter
             query = 'COMMIT'
         else
             query = 'RELEASE SAVEPOINT sp_' + (@_savepoints - 2)
-        
+
         logger.trace @pool.options.name, '[query] - ' + query
 
         @_connection.query query, (err)=>

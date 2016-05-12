@@ -53,11 +53,11 @@ class SQLite3Connection extends EventEmitter
     adapter: adapter
     constructor: (filename, mode, callback)->
         super()
-        
+
         # mkdirp do not throw on invalid path
         # mkdirp = require 'mkdirp'
         # mkdirp.sync path.dirname filename
-        
+
         logger.debug 'SQLite3Connection', filename
         @db = new sqlite3.Database filename, mode
 
@@ -125,14 +125,14 @@ class SQLite3Query extends EventEmitter
                 callback err, lastInsertId: @lastID
                 return
             return
-        
+
         if query.match /^\s*(?:update|delete)\s+/i
             db.run query, values, (err)->
                 return callback(err) if err
                 callback err, {changedRows: @changes, affectedRows: @changes}
                 return
             return
-        
+
         result = rows: []
         hasError = false
 
