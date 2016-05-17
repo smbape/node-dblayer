@@ -8,6 +8,8 @@ RowMap = require './RowMap'
 CompiledMapping = require './CompiledMapping'
 async = require 'async'
 semLib = require 'sem-lib'
+LRU = require 'lru-cache'
+{guessEscapeOpts} = require './adapters/common'
 
 module.exports = class PersistenceManager extends CompiledMapping
 
@@ -79,7 +81,7 @@ PersistenceManager::decorateInsert = (dialect, query, column)->
 PersistenceManager::insert = (model, options, callback)->
     connector = options.connector
     try
-        query = @getInsertQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
+        query = @getInsertQuery model, _.extend guessEscapeOpts(options), {autoRollback: false}
     catch err
         return callback err
 
@@ -120,12 +122,12 @@ PersistenceManager::insert = (model, options, callback)->
     return
 
 PersistenceManager::getInsertQuery = (model, options)->
-    new InsertQuery @, model, options
+    new InsertQuery @, model, guessEscapeOpts(options)
 
 PersistenceManager::list = (className, options, callback)->
     connector = options.connector
     try
-        query = @getSelectQuery className, _.extend {dialect: connector.getDialect()}, options
+        query = @getSelectQuery className, options
     catch err
         return callback err
     query.list connector, callback
@@ -135,12 +137,18 @@ PersistenceManager::stream = (className, options, callback, done)->
     listConnector = options.listConnector or connector.clone()
 
     try
-        query = @getSelectQuery className, _.extend {dialect: connector.getDialect()}, options
+        query = @getSelectQuery className, options
     catch err
         return done err
     query.stream connector, listConnector, callback, done
 
 PersistenceManager::getSelectQuery = (className, options)->
+    options = guessEscapeOpts(options)
+
+    if _.isPlainObject options.where
+        options.attributes = options.where
+        options.where = undefined
+
     if not options.where and _.isPlainObject options.attributes
         definition = @_getDefinition className
         options.where = _getInitializeCondition @, null, className, definition, _.extend {}, options, {useDefinitionColumn: false}
@@ -150,7 +158,7 @@ PersistenceManager::getSelectQuery = (className, options)->
 PersistenceManager::update = (model, options, callback)->
     connector = options.connector
     try
-        query = @getUpdateQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
+        query = @getUpdateQuery model, _.extend guessEscapeOpts(options), {autoRollback: false}
     catch err
         return callback err
     connector.acquire (err, performed)->
@@ -195,7 +203,7 @@ PersistenceManager::getUpdateQuery = (model, options)->
 PersistenceManager::delete = PersistenceManager::remove = (model, options, callback)->
     connector = options.connector
     try
-        query = @getDeleteQuery model, _.extend {dialect: connector.getDialect()}, options, {autoRollback: false}
+        query = @getDeleteQuery model, _.extend guessEscapeOpts(options), {autoRollback: false}
     catch err
         return callback err
     query.execute connector, callback
@@ -353,7 +361,7 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
         return
 
     if options.useDefinitionColumn
-        column = connector.escapeId definition.properties[attr].column
+        column = options.escapeId definition.properties[attr].column
     else
         column = '{' + attr + '}'
 
@@ -362,7 +370,7 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
         value = propDef.handlers.write value, model, options
 
     if  PRIMITIVE_TYPES.test typeof value
-        where.push column + ' = ' + connector.escape value
+        where.push column + ' = ' + options.escape value
     else if _.isObject value
         propClassName = propDef.className
         value = value.get pMgr.getIdName propClassName
@@ -370,13 +378,14 @@ _addWhereCondition = (pMgr, model, attr, value, definition, connector, where, op
             if value is null
                 where.push column + ' IS NULL'
             else if PRIMITIVE_TYPES.test typeof value
-                where.push column + ' = ' + connector.escape value
+                where.push column + ' = ' + options.escape value
 
     return
 
-class InsertQuery
-    constructor: (pMgr, model, options = {})->
+PersistenceManager.InsertQuery = class InsertQuery
+    constructor: (pMgr, model, options)->
         assertValidModelInstance model
+        @options = options = guessEscapeOpts(options)
 
         @getModel = -> model
         @getManager = -> pMgr
@@ -384,33 +393,28 @@ class InsertQuery
         @getDefinition = -> definition
 
         connector = options.connector
-        if connector
-            @escapeId = (str)->
-                connector.escapeId str
-        else
-            @escapeId = (str)->
-                str
+        for opt in ['escape', 'escapeId']
+            if 'function' is typeof options[opt]
+                @[opt] = options[opt]
+            else if connector and 'function' is typeof connector[opt]
+                @[opt] = connector[opt].bind connector
+            else
+                @[opt] = (str)-> str
 
         fields = {}
         @getFields = (column)->
             #  for mysql when lastInsertId is not available because there is no autoincrement
             fields
         @set = (column, value)->
-            insert.set @escapeId(column), value
+            insert.set @options.escapeId(column), value
             fields[column] = value
-        # @toParam = ->
-        #     return insert.toParam()
-        @toString = @oriToString = ->
-            return insert.toString()
+        @toString = @oriToString = -> insert.toString()
+        @toParam = -> insert.toParam()
+        @toQuery = -> insert
 
-        className = options.className or model.className
+        @className = className = options.className or model.className
         definition = pMgr._getDefinition className
-        insert = squel.insert(pMgr.getSquelOptions(options.dialect)).into @escapeId(definition.table)
-
-        # if not options.force and typeof model.get(definition.id.name) isnt 'undefined'
-        #     err = new Error "[#{className}]: Model has already and id"
-        #     err.code = 'ID_EXISTS'
-        #     throw err
+        insert = squel.insert(pMgr.getSquelOptions(options.dialect)).into @options.escapeId(definition.table)
 
         # ids of mixins will be setted at execution
         if definition.mixins.length > 0
@@ -423,11 +427,11 @@ class InsertQuery
                 return params
 
             for mixin in definition.mixins
-                insert.set @escapeId(mixin.column), '$id'
+                insert.set @options.escapeId(mixin.column), '$id'
 
         idName = pMgr.getIdName className
         id = model.get idName if idName isnt null
-        insert.set @escapeId(definition.id.column), id if id
+        insert.set @options.escapeId(definition.id.column), id if id
 
         for prop, propDef of definition.properties
             column = propDef.column
@@ -485,7 +489,7 @@ class InsertQuery
             if typeof value is 'undefined'
                 continue
 
-            insert.set @escapeId(column), value
+            insert.set @options.escapeId(column), value
 
         # check
         @toString()
@@ -495,26 +499,29 @@ class InsertQuery
             @_execute connector, callback
             return
 
+        self = @
         params = @toParam()
         idIndex = 0
         tasks = []
         for value, index in params.values
             if value instanceof InsertQuery
-                tasks.push ((query)=>
-                    (next)=>
-                        query.execute connector, (err, id)=>
+                tasks.push ((query)->
+                    (next)->
+                        query.execute connector, (err, id)->
                             return next(err) if err
-                            definition = @getDefinition()
+                            definition = self.getDefinition()
                             column = definition.mixins[idIndex++].column
-                            @set column, id
+                            self.set column, id
                             next()
+                            return
+                        return
                 )(value)
             else
                 break
 
-        async.series tasks, (err)=>
+        async.series tasks, (err)->
             return callback(err) if err
-            @_execute connector, callback
+            self._execute connector, callback
             return
         return
 
@@ -557,6 +564,59 @@ class InsertQuery
 
         return
 
+    toSingleQuery: ->
+        query = @
+        withs = []
+        line = _toInsertLine.call query, 0, withs
+
+        if withs.length is 0
+            return line
+
+        'WITH ' + _.map(withs, ([column, line], index)->
+            """
+            insert_#{index} (#{query.escapeId column}) AS (
+            #{line}
+            )
+            """
+        ).join(',\n') + '\n' + line
+
+_toInsertLine = (level, withs)->
+    if level > 0
+        indent = '    '
+    else
+        indent = ''
+
+    definition = @getDefinition()
+    blocks = @toQuery().blocks
+    {values} = @toParam()
+
+    if @toString is @oriToString
+        return """
+        #{indent}INSERT INTO #{blocks[1].table} (#{blocks[2].fields.join(', ')})
+        #{indent}VALUES (#{_.map(values, @options.escape).join(', ')})
+        #{indent}RETURNING #{@options.escapeId definition.id.column}
+        """
+        return indent + @toString() + ' RETURNING ' + @options.escapeId definition.id.column
+
+    tables = []
+
+    for value, index in values
+        if value instanceof InsertQuery
+            line = _toInsertLine.call value, ++level, withs
+            column = definition.mixins[index].column
+            tables.push "insert_#{withs.length}"
+            values[index] = "insert_#{withs.length}.#{@options.escapeId column}"
+            withs.push [column, line]
+        else
+            values[index] = @options.escape value
+
+    """
+    #{indent}INSERT INTO #{blocks[1].table} (#{blocks[2].fields.join(', ')})
+    #{indent}SELECT #{values.join(', ')}
+    #{indent}FROM #{tables.join(', ')}
+    #{indent}RETURNING #{@options.escapeId definition.id.column}
+    """
+
 # _fnIds = {}
 
 # _serialize = (cacheId, key, value)->
@@ -596,26 +656,29 @@ _getCacheId = (options)->
 PersistenceManager::addCachedRowMap = (cacheId, className, rowMap)->
     # keeping references of complex object makes the hole process slow
     # don't know why
-    logger.trace 'add cache', className, cacheId
+    logger.trace 'add cache', '"' + className + '"', cacheId
     # serialize = (key, value)->
     #     _serialize cacheId, key, value
     json = _.pick rowMap, ['_infos', '_tableAliases', '_tabId', '_columnAliases', '_colId', '_tables', '_mixins', '_joining']
-    cache = @classes[className].cache[cacheId] =
+    value = 
         rowMap: JSON.stringify json
         template: rowMap.getTemplate()
         select: JSON.stringify rowMap.select
 
+    @classes[className].cache.set cacheId, value
+    value
+
 PersistenceManager::getCachedRowMap = (cacheId, className, options)->
-    cache = @classes[className].cache[cacheId]
-    return if not cache
+    cached = @classes[className].cache.get cacheId
+    return if not cached
     logger.trace 'read cache', className, cacheId
     rowMap = new RowMap className, @, options, true
     select = new squel.select.constructor()
     # desirialize = (key, value)->
     #     _desirialize cacheId, key, value
-    _.extend select, JSON.parse cache.select
-    _.extend rowMap, JSON.parse cache.rowMap
-    rowMap.template = cache.template
+    _.extend select, JSON.parse cached.select
+    _.extend rowMap, JSON.parse cached.rowMap
+    rowMap.template = cached.template
     rowMap.select = select
     rowMap.values = options.values
     rowMap._initialize()
@@ -624,7 +687,7 @@ PersistenceManager::getCachedRowMap = (cacheId, className, options)->
     rowMap._updateInfos()
     rowMap
 
-PersistenceManager.SelectQuery = PersistenceManager::SelectQuery = class SelectQuery
+PersistenceManager.SelectQuery = class SelectQuery
     constructor: (pMgr, className, options)->
         if arguments.length is 1
             if arguments[0] instanceof RowMap
@@ -649,6 +712,7 @@ PersistenceManager.SelectQuery = PersistenceManager::SelectQuery = class SelectQ
 
         @rowMap = rowMap
         return @
+
     toString: ->
         @rowMap.toString()
 
@@ -804,7 +868,7 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
         for condition in where
             action.where condition
     else
-        action.where connector.escapeId(definition.id.column) + ' = ' + connector.escape id
+        action.where options.escapeId(definition.id.column) + ' = ' + options.escape id
 
     if hasNoCondition
         err = new Error "Cannot #{name} #{className} model because id is null or undefined"
@@ -812,15 +876,18 @@ _addUpdateOrDeleteCondition = (action, name, connector, pMgr, model, className, 
         throw err
     return result
 
-class UpdateQuery
-    constructor: (pMgr, model, options = {})->
+PersistenceManager.UpdateQuery = class UpdateQuery
+    constructor: (pMgr, model, options)->
         assertValidModelInstance model
+
+        @options = options = guessEscapeOpts(options)
 
         @getModel = -> model
         @getManager = -> pMgr
         @getOptions = -> options
 
-        # @toParam = -> update.toParam()
+        @toQuery = -> update
+        @toParam = -> update.toParam()
         @toString = @oriToString = -> update.toString()
         # @getClassName = -> className
         @getDefinition = -> definition
@@ -829,16 +896,10 @@ class UpdateQuery
             @
 
         connector = options.connector
-        if connector
-            @escapeId = (str)->
-                connector.escapeId str
-        else
-            @escapeId = (str)->
-                str
 
         className = options.className or model.className
         definition = pMgr._getDefinition className
-        update = squel.update(pMgr.getSquelOptions(options.dialect)).table @escapeId(definition.table)
+        update = squel.update(pMgr.getSquelOptions(options.dialect)).table @options.escapeId(definition.table)
 
         result = _addUpdateOrDeleteCondition update, 'update', connector, pMgr, model, className, definition, options
 
@@ -897,7 +958,7 @@ class UpdateQuery
                 lock = value
                 if typeof writeHandler is 'function'
                     lock = writeHandler lock, model, options
-                    lockCondition.and connector.exprEqual lock, connector.escapeId column
+                    lockCondition.and connector.exprEqual lock, options.escapeId column
 
             if typeof updateHandler is 'function'
                 value = updateHandler model, options, {column: column}
@@ -914,11 +975,11 @@ class UpdateQuery
             if typeof value is 'undefined'
                 continue
 
-            update.set @escapeId(column), value, {dontQuote: !!dontQuote}
+            update.set @options.escapeId(column), value, {dontQuote: !!dontQuote}
             @hasData = true
 
             if not dontLock and not propDef.lock
-                changeCondition.or connector.exprNotEqual value, connector.escapeId column
+                changeCondition.or connector.exprNotEqual value, options.escapeId column
 
         update.where lockCondition
 
@@ -1056,9 +1117,11 @@ class UpdateQuery
         , options.executeOptions
         return
 
-class DeleteQuery
-    constructor: (pMgr, model, options = {})->
+PersistenceManager.DeleteQuery = class DeleteQuery
+    constructor: (pMgr, model, options)->
         assertValidModelInstance model
+
+        options = guessEscapeOpts(options)
 
         @toParam = ->
             remove.toParam()
@@ -1070,7 +1133,7 @@ class DeleteQuery
         connector = options.connector
         className = options.className or model.className
         definition = pMgr._getDefinition className
-        remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from connector.escapeId definition.table
+        remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from options.escapeId definition.table
 
         _addUpdateOrDeleteCondition remove, 'delete', connector, pMgr, model, className, definition, options
 
@@ -1094,7 +1157,7 @@ class DeleteQuery
                 # Write handler
                 if typeof writeHandler is 'function'
                     value = writeHandler value, model, options
-                remove.where connector.escapeId(column) + ' = ' + connector.escape value
+                remove.where options.escapeId(column) + ' = ' + options.escape value
 
         # delete mixins lines
         if definition.mixins.length > 0

@@ -1,8 +1,13 @@
 // require('coffee-script').register();
-var lib = './lib/';
 
 module.exports = {
-    AdapterPool: require(lib + 'AdapterPool'),
-    Connector: require(lib + 'Connector'),
-    PersistenceManager: require(lib + 'PersistenceManager')
+    AdapterPool: require('./lib/AdapterPool'),
+    Connector: require('./lib/Connector'),
+    PersistenceManager: require('./lib/PersistenceManager'),
+    squel: require('./lib/SquelPatch'),
+    adapters: {
+    	common: require('./lib/adapters/common'),
+    	mysql: require('./lib/adapters/mysql'),
+    	postgres: require('./lib/adapters/postgres')
+    }
 };

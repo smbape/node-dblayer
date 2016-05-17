@@ -13,8 +13,9 @@ MODES =
 adapter = module.exports
 
 common = require './common'
+escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
 
-_.extend adapter,
+_.extend adapter, common,
     name: 'sqlite3'
     createConnection: (options, callback)->
         database = options.database or ''
@@ -41,13 +42,16 @@ _.extend adapter,
             mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
 
         new SQLite3Connection filename, mode, callback
-    escapeId: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].id
     escape: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].literal
+        common._escape value, escapeOpts.literal
+    escapeId: (value)->
+        common._escape value, escapeOpts.id
     escapeSearch: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].search
-, common
+        common._escape value, escapeOpts.search
+    escapeBeginWith: (value)->
+        common._escape value, escapeOpts.begin
+    escapeEndWith: (value)->
+        common._escape value, escapeOpts.end
 
 class SQLite3Connection extends EventEmitter
     adapter: adapter

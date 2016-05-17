@@ -1,6 +1,12 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'AdapterPool'
 
+_ = require 'lodash'
+url = require 'url'
+sysPath = require 'path'
+GenericUtil = require './GenericUtil'
+semLib = require 'sem-lib'
+
 internal = {}
 internal.adapters = {}
 
@@ -9,7 +15,7 @@ internal.getAdapter = (options)->
     if typeof options.adapter is 'string'
         adapter = internal.adapters[options.adapter]
         if typeof adapter is 'undefined'
-            adapter = require path.join __dirname, 'adapters', options.adapter
+            adapter = require sysPath.join __dirname, 'adapters', options.adapter
             internal.adapters[options.adapter] = adapter
     # else if _.isPlainObject options.adapter
     #     adapter = options.adapter
@@ -20,11 +26,6 @@ internal.getAdapter = (options)->
         throw err
 
     adapter
-
-_ = require 'lodash'
-path = require 'path'
-GenericUtil = require './GenericUtil'
-semLib = require 'sem-lib'
 
 defaultOptions =
     minConnection: 0
@@ -67,7 +68,7 @@ class SemaphorePool extends semLib.Semaphore
             timeOut: opts.timeOut
             onTimeOut: opts.onTimeOut
             onTake: ->
-                logger.debug "[#{self._factory.name}] [#{self.id}] acquire", self._avalaible.length
+                logger.trace "[#{self._factory.name}] [#{self.id}] acquire", self._avalaible.length
                 if self._avalaible.length is 0
                     self._factory.create (err, client)->
                         return callback err if err
@@ -83,7 +84,7 @@ class SemaphorePool extends semLib.Semaphore
     release: (client)->
         index = @_created.indexOf client
         if ~index
-            logger.debug "[#{this._factory.name}] [#{this.id}] release '#{client.id}'. Avalaible #{this._avalaible.length}"
+            logger.trace "[#{this._factory.name}] [#{this.id}] release '#{client.id}'. Avalaible #{this._avalaible.length}"
             @_avalaible.push client
             @_idle client
             return @semGive()
@@ -187,7 +188,6 @@ module.exports = class AdapterPool extends SemaphorePool
 
         if connectionUrl
             @connectionUrl = connectionUrl
-            url = require 'url'
 
             parsed = url.parse connectionUrl, true, true
             @options = {}

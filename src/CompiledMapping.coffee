@@ -2,6 +2,7 @@ log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'CompiledMapping'
 _ = require 'lodash'
 {notEmptyString} = require './GenericUtil'
+LRU = require 'lru-cache'
 
 modelId = 0
 class Model
@@ -54,6 +55,14 @@ module.exports = class CompiledMapping
 
     Model: Model
 
+    getConstructor: (className)->
+        @assertClassHasMapping className
+        @classes[className].ctor
+
+    newInstance: (className, attributes)->
+        @assertClassHasMapping className
+        new @classes[className].ctor attributes
+
     getIdName: (className)->
         @assertClassHasMapping className
         @classes[className].id.name
@@ -96,7 +105,7 @@ module.exports = class CompiledMapping
             dependencies:
                 resolved: {}
                 mixins: []
-            cache: {}
+            cache: LRU(50)
 
         @classes[className] = classDef
 
@@ -380,7 +389,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
 
     classDef.mixins = []
     if notEmptyString id.className
-        mixins.unshift id.className
+        mixins.unshift id
     seenMixins = {}
 
     for mixin in mixins
@@ -500,7 +509,8 @@ _addConstraints = (classDef, rawDefinition)->
 
 _setConstructor = (classDef, Ctor)->
     if 'undefined' is typeof Ctor
-        Ctor = Model
+        class Ctor extends Model
+            className: classDef.className
 
     if typeof Ctor isnt 'function'
         err = new Error "[#{classDef.className}] given constructor is not a function"

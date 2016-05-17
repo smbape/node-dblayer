@@ -140,16 +140,17 @@ class MySQLConnection extends MySQLLibConnection
     #         DbUtil.computeColumnRows result.rows, callback
 
 common = require './common'
-_.extend adapter, common
-_.extend adapter,
+escapeOpts = common._escapeConfigs[common.CONSTANTS.MYSQL]
+_.extend adapter, common,
     escape: (value)->
-        MySQLConnection::escape.call {config: {}}, value
-    escapeId: MySQLConnection::escapeId
+        common._escape value, escapeOpts.literal
+    escapeId: (value)->
+        common._escape value, escapeOpts.id
     escapeSearch: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.MYSQL].search
+        common._escape value, escapeOpts.search
     escapeBeginWith: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.MYSQL].begin
+        common._escape value, escapeOpts.begin
     escapeEndWith: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.MYSQL].end
+        common._escape value, escapeOpts.end
 
 module.exports = adapter

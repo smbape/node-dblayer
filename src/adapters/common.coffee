@@ -1,13 +1,13 @@
-_clone = (dst, src)->
+_extend = (dst, src)->
     for prop of src
         dst[prop] = src[prop]
     dst
 
-module.exports.CONSTANTS = CONSTANTS =
+exports.CONSTANTS = CONSTANTS =
     MYSQL: 'mysql'
     POSTGRES: 'postgres'
 
-_escapeConfigs = {}
+exports._escapeConfigs = _escapeConfigs = {}
 _escapeConfigs[CONSTANTS.MYSQL] =
     id:
         quote: '`'
@@ -42,9 +42,9 @@ _escapeConfigs[CONSTANTS.MYSQL] =
             '%': '!%'
             '_': '!_'
             '!': '!!'
-_escapeConfigs[CONSTANTS.MYSQL].begin = _clone {}, _escapeConfigs[CONSTANTS.MYSQL].search
+_escapeConfigs[CONSTANTS.MYSQL].begin = _extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
 _escapeConfigs[CONSTANTS.MYSQL].begin.quoteStart = "'"
-_escapeConfigs[CONSTANTS.MYSQL].end = _clone {}, _escapeConfigs[CONSTANTS.MYSQL].search
+_escapeConfigs[CONSTANTS.MYSQL].end = _extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
 _escapeConfigs[CONSTANTS.MYSQL].end.quoteEnd = "'"
 
 _escapeConfigs[CONSTANTS.POSTGRES] =
@@ -79,13 +79,12 @@ _escapeConfigs[CONSTANTS.POSTGRES] =
             '%': '!%'
             '_': '!_'
             '!': '!!'
-_escapeConfigs[CONSTANTS.POSTGRES].begin = _clone {}, _escapeConfigs[CONSTANTS.POSTGRES].search
+_escapeConfigs[CONSTANTS.POSTGRES].begin = _extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
 _escapeConfigs[CONSTANTS.POSTGRES].begin.quoteStart = "'"
-_escapeConfigs[CONSTANTS.POSTGRES].end = _clone {}, _escapeConfigs[CONSTANTS.POSTGRES].search
+_escapeConfigs[CONSTANTS.POSTGRES].end = _extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
 _escapeConfigs[CONSTANTS.POSTGRES].end.quoteEnd = "'"
 
-module.exports._escapeConfigs = _escapeConfigs
-module.exports._escape = _escape = (str, opts)->
+exports._escape = _escape = (str, opts)->
     type = typeof str
     if type is 'number'
         return str
@@ -102,20 +101,32 @@ module.exports._escape = _escape = (str, opts)->
         opts.replace[char]
     return (opts.quoteStart or opts.quote) + str + (opts.quoteEnd or opts.quote)
 
-# module.exports.escapeId = (str, dialect = CONSTANTS.POSTGRES)->
-#     return _escape str, _escapeConfigs[dialect].id
-
-# module.exports.escape = (str, dialect = CONSTANTS.POSTGRES)->
-#     return _escape str, _escapeConfigs[dialect].literal
-
-module.exports.exprNotEqual = (value, escapeColumn)->
+exports.exprNotEqual = (value, escapeColumn)->
     if value is null
         escapeColumn + ' IS NOT NULL'
     else
         escapeColumn + ' IS NULL OR ' + escapeColumn + ' <> ' + @escape value
 
-module.exports.exprEqual = (value, escapeColumn)->
+exports.exprEqual = (value, escapeColumn)->
     if value is null
         escapeColumn + ' IS NULL'
     else
         escapeColumn + ' = ' + @escape value
+
+exports.guessEscapeOpts = (options)->
+    options = _extend {}, options
+    {connector, dialect} = options
+
+    if 'string' isnt options.dialect and connector and 'function' is typeof connector.getDialect
+        dialect = options.dialect = connector.getDialect()
+
+    try
+        adapter = require './' + dialect
+
+    if connector or adapter
+        for opt in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+            if connector and 'function' isnt typeof options[opt] and 'function' is typeof connector[opt]
+                options[opt] = connector[opt].bind connector
+            else if adapter and 'function' is typeof adapter[opt]
+                options[opt] = adapter[opt]
+    options

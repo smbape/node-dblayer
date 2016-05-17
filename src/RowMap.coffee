@@ -5,6 +5,7 @@ PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'
 squel = require 'squel'
+{guessEscapeOpts} = require './adapters/common'
 
 STATIC =
     PROP_SEP: ':'
@@ -45,10 +46,12 @@ _getPlainObjectValue = (model, prop)->
 # Private Class, supposed to be used in conjunction with PersistenceManager Class
 module.exports = class RowMap
     static: LIMIT: 500
+
     # Class that do the mapping between className, queries to execute and properties of className
-    constructor: (@className, @manager, options = {}, skip)->
-        @options = _.clone options
+    constructor: (@className, @manager, options, skip)->
+        @options = guessEscapeOpts(options)
         return if skip
+
         _.extend @,
             _infos: {}
             _tableAliases: {}
@@ -78,7 +81,8 @@ module.exports = class RowMap
         @values[key] = value
 
     _initialize: ->
-        if @options.type is 'json' or @options.count
+        options = @options
+        if options.type is 'json' or options.count
             @_setValue = _setPlainObjectValue
             @_getValue = _getPlainObjectValue
             @_create = _createPlainObject
@@ -86,14 +90,6 @@ module.exports = class RowMap
             @_setValue = _setModelValue
             @_getValue = _getModelValue
             @_create = _createModel
-
-        connector = @options.connector
-        if connector
-            @escapeId = (str)->
-                connector.escapeId str
-        else
-            @escapeId = (str)->
-                str
 
         return
 
@@ -139,7 +135,7 @@ module.exports = class RowMap
             # make necessary joins
             condition = _coerce.call @, options.condition
 
-            select[hasJoin] @escapeId(table), tableAlias, condition, type
+            select[hasJoin] @options.escapeId(table), tableAlias, condition, type
 
             # make necessary joins
             # condition = _coerce.call @, options.condition
@@ -147,7 +143,7 @@ module.exports = class RowMap
             delete @_joining[id]
             @_infos[id].hasJoin = hasJoin
         else if _.isEmpty @_tables
-            select.from @escapeId(table), tableAlias
+            select.from @options.escapeId(table), tableAlias
             @_tables[id] = tableAlias
             @_infos[id] =
                 className: className
@@ -391,7 +387,7 @@ module.exports = class RowMap
 
         column = @_getColumn id
         propDef = @manager.getDefinition info.className
-        idColumn = connector.escapeId propDef.id.column
+        idColumn = @options.escapeId propDef.id.column
         table = propDef.table
         tableAlias = @_uniqTabAlias()
         select = @select
@@ -404,7 +400,7 @@ module.exports = class RowMap
         if typeof hasJoin is 'undefined'
             hasJoin = JOIN_FUNC.left
 
-        select[hasJoin] connector.escapeId(table), tableAlias, connector.escapeId(tableAlias) + '.' + idColumn + ' = ' + column
+        select[hasJoin] @options.escapeId(table), tableAlias, @options.escapeId(tableAlias) + '.' + idColumn + ' = ' + column
 
         @_tables[id] = tableAlias
         @_set info, 'hasJoin', hasJoin
@@ -487,11 +483,11 @@ module.exports = class RowMap
             # check if it has already been joined
             # join mixin only once even if multiple field of this mixin
             if typeof @_mixins[mixinId] is 'undefined'
-                idColumn = connector.escapeId mixinDef.id.column
-                joinColumn = connector.escapeId(tableAlias) + '.' + connector.escapeId(mixin.column)
+                idColumn = @options.escapeId mixinDef.id.column
+                joinColumn = @options.escapeId(tableAlias) + '.' + @options.escapeId(mixin.column)
                 table = mixinDef.table
                 tableAlias = @_uniqTabAlias()
-                select[joinFunc] connector.escapeId(table), tableAlias, connector.escapeId(tableAlias) + '.' + idColumn + ' = ' + joinColumn
+                select[joinFunc] @options.escapeId(table), tableAlias, @options.escapeId(tableAlias) + '.' + idColumn + ' = ' + joinColumn
                 @_mixins[mixinId] = tableAlias: tableAlias
             else
                 tableAlias = @_mixins[mixinId].tableAlias
@@ -500,8 +496,8 @@ module.exports = class RowMap
 
         propDef = availableProperty.definition
 
-        @_set info, 'column', connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
-        # info.column = connector.escapeId(tableAlias) + '.' + connector.escapeId(propDef.column)
+        @_set info, 'column', @options.escapeId(tableAlias) + '.' + @options.escapeId(propDef.column)
+        # info.column = @options.escapeId(tableAlias) + '.' + @options.escapeId(propDef.column)
 
         info.column
 

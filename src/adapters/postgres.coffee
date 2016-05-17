@@ -3,10 +3,9 @@ QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
 logger = log4js.getLogger 'PostgresAdapter'
 common = require './common'
-_.extend adapter, common
-
 adapter = module.exports
 _.extend adapter, common
+escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
 
 pg.Client::stream = (query, params, callback, done)->
         if arguments.length is 3
@@ -52,22 +51,20 @@ _.extend adapter,
         client = new pg.Client options
         client.connect (err)->
             return callback(err, null) if err
-            client.query "set schema '#{options.schema}'", (err, result)->
+            query = "SET SCHEMA '#{options.schema}'"
+            logger.trace '[query] - ' + query
+            client.query query, (err, result)->
                 callback err, client
                 return
             return
         client
     escape: (value)->
-        type = typeof value
-        if type is 'number'
-            return value
-        if type is 'boolean'
-            return if value then 'TRUE' else 'FALSE'
-        pg.Client::escapeLiteral value
-    escapeId: pg.Client::escapeIdentifier
+        common._escape value, escapeOpts.literal
+    escapeId: (value)->
+        common._escape value, escapeOpts.id
     escapeSearch: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].search
+        common._escape value, escapeOpts.search
     escapeBeginWith: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].begin
+        common._escape value, escapeOpts.begin
     escapeEndWith: (value)->
-        common._escape value, common._escapeConfigs[common.CONSTANTS.POSTGRES].end
+        common._escape value, escapeOpts.end
