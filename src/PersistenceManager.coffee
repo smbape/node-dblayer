@@ -330,8 +330,11 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
             return
     return
 
-PersistenceManager::initialize = (model, options, callback)->
+PersistenceManager::initialize = (model, options, callback, guess = true)->
     return callback err if (err = isValidModelInstance model) instanceof Error
+
+    if guess
+        options = guessEscapeOpts(options)
 
     (callback = ->) if 'function' isnt typeof callback
 
@@ -591,6 +594,7 @@ PersistenceManager.InsertQuery = class InsertQuery
                     where: where
                 pMgr.initialize model, options, (err, models)->
                     callback err, id
+                , false
             else
                 callback err, id
 
@@ -1150,6 +1154,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     logger.trace '[' + definition.className + '] - UPDATE ' + id
                 callback err, id, extended
                 return
+            , false
             return
         , options.executeOptions
         return

@@ -1529,7 +1529,6 @@ task = (config, assert)->
             _next()
 
         # Test list on a class with parent and mixins
-
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1567,7 +1566,6 @@ task = (config, assert)->
             _next()
 
         # Test list of class with nested parent inheritance
-
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
 
@@ -1625,7 +1623,6 @@ task = (config, assert)->
             _next()
 
         # Test listing properties that are classes
-
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1741,7 +1738,6 @@ task = (config, assert)->
 
         # Test listing with only selected fields
         # Test handlers
-
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
