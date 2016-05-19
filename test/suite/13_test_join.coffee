@@ -5,11 +5,10 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'join', ->
-    logger.error 'tests are broken because database has no data'
-    return
-
     it 'should join', (done)->
-        strCode = 'country.CAMEROUN'
+        connector = pools.reader.createConnector()
+
+        countryCode = 'CAMEROUN'
 
         options =
             connector: connector
@@ -19,7 +18,7 @@ describe 'join', ->
             ]
             where: [
                 '{LNG, key} = ' + connector.escape 'FR'
-                '{country:property:code} = ' + connector.escape strCode
+                '{country:property:code} = ' + connector.escape countryCode
             ]
             join:
                 translation:
@@ -45,8 +44,8 @@ describe 'join', ->
                 assert.ok models.length > 0
                 assert.ok models.length <= options.limit
                 for model in models
-                    assert.strictEqual strCode, model.get('country').get('property').get('code')
-                    assert.strictEqual strCode, model.get('translation').get('property').get('code')
+                    assert.strictEqual countryCode, model.get('country').get('property').get('code')
+                    assert.strictEqual countryCode, model.get('translation').get('property').get('code')
 
                 # test count with fields and join
                 # Using LIMIT you will not limit the count or sum but only the returned rows
@@ -69,11 +68,13 @@ describe 'join', ->
 
         connector = pools.writer.createConnector()
 
+        countryCode = 'CAMEROUN'
+
         options =
             connector: connector
-            fields: 'id'
+            fields: ['id']
             where: [
-                '{author:country:property:code} = ' + connector.escape 'country.CAMEROUN'
+                '{author:country:property:code} = ' + connector.escape countryCode
             ]
             order: '{id}' # Important. For an unknown reason, second query is ordered
 
@@ -93,7 +94,7 @@ describe 'join', ->
                 return
             (models, next)->
                 for model, index in models
-                    assert.strictEqual 'country.CAMEROUN', model.get('author').get('country').get('property').get('code')
+                    assert.strictEqual countryCode, model.get('author').get('country').get('property').get('code')
                     assert.strictEqual model.get('id'), pModels[index].get('id')
                 next()
                 return
@@ -104,7 +105,7 @@ describe 'join', ->
     it 'should fix issue: no field was considered as *', (done)->
         connector = pools.writer.createConnector()
 
-        strCode = 'country.CAMEROUN'
+        countryCode = 'CAMEROUN'
 
         options =
             type: 'json'
@@ -118,7 +119,7 @@ describe 'join', ->
             ]
             where: [
                 '{LNG, key} = ' + connector.escape 'FR'
-                '{country:property:code} = ' + connector.escape strCode
+                '{country:property:code} = ' + connector.escape countryCode
             ]
             join:
                 ctry:
@@ -137,8 +138,8 @@ describe 'join', ->
             (models, next)->
                 assert.ok models.length > 0
                 for model in models
-                    assert.strictEqual strCode, model.country.property.code
-                    assert.strictEqual strCode, model.ctry.property.code
+                    assert.strictEqual countryCode, model.country.property.code
+                    assert.strictEqual countryCode, model.ctry.property.code
                 next()
                 return
         ], done

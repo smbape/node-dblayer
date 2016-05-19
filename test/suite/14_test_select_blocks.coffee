@@ -5,13 +5,10 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'select blocks', ->
-    logger.error 'tests are broken because database has no data'
-    return
-
     it 'should order, group, having, limit, offset', (done)->
         connector = pools.writer.createConnector()
 
-        strCode = 'country.CAMEROUN'
+        countryCode = 'CAMEROUN'
 
         options =
             type: 'json'
@@ -47,7 +44,7 @@ describe 'select blocks', ->
                 ]
                 squel.expr().and '{LNG, key} <> __en__'
                 [
-                    '{country:property:code} = ?', strCode
+                    '{country:property:code} = ?', countryCode
                 ]
             ]
             limit: 10
@@ -61,11 +58,11 @@ describe 'select blocks', ->
             (models, next)->
                 assert.ok models.length > 0
                 for model in models
-                    assert.strictEqual strCode, model.country.property.code
-                    assert.strictEqual strCode, model.ctry.property.code
+                    assert.strictEqual countryCode, model.country.property.code
+                    assert.strictEqual countryCode, model.ctry.property.code
                 next()
                 return
-        ]
+        ], done
 
         return
 

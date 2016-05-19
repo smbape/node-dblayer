@@ -1,7 +1,8 @@
 /*==============================================================*/
 /* DBMS name:      PostgreSQL 9.x                               */
-/* Created on:     18/05/2016 18:59:35                          */
+/* Created on:     19/05/2016 21:33:42                          */
 /*==============================================================*/
+
 
 drop index if exists "ACTIONS_PK" cascade;
 
@@ -69,8 +70,6 @@ drop index if exists "COUNTRIES_PK" cascade;
 
 drop table if exists "COUNTRIES" cascade;
 
-drop index if exists "PRS_DFT_PRV_FK" cascade;
-
 drop index if exists "ACT_DFT_PRV_FK" cascade;
 
 drop index if exists "FOL_DFT_PRV_FK" cascade;
@@ -91,29 +90,11 @@ drop index if exists "FOLDER_PK" cascade;
 
 drop table if exists "FOLDER" cascade;
 
-drop index if exists "GROUPS_PK" cascade;
-
-drop table if exists "GROUPS" cascade;
-
-drop index if exists "GRP_PRS2_FK" cascade;
-
-drop index if exists "GRP_PRS_FK" cascade;
-
-drop index if exists "GRP_PRS_PK" cascade;
-
-drop table if exists "GRP_PRS" cascade;
-
 drop index if exists "LNG_LPR_FK" cascade;
 
 drop index if exists "LANGUAGES_PK" cascade;
 
 drop table if exists "LANGUAGES" cascade;
-
-drop index if exists "PERSON_PK" cascade;
-
-drop table if exists "PERSON" cascade;
-
-drop index if exists "PRS_PRV_FK" cascade;
 
 drop index if exists "ACT_PRV_FK" cascade;
 
@@ -131,10 +112,6 @@ drop index if exists "RESOURCE_PK" cascade;
 
 drop table if exists "RESOURCE" cascade;
 
-drop index if exists "RIGHTS_PK" cascade;
-
-drop table if exists "RIGHTS" cascade;
-
 drop index if exists "LNG_TRL_FK" cascade;
 
 drop index if exists "LPR_TRL_FK" cascade;
@@ -150,22 +127,6 @@ drop index if exists "USR_LNG_FK" cascade;
 drop index if exists "USERS_PK" cascade;
 
 drop table if exists "USERS" cascade;
-
-drop index if exists "USR_RGT2_FK" cascade;
-
-drop index if exists "USR_RGT_FK" cascade;
-
-drop index if exists "USR_RGT_PK" cascade;
-
-drop table if exists "USR_RGT" cascade;
-
-drop index if exists "WKS_GRP2_FK" cascade;
-
-drop index if exists "WKS_GRP_FK" cascade;
-
-drop index if exists "WKS_GRP_PK" cascade;
-
-drop table if exists "WKS_GRP" cascade;
 
 drop index if exists "WORKSPACE_PK" cascade;
 
@@ -537,26 +498,24 @@ create  index "CRY_LPR_FK" on "COUNTRIES" (
 /* Table: DEFAULT_PRIVILEDGES                                   */
 /*==============================================================*/
 create table "DEFAULT_PRIVILEDGES" (
-   "FOL_DAT_ID"           INT8                 not null,
-   "ACT_ID"               INT8                 not null,
    "DAT_ID"               INT8                 not null,
-   constraint "PK_DEFAULT_PRIVILEDGES" primary key ("FOL_DAT_ID", "ACT_ID", "DAT_ID")
+   "ACT_ID"               INT8                 not null,
+   constraint "PK_DEFAULT_PRIVILEDGES" primary key ("DAT_ID", "ACT_ID")
 );
 
 /*==============================================================*/
 /* Index: DEFAULT_PRIVILEDGES_PK                                */
 /*==============================================================*/
 create unique index "DEFAULT_PRIVILEDGES_PK" on "DEFAULT_PRIVILEDGES" (
-"FOL_DAT_ID",
-"ACT_ID",
-"DAT_ID"
+"DAT_ID",
+"ACT_ID"
 );
 
 /*==============================================================*/
 /* Index: FOL_DFT_PRV_FK                                        */
 /*==============================================================*/
 create  index "FOL_DFT_PRV_FK" on "DEFAULT_PRIVILEDGES" (
-"FOL_DAT_ID"
+"DAT_ID"
 );
 
 /*==============================================================*/
@@ -564,13 +523,6 @@ create  index "FOL_DFT_PRV_FK" on "DEFAULT_PRIVILEDGES" (
 /*==============================================================*/
 create  index "ACT_DFT_PRV_FK" on "DEFAULT_PRIVILEDGES" (
 "ACT_ID"
-);
-
-/*==============================================================*/
-/* Index: PRS_DFT_PRV_FK                                        */
-/*==============================================================*/
-create  index "PRS_DFT_PRV_FK" on "DEFAULT_PRIVILEDGES" (
-"DAT_ID"
 );
 
 /*==============================================================*/
@@ -620,54 +572,6 @@ create unique index "FOLDER_PK" on "FOLDER" (
 );
 
 /*==============================================================*/
-/* Table: GROUPS                                                */
-/*==============================================================*/
-create table "GROUPS" (
-   "DAT_ID"               INT8                 not null,
-   "GRP_NAME"             "MEDIUM_LABEL"         not null,
-   constraint "PK_GROUPS" primary key ("DAT_ID"),
-   constraint "UK_GROUP_NAME" unique ("GRP_NAME")
-);
-
-/*==============================================================*/
-/* Index: GROUPS_PK                                             */
-/*==============================================================*/
-create unique index "GROUPS_PK" on "GROUPS" (
-"DAT_ID"
-);
-
-/*==============================================================*/
-/* Table: GRP_PRS                                               */
-/*==============================================================*/
-create table "GRP_PRS" (
-   "DAT_ID"               INT8                 not null,
-   "GRO_DAT_ID"           INT8                 not null,
-   constraint "PK_GRP_PRS" primary key ("DAT_ID", "GRO_DAT_ID")
-);
-
-/*==============================================================*/
-/* Index: GRP_PRS_PK                                            */
-/*==============================================================*/
-create unique index "GRP_PRS_PK" on "GRP_PRS" (
-"DAT_ID",
-"GRO_DAT_ID"
-);
-
-/*==============================================================*/
-/* Index: GRP_PRS_FK                                            */
-/*==============================================================*/
-create  index "GRP_PRS_FK" on "GRP_PRS" (
-"DAT_ID"
-);
-
-/*==============================================================*/
-/* Index: GRP_PRS2_FK                                           */
-/*==============================================================*/
-create  index "GRP_PRS2_FK" on "GRP_PRS" (
-"GRO_DAT_ID"
-);
-
-/*==============================================================*/
 /* Table: LANGUAGES                                             */
 /*==============================================================*/
 create table "LANGUAGES" (
@@ -695,28 +599,12 @@ create  index "LNG_LPR_FK" on "LANGUAGES" (
 );
 
 /*==============================================================*/
-/* Table: PERSON                                                */
-/*==============================================================*/
-create table "PERSON" (
-   "DAT_ID"               INT8                 not null,
-   constraint "PK_PERSON" primary key ("DAT_ID")
-);
-
-/*==============================================================*/
-/* Index: PERSON_PK                                             */
-/*==============================================================*/
-create unique index "PERSON_PK" on "PERSON" (
-"DAT_ID"
-);
-
-/*==============================================================*/
 /* Table: PRIVILEDGES                                           */
 /*==============================================================*/
 create table "PRIVILEDGES" (
    "DAT_ID"               INT8                 not null,
    "ACT_ID"               INT8                 not null,
-   "PER_DAT_ID"           INT8                 not null,
-   constraint "PK_PRIVILEDGES" primary key ("DAT_ID", "ACT_ID", "PER_DAT_ID")
+   constraint "PK_PRIVILEDGES" primary key ("DAT_ID", "ACT_ID")
 );
 
 /*==============================================================*/
@@ -724,8 +612,7 @@ create table "PRIVILEDGES" (
 /*==============================================================*/
 create unique index "PRIVILEDGES_PK" on "PRIVILEDGES" (
 "DAT_ID",
-"ACT_ID",
-"PER_DAT_ID"
+"ACT_ID"
 );
 
 /*==============================================================*/
@@ -740,13 +627,6 @@ create  index "RSC_PRV_FK" on "PRIVILEDGES" (
 /*==============================================================*/
 create  index "ACT_PRV_FK" on "PRIVILEDGES" (
 "ACT_ID"
-);
-
-/*==============================================================*/
-/* Index: PRS_PRV_FK                                            */
-/*==============================================================*/
-create  index "PRS_PRV_FK" on "PRIVILEDGES" (
-"PER_DAT_ID"
 );
 
 /*==============================================================*/
@@ -782,23 +662,6 @@ create table "RESOURCE" (
 /*==============================================================*/
 create unique index "RESOURCE_PK" on "RESOURCE" (
 "DAT_ID"
-);
-
-/*==============================================================*/
-/* Table: RIGHTS                                                */
-/*==============================================================*/
-create table "RIGHTS" (
-   "RGT_ID"               BIGSERIAL            not null,
-   "RGT_CODE"             "CODE"                 not null,
-   constraint "PK_RIGHTS" primary key ("RGT_ID"),
-   constraint "UK_RGT_CODE" unique ("RGT_CODE")
-);
-
-/*==============================================================*/
-/* Index: RIGHTS_PK                                             */
-/*==============================================================*/
-create unique index "RIGHTS_PK" on "RIGHTS" (
-"RGT_ID"
 );
 
 /*==============================================================*/
@@ -871,68 +734,6 @@ create  index "USR_LNG_FK" on "USERS" (
 /*==============================================================*/
 create  index "USR_CRY_FK" on "USERS" (
 "CRY_ID"
-);
-
-/*==============================================================*/
-/* Table: USR_RGT                                               */
-/*==============================================================*/
-create table "USR_RGT" (
-   "DAT_ID"               INT8                 not null,
-   "RGT_ID"               INT8                 not null,
-   constraint "PK_USR_RGT" primary key ("DAT_ID", "RGT_ID")
-);
-
-/*==============================================================*/
-/* Index: USR_RGT_PK                                            */
-/*==============================================================*/
-create unique index "USR_RGT_PK" on "USR_RGT" (
-"DAT_ID",
-"RGT_ID"
-);
-
-/*==============================================================*/
-/* Index: USR_RGT_FK                                            */
-/*==============================================================*/
-create  index "USR_RGT_FK" on "USR_RGT" (
-"DAT_ID"
-);
-
-/*==============================================================*/
-/* Index: USR_RGT2_FK                                           */
-/*==============================================================*/
-create  index "USR_RGT2_FK" on "USR_RGT" (
-"RGT_ID"
-);
-
-/*==============================================================*/
-/* Table: WKS_GRP                                               */
-/*==============================================================*/
-create table "WKS_GRP" (
-   "DAT_ID"               INT8                 not null,
-   "GRO_DAT_ID"           INT8                 not null,
-   constraint "PK_WKS_GRP" primary key ("DAT_ID", "GRO_DAT_ID")
-);
-
-/*==============================================================*/
-/* Index: WKS_GRP_PK                                            */
-/*==============================================================*/
-create unique index "WKS_GRP_PK" on "WKS_GRP" (
-"DAT_ID",
-"GRO_DAT_ID"
-);
-
-/*==============================================================*/
-/* Index: WKS_GRP_FK                                            */
-/*==============================================================*/
-create  index "WKS_GRP_FK" on "WKS_GRP" (
-"DAT_ID"
-);
-
-/*==============================================================*/
-/* Index: WKS_GRP2_FK                                           */
-/*==============================================================*/
-create  index "WKS_GRP2_FK" on "WKS_GRP" (
-"GRO_DAT_ID"
 );
 
 /*==============================================================*/
@@ -1033,13 +834,8 @@ alter table "DEFAULT_PRIVILEDGES"
       on delete restrict on update restrict;
 
 alter table "DEFAULT_PRIVILEDGES"
-   add constraint "FK_DEFAULT__FOL_DFT_P_FOLDER" foreign key ("FOL_DAT_ID")
+   add constraint "FK_DEFAULT__FOL_DFT_P_FOLDER" foreign key ("DAT_ID")
       references "FOLDER" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "DEFAULT_PRIVILEDGES"
-   add constraint "FK_DEFAULT__PRS_DFT_P_PERSON" foreign key ("DAT_ID")
-      references "PERSON" ("DAT_ID")
       on delete restrict on update restrict;
 
 alter table "DELEGATES"
@@ -1057,39 +853,14 @@ alter table "FOLDER"
       references "RESOURCE" ("DAT_ID")
       on delete restrict on update restrict;
 
-alter table "GROUPS"
-   add constraint "FK_GROUPS_GROUP_PER_PERSON" foreign key ("DAT_ID")
-      references "PERSON" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "GRP_PRS"
-   add constraint "FK_GRP_PRS_GRP_PRS_PERSON" foreign key ("DAT_ID")
-      references "PERSON" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "GRP_PRS"
-   add constraint "FK_GRP_PRS_GRP_PRS2_GROUPS" foreign key ("GRO_DAT_ID")
-      references "GROUPS" ("DAT_ID")
-      on delete restrict on update restrict;
-
 alter table "LANGUAGES"
    add constraint "FK_LANGUAGE_LNG_LPR_PROPERTI" foreign key ("LPR_ID")
       references "PROPERTIES" ("LPR_ID")
       on delete restrict on update restrict;
 
-alter table "PERSON"
-   add constraint "FK_PERSON_PERSON_DA_BASIC_DA" foreign key ("DAT_ID")
-      references "BASIC_DATA" ("DAT_ID")
-      on delete restrict on update restrict;
-
 alter table "PRIVILEDGES"
    add constraint "FK_PRIVILED_ACT_PRV_ACTIONS" foreign key ("ACT_ID")
       references "ACTIONS" ("ACT_ID")
-      on delete restrict on update restrict;
-
-alter table "PRIVILEDGES"
-   add constraint "FK_PRIVILED_PRS_PRV_PERSON" foreign key ("PER_DAT_ID")
-      references "PERSON" ("DAT_ID")
       on delete restrict on update restrict;
 
 alter table "PRIVILEDGES"
@@ -1113,11 +884,6 @@ alter table "TRANSLATIONS"
       on delete restrict on update restrict;
 
 alter table "USERS"
-   add constraint "FK_USERS_USER_PERS_PERSON" foreign key ("DAT_ID")
-      references "PERSON" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "USERS"
    add constraint "FK_USERS_USR_CRY_COUNTRIE" foreign key ("CRY_ID")
       references "COUNTRIES" ("CRY_ID")
       on delete restrict on update restrict;
@@ -1127,24 +893,9 @@ alter table "USERS"
       references "LANGUAGES" ("LNG_ID")
       on delete restrict on update restrict;
 
-alter table "USR_RGT"
-   add constraint "FK_USR_RGT_USR_RGT_USERS" foreign key ("DAT_ID")
-      references "USERS" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "USR_RGT"
-   add constraint "FK_USR_RGT_USR_RGT2_RIGHTS" foreign key ("RGT_ID")
-      references "RIGHTS" ("RGT_ID")
-      on delete restrict on update restrict;
-
-alter table "WKS_GRP"
-   add constraint "FK_WKS_GRP_WKS_GRP_WORKSPAC" foreign key ("DAT_ID")
-      references "WORKSPACE" ("DAT_ID")
-      on delete restrict on update restrict;
-
-alter table "WKS_GRP"
-   add constraint "FK_WKS_GRP_WKS_GRP2_GROUPS" foreign key ("GRO_DAT_ID")
-      references "GROUPS" ("DAT_ID")
+alter table "USERS"
+   add constraint "FK_USERS_USR_PRS_BASIC_DA" foreign key ("DAT_ID")
+      references "BASIC_DATA" ("DAT_ID")
       on delete restrict on update restrict;
 
 alter table "WORKSPACE"
