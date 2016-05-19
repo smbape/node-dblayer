@@ -3,7 +3,7 @@ logger = log4js.getLogger 'PersistenceManager'
 
 GenericUtil = require './GenericUtil'
 _ = require 'lodash'
-squel = require './SquelPatch'
+squel = require 'squel'
 RowMap = require './RowMap'
 CompiledMapping = require './CompiledMapping'
 async = require 'async'
@@ -58,7 +58,7 @@ assertValidModelInstance = (model)->
     if err instanceof Error
         throw err
 
-PersistenceManager::dialects =
+PersistenceManager.dialects = PersistenceManager::dialects =
     postgres:
         squelOptions:
             # autoQuoteTableNames: true
@@ -89,7 +89,7 @@ PersistenceManager::dialects =
             fieldAliasQuoteCharacter: '"'
             tableAliasQuoteCharacter: '"'
 
-PersistenceManager::getSquelOptions = (dialect)->
+PersistenceManager.getSquelOptions = PersistenceManager::getSquelOptions = (dialect)->
     if @ instanceof PersistenceManager
         instance = @
     else
@@ -98,7 +98,12 @@ PersistenceManager::getSquelOptions = (dialect)->
     if instance.dialects.hasOwnProperty dialect
         _.clone instance.dialects[dialect].squelOptions
 
-PersistenceManager::decorateInsert = (dialect, query, column)->
+PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialect, query, column)->
+    if @ instanceof PersistenceManager
+        instance = @
+    else
+        instance = PersistenceManager::
+
     if @dialects.hasOwnProperty(dialect) and 'function' is typeof @dialects[dialect].decorateInsert
         @dialects[dialect].decorateInsert query, column
     else

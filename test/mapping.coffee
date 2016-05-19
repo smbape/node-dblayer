@@ -1,6 +1,5 @@
 _ = require 'lodash'
 moment = require 'moment'
-# Backbone = require 'backbone'
 
 mapping = module.exports
 
@@ -19,7 +18,6 @@ handlersModification = _.extend {update: handlersCreation.insert}, handlersCreat
 
 mapping['Data'] =
     table: 'BASIC_DATA'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'DAT_ID'
@@ -45,12 +43,19 @@ mapping['Data'] =
         version:
             lock: true
             column: 'DAT_VERSION'
-            handlers: insert: (model)->
-                '1.0'
+            handlers:
+                insert: (value, model, options)->
+                    '1.0'
+                update: (value, model, options)->
+                    if 'major' is model.get('semver')
+                        return (parseInt(value.split('.')[0], 10) + 1) + '.0'
+                    else
+                        value = value.split('.')
+                        value[1] = 1 + parseInt(value[1], 10)
+                        return value.join('.')
 
 mapping['User'] =
     table: 'USERS'
-    # ctor: Backbone.Model
     id: className: 'Data'
     properties:
         name: 'USE_NAME'
@@ -69,7 +74,6 @@ mapping['User'] =
 
 mapping['Right'] =
     table: 'RIGHTS'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'RGT_ID'
@@ -79,7 +83,6 @@ mapping['Right'] =
 
 mapping['UserRight'] =
     table: 'USR_RGT'
-    # ctor: Backbone.Model
     properties:
         user: className: 'User'
         right: className: 'Right'
@@ -87,7 +90,6 @@ mapping['UserRight'] =
 
 mapping['Property'] =
     table: 'PROPERTIES'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'LPR_ID'
@@ -97,7 +99,6 @@ mapping['Property'] =
 
 mapping['Language'] =
     table: 'LANGUAGES'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'LNG_ID'
@@ -110,7 +111,6 @@ mapping['Language'] =
 
 mapping['Translation'] =
     table: 'TRANSLATIONS'
-    # ctor: Backbone.Model
     properties:
         value: 'TRL_VALUE'
         language: className: 'Language'
@@ -118,7 +118,6 @@ mapping['Translation'] =
 
 mapping['Country'] =
     table: 'COUNTRIES'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'CRY_ID'
@@ -128,7 +127,6 @@ mapping['Country'] =
 
 mapping['Processor'] =
     table: 'PROCESSORS'
-    # ctor: Backbone.Model
     id: className: 'Data'
     properties:
         code: 'PRC_CODE'
@@ -144,7 +142,6 @@ mapping['Processor'] =
 
 mapping['Token'] =
     table: 'TOKEN'
-    # ctor: Backbone.Model
     id:
         name: 'id'
         column: 'TOK_ID'

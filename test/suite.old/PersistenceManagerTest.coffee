@@ -391,7 +391,7 @@ task = (config, assert)->
                 className: 'ClassB'
                 column: 'colIdA'
             ]
-        
+
         # Check consistency
         assertPartial mapping, 'ClassC',
             id:
@@ -405,7 +405,7 @@ task = (config, assert)->
                 className: 'ClassB'
                 column: 'colMixB'
             ]
-        
+
         # prop className, if no column, use id column
         assertPartial mapping, 'ClassC',
             id:
@@ -627,17 +627,17 @@ task = (config, assert)->
         assertPartialThrows mapping, 'ClassB',
             id: undefined
         , 'ID'
-        
+
         # Id Cannot be null
         assertPartialThrows mapping, 'ClassB',
             id: null
         , 'ID'
-        
+
         # Id Cannot be an empty string
         assertPartialThrows mapping, 'ClassB',
             id: ''
         , 'ID'
-        
+
         # Mixins cannot be undefined
         assertPartialThrows mapping, 'ClassB',
             id:
@@ -745,7 +745,7 @@ task = (config, assert)->
                 propClassB1:
                     className: 'ClassA'
                 propB2: 'colPropB2'
-        
+
         assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colIdB, colIdA, colPropB2) VALUES (\'idBValue\', \'idAValue\', \'propB2Value\')'
 
         mapping['ClassB'] =
@@ -758,7 +758,7 @@ task = (config, assert)->
                     column: 'colPropB1'
                     className: 'ClassA'
                 propB2: 'colPropB2'
-        
+
         assertInsertQuery mapping, model, 'ClassB', 'INSERT INTO TableB (colIdB, colPropB1, colPropB2) VALUES (\'idBValue\', \'idAValue\', \'propB2Value\')'
 
         # prop.className -> id.className -> id.className
@@ -774,7 +774,7 @@ task = (config, assert)->
                 propClassB1:
                     className: 'ClassB'
         assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (idC, colIdA) VALUES (\'idCValue\', \'idAValue\')'
-        
+
         # prop.className -> id.className -> id.className
         # 
         mapping['ClassB'] =
@@ -790,7 +790,7 @@ task = (config, assert)->
                 propClassB1:
                     className: 'ClassB'
         assertInsertQuery mapping, model, 'ClassC', 'INSERT INTO TableC (idC, colIdB) VALUES (\'idCValue\', \'idAValue\')'
-        
+
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
             table: 'TableB'
@@ -808,7 +808,7 @@ task = (config, assert)->
                 propClassC1:
                     className: 'ClassC'
         assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdA) VALUES (\'idDValue\', \'idAValue\')'
-        
+
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
             table: 'TableB'
@@ -827,7 +827,7 @@ task = (config, assert)->
                 propClassC1:
                     className: 'ClassC'
         assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdB) VALUES (\'idDValue\', \'idAValue\')'
-        
+
         # prop.className -> id.className -> id.className
         mapping['ClassB'] =
             table: 'TableB'
@@ -847,7 +847,7 @@ task = (config, assert)->
                 propClassC1:
                     className: 'ClassC'
         assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdC) VALUES (\'idDValue\', \'idAValue\')'
-        
+
         # throw error if no id is setted for sub-element
         class Model
             get: (prop)->
@@ -861,7 +861,7 @@ task = (config, assert)->
             toJSON: ->
         model = new Model()
         assertInsertQueryThrows mapping, model, 'ClassD', 'NO_ID'
-        
+
         # only save setted properties
         class Model
             get: (prop)->
@@ -886,7 +886,7 @@ task = (config, assert)->
                 propD2: 'colPropD2'
                 propD3: 'colPropD3'
         assertInsertQuery mapping, model, 'ClassD', 'INSERT INTO TableD (idD, colIdC, colPropD1, colPropD3) VALUES (\'idDValue\', \'idAValue\', \'propD1Value\', \'propD3Value\')'
-        
+
         # id className
         class Model
             constructor: (@preffix = '')->
@@ -935,7 +935,7 @@ task = (config, assert)->
         assert.strictEqual query.values[3], 'propB3Value'
         query = query.values[0]
         assert.strictEqual query.toString(), 'INSERT INTO TableA (colIdA, colPropA1, colPropA3) VALUES (\'idAValue\', \'propA1Value\', \'propA3Value\')'
-        
+
         # id, mixin
         mapping['ClassB'] =
             table: 'TableB'
@@ -960,7 +960,7 @@ task = (config, assert)->
         assert.strictEqual query.values[4], 'propB3Value'
         query2 = query.values[0]
         assert.strictEqual query2.toString(), 'INSERT INTO TableA (colIdA, colPropA1, colPropA3) VALUES (\'idAValue\', \'propA1Value\', \'propA3Value\')'
-        
+
         # id, mixins
         mapping['ClassB'] =
             table: 'TableB'
@@ -1209,7 +1209,7 @@ task = (config, assert)->
             _next()
 
         # insert on class with no relation should work
-        
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassA'
 
@@ -1235,7 +1235,7 @@ task = (config, assert)->
             _next()
 
         # insert on class with parent should also insert in parent table with the correct id
-        
+
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassB'
         query = pMgr.getInsertQuery model, {connector: connector, dialect: connector.getDialect()}
@@ -1372,7 +1372,7 @@ task = (config, assert)->
 
         # Test list of inserted items in a with no relations
         # Test where condition
-        
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
 
@@ -2152,7 +2152,7 @@ task = (config, assert)->
             _next()
 
         # Saving model with an unset propClass throws exception
-        
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -2256,7 +2256,7 @@ task = (config, assert)->
             _next()
 
         # Combination of where and fields throws on certain circumstances
-        
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -2673,7 +2673,7 @@ task = (config, assert)->
                     assertPropSubClass model, modelD, modelE
                 next()
                 return
-            
+
             # clean every thing that has been created
             (next)-> connector.begin next
             (next)-> connector.query 'DELETE FROM ' + connector.escapeId(pMgr.getDefinition('ClassF').table), next
@@ -2767,7 +2767,7 @@ task = (config, assert)->
                 assert.strictEqual models.length, 1
                 idName = pMgr.getIdName 'ClassF'
                 assert.strictEqual models[0].get(idName), id0
-                
+
                 # test initialize using propClass attribute
                 listOptions = _.clone options.listOptions
                 delete listOptions.where
@@ -2850,9 +2850,9 @@ task = (config, assert)->
         # Nested condition on non selected field cause crash
         # Mixin parent causes inner join instead of left join for left join on child
         # Select a was select a:*
-        
+
         dbMap = require '../lib/test-map'
-        
+
         pMgr = new PersistenceManager dbMap
         connector = poolWrite.createConnector()
 
@@ -2903,7 +2903,7 @@ task = (config, assert)->
             _next()
 
         dbMap = require '../lib/test-map'
-        
+
         pMgr = new PersistenceManager dbMap
         connector = poolWrite.createConnector()
 
@@ -2977,7 +2977,7 @@ task = (config, assert)->
 
         # no field was considered as *
         dbMap = require '../lib/test-map'
-        
+
         pMgr = new PersistenceManager dbMap
         connector = poolWrite.createConnector()
 
@@ -3039,7 +3039,7 @@ task = (config, assert)->
 
         # no field was considered as *
         dbMap = require '../lib/test-map'
-        
+
         pMgr = new PersistenceManager dbMap
         connector = poolWrite.createConnector()
 
@@ -3119,7 +3119,7 @@ task = (config, assert)->
         # For performance concern, even if an entry has a unique constraint, add a primary key column
         # initialize goes with list => where is handled
         # update and delete, for each unique constraint, take the first one that has all it's fields not null
-        
+
         [pMgr, model, connector, Model] = setUpMapping()
         _model = null
 
@@ -3325,7 +3325,7 @@ task = (config, assert)->
     #   update
     #   delete
     # sort,group on mixin|parent|property class prop
-    
+
     series = [
         setUp
         testBasicMapping

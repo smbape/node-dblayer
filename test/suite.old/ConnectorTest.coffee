@@ -94,7 +94,7 @@ task = (config, assert)->
                 return
             return
         return
-    
+
     tearDown = (next)->
         pool = poolAdmin
         sqlQuery = testTable.drop().ifExists()
@@ -127,21 +127,21 @@ task = (config, assert)->
         ,  (err)->
             err.code is 'BAD_ADAPTER'
         , 'unexpected error'
-        
+
         assert.throws ->
             new AdapterPool 'url', adapter: ''
             return
         ,  (err)->
             err.code is 'BAD_ADAPTER'
         , 'unexpected error'
-        
+
         assert.throws ->
             new AdapterPool 'url', adapter: 1
             return
         ,  (err)->
             err.code is 'BAD_ADAPTER'
         , 'unexpected error'
-        
+
         tasks = []
         for type in ['admin', 'write', 'read']
             ((pool)->
@@ -151,7 +151,7 @@ task = (config, assert)->
 
         async.series tasks, next
         return
-    
+
     testConstructor = (next)->
         pool = poolRead
         connector = new Connector pool
@@ -344,7 +344,7 @@ task = (config, assert)->
             assert.ifError err
             next()
             return
-        
+
         return
 
     testStream = (next)->
@@ -383,7 +383,7 @@ task = (config, assert)->
             assert.ifError err
             next()
             return
-        
+
         return
 
     # test autoRollback also with stream
