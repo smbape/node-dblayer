@@ -1,7 +1,6 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'PersistenceManager'
 
-GenericUtil = require './GenericUtil'
 _ = require 'lodash'
 squel = require 'squel'
 RowMap = require './RowMap'
@@ -73,7 +72,7 @@ PersistenceManager.dialects = PersistenceManager::dialects =
             fieldAliasQuoteCharacter: '"'
             tableAliasQuoteCharacter: '"'
         decorateInsert: (query, column)->
-            if GenericUtil.notEmptyString column
+            if typeof column is 'string' and column.length > 0
                 query += ' RETURNING "' + column + '"'
             else
                 query
@@ -313,43 +312,6 @@ PersistenceManager::save = (model, options, callback)->
                 @insert model, _.defaults({reflect: true}, backup), (err, id)->
                     callback(err, id, 'insert')
                     return
-            return
-    return
-
-PersistenceManager::initializeOrInsert = (model, options, callback)->
-    return callback err if (err = isValidModelInstance model) instanceof Error
-
-    if arguments.length is 2 and 'function' is typeof options
-        callback = options
-    options = {} if not _.isPlainObject options
-    (callback = ->) if 'function' isnt typeof callback
-
-    className = options.className or model.className
-    definition = @_getDefinition className
-
-    try
-        {where} = _getInitializeCondition @, model, className, definition, _.defaults(
-            useDefinitionColumn: false
-            useAttributes: false
-        , options)
-    catch err
-        callback err
-        return
-
-    if where.length is 0
-        @insert model, _.extend({}, options, reflect: true), callback
-    else
-        backup = options
-        options = _.extend {}, options,
-            where: where
-            limit: 2 # Expecting one result. Limit is for unique checking without getting all results
-        @list className, options, (err, models)=>
-            return callback(err) if err
-            if models.length is 1
-                model.set models[0].attributes
-                callback err, model.get definition.id.name
-            else
-                @insert model, _.extend({}, backup, reflect: true), callback
             return
     return
 

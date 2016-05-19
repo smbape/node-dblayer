@@ -1,8 +1,10 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'CompiledMapping'
 _ = require 'lodash'
-{notEmptyString} = require './GenericUtil'
 LRU = require 'lru-cache'
+
+notEmptyString = (str)->
+    typeof str is 'string' and str.length > 0
 
 modelId = 0
 class Model

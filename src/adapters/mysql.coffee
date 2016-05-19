@@ -5,7 +5,6 @@ prependListener = require 'prepend-listener'
 once = require 'once'
 _ = require 'lodash'
 path = require 'path'
-GenericUtil = require '../GenericUtil'
 HWM = Math.pow 2, 7
 logger = log4js.getLogger 'MySQLAdapter'
 

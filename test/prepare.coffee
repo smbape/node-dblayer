@@ -168,7 +168,7 @@ global.assertPartial = (mapping, className, given, expected)->
     pMgr = new PersistenceManager mapping
     given = pMgr.getDefinition className
     for prop, value of expected
-        assert.ok _.isEqual given[prop], value
+        assert.deepEqual given[prop], value
     return
 
 global.assertInsertQuery = (mapping, model, className, expected)->

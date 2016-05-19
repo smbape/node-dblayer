@@ -88,6 +88,55 @@ describe 'mapping', ->
                 propA1:
                     column: 'colPropA1'
 
+        # constraint
+        assertPartial mapping, 'ClassA',
+            table: 'TableA'
+            id: 'idA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: 'propA1'}
+            ]
+        ,
+            table: 'TableA'
+            id:
+                name: 'idA'
+                column: 'idA'
+
+        # constraint
+        assertPartial mapping, 'ClassA',
+            table: 'TableA'
+            id: 'idA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: ['propA1']}
+                {type: 'unique', properties: ['propA2']}
+            ]
+        ,
+            table: 'TableA'
+            id:
+                name: 'idA'
+                column: 'idA'
+
+        # constraint
+        assertPartial mapping, 'ClassA',
+            table: 'TableA'
+            id: 'idA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: ['propA1', 'propA2']}
+            ]
+        ,
+            table: 'TableA'
+            id:
+                name: 'idA'
+                column: 'idA'
+
         return
 
     it 'should throws', ->
@@ -306,6 +355,15 @@ describe 'mapping', ->
             ]
         , 'MIXIN'
 
+        # Mixin must have a className prop if as Array
+        assertPartialThrows mapping, 'ClassB',
+            id:
+                name: 'id'
+            mixins: [
+                undefined
+            ]
+        , 'MIXIN'
+
         # name and className cannot be both setted
         assertPartialThrows mapping, 'ClassB',
             id:
@@ -313,6 +371,58 @@ describe 'mapping', ->
                 className: 'toto'
         , 'INCOMP_ID'
 
+        # constraint
+        assertPartialThrows mapping, 'ClassA',
+            table: 'TableA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: null
+        , 'CONSTRAINT'
+
+        # constraint
+        assertPartialThrows mapping, 'ClassA',
+            table: 'TableA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: ['propA1']}
+                {type: 'unknown', properties: ['propA2']}
+            ]
+        , 'CONSTRAINT'
+
+        # constraint
+        assertPartialThrows mapping, 'ClassA',
+            table: 'TableA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: undefined}
+            ]
+        , 'CONSTRAINT'
+
+        # constraint
+        assertPartialThrows mapping, 'ClassA',
+            table: 'TableA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+            constraints: [
+                {type: 'unique', properties: ['propA1']}
+                {type: 'unknown', properties: ['propB2']}
+            ]
+        , 'CONSTRAINT'
+
+        # constraint
+        assertPartialThrows mapping, 'ClassA',
+            ctor: 'toto'
+            table: 'TableA'
+            properties:
+                propA1: 'colPropA1'
+                propA2: 'colPropA2'
+        , 'CTOR'
         return
 
     return

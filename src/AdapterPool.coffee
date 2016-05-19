@@ -5,8 +5,11 @@ _ = require 'lodash'
 url = require 'url'
 sysPath = require 'path'
 semLib = require 'sem-lib'
-GenericUtil = require './GenericUtil'
 Connector = require './Connector'
+
+# Based on jQuery 1.11
+isNumeric = (obj) ->
+    !Array.isArray( obj ) and (obj - parseFloat( obj ) + 1) >= 0
 
 internal = {}
 internal.adapters = {}
@@ -195,7 +198,7 @@ module.exports = class AdapterPool extends SemaphorePool
             @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
             @options.database = parsed.pathname and parsed.pathname.substring(1)
             @options.host = parsed.hostname
-            @options.port = parseInt(parsed.port, 10) if GenericUtil.isNumeric parsed.port
+            @options.port = parseInt(parsed.port, 10) if isNumeric parsed.port
             if parsed.auth
                 # treat the first : as separator since password may contain : as well
                 index = parsed.auth.indexOf ':'
@@ -212,7 +215,7 @@ module.exports = class AdapterPool extends SemaphorePool
             parsed.protocol = @options.adapter + '/'
             parsed.pathname = '/' + @options.database
             parsed.hostname = @options.host
-            parsed.port = @options.port if GenericUtil.isNumeric @options.port
+            parsed.port = @options.port if isNumeric @options.port
             if 'string' is typeof @options.user and @options.user.length > 0
                 if 'string' is typeof @options.password and @options.password.length > 0
                     parsed.auth = @options.user + ':' + @options.password
@@ -238,7 +241,7 @@ module.exports = class AdapterPool extends SemaphorePool
             @options[prop] = options[prop] if typeof options.hasOwnProperty prop
 
         for prop in ['minConnection', 'maxConnection', 'idleTimeout']
-            if GenericUtil.isNumeric @options.maxConnection
+            if isNumeric @options.maxConnection
                 @options[prop] = parseInt @options[prop], 10
             else
                 @options[prop] = defaultOptions[prop]

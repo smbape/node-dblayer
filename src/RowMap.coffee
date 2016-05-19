@@ -1,6 +1,5 @@
 _ = require 'lodash'
 path = require 'path'
-GenericUtil = require './GenericUtil'
 PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'

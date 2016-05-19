@@ -177,7 +177,18 @@ describe 'test connector', ->
                 return
             (next)->
                 assert.strictEqual 2, connector.getSavepointsSize()
-                assertInsert connector, {id: 1, name}, next
+                connector.commit next
+            (next)->
+                assert.strictEqual 1, connector.getSavepointsSize()
+                connector.begin next
+                return
+            (next)->
+                assert.strictEqual 2, connector.getSavepointsSize()
+                connector.release (err)->
+                    assert.ok !!err
+                    assert.strictEqual err.code, 'NO_RELEASE'
+                    assertInsert connector, {id: 1, name}, next
+                    return
                 return
             (res, next)-> assertExist connector, {id: 1, name}, next
             (next)-> connector.begin next
@@ -268,6 +279,17 @@ describe 'test connector', ->
         ], done
 
         return
+
+        it 'should escape', ->
+            connector = pools.reader.createConnector()
+            connector.escape 'toto'
+            connector.escapeId 'toto'
+            connector.escapeSearch 'toto'
+            connector.escapeBeginWith 'toto'
+            connector.escapeEndWith 'toto'
+            connector.exprEqual 'toto'
+            connector.exprNotEqual 'toto'
+            return
 
     return
 

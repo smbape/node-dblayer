@@ -38,7 +38,7 @@ describe 'unique constraints', ->
                 model.set 'propG1', 'valueG12'
                 model.set 'propG2', 'valueG22'
                 model.set 'propG3', 'valueG32'
-                pMgr.initializeOrInsert model, {connector: connector}, next
+                pMgr.insert model, {connector: connector}, next
                 return
             (id, next)->
                 id2 = id
@@ -47,10 +47,10 @@ describe 'unique constraints', ->
             (count, next)->
                 assert.strictEqual count, 3
                 model.unset pMgr.getIdName model.className
-                pMgr.initializeOrInsert model, {connector: connector}, next
+                pMgr.initialize model, {connector: connector}, next
                 return
-            (id, next)->
-                assert.strictEqual id, id2
+            (rows, next)->
+                assert.strictEqual rows[0].get(pMgr.getIdName model.className), id2
                 model.unset pMgr.getIdName model.className
                 pMgr.save model, {connector: connector}, next
                 return

@@ -2,7 +2,6 @@ log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'Connector'
 
 EventEmitter = require('events').EventEmitter
-GenericUtil = require './GenericUtil'
 semLib = require 'sem-lib'
 _ = require 'lodash'
 
@@ -73,12 +72,6 @@ module.exports = class Connector extends EventEmitter
 
     getSavepointsSize: ->
         return @_savepoints
-
-    _stateError: (expected)->
-        return if @state is expected
-        err = new Error "Connector must be '#{expected}' but it is '#{@state}'"
-        err.code = 'STATE'
-        return err
 
     _hasError: ->
         if @state is STATES.INVALID
@@ -254,11 +247,6 @@ module.exports = class Connector extends EventEmitter
         else if @_savepoints > 0
             # we are in a transaction, make a savepoint
             query = 'SAVEPOINT sp_' + (@_savepoints - 1)
-        else
-            # Something mess up
-            err = new Error 'You probably have called this private method outside'
-            err.code = 'MESS'
-            return callback err
 
         logger.trace @pool.options.name, '[query] - ' + query
 
