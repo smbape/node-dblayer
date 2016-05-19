@@ -46,7 +46,7 @@ module.exports = class CompiledMapping
         # Set undefined column for className properties
         for className, classDef of @classes
             for prop, value of classDef.properties
-                if value.hasOwnProperty('className') and not value.hasOwnProperty 'column'
+                if value.hasOwnProperty('className') and not value.hasOwnProperty('column')
                     definition = @_getDefinition value.className
                     value.column = definition.id.column
                 @_addColumn className, value.column, prop
@@ -151,7 +151,7 @@ module.exports = class CompiledMapping
 
     _addColumn: (className, column, prop)->
         if @_hasColumn className, column
-            err = new Error "[#{className}] column '#{column}' already exists"
+            err = new Error "[#{className}.#{prop}] column '#{column}' already exists"
             err.code = 'DUP_COLUMN'
             throw err
 
@@ -159,7 +159,7 @@ module.exports = class CompiledMapping
         if notEmptyString column
             definition.columns[column] = prop
         else
-            err = new Error "[#{className}] column must be a not empty string"
+            err = new Error "[#{className}.#{prop}] column must be a not empty string"
             err.code = 'COLUMN'
             throw err
         return
@@ -372,6 +372,10 @@ _addProperties = (classDef, rawProperties)->
         # with update handler, prevents concurrent update
         if rawPropDef.hasOwnProperty 'lock'
             propDef.lock = typeof rawPropDef.lock is 'boolean' and rawPropDef.lock
+
+        for prop in ['nullable']
+            if rawPropDef.hasOwnProperty prop
+                propDef[prop] = rawPropDef[prop]
 
     return
 

@@ -1,4 +1,4 @@
-pg = require('pg').native
+pg = require('pg')
 QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
 logger = log4js.getLogger 'PostgresAdapter'

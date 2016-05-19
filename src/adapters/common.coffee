@@ -113,8 +113,8 @@ exports.exprEqual = (value, escapeColumn)->
     else
         escapeColumn + ' = ' + @escape value
 
-exports.guessEscapeOpts = (options)->
-    options = _extend {}, options
+exports.guessEscapeOpts = (options, defaults)->
+    options = _extend  _extend({}, defaults), options
     {connector, dialect} = options
 
     if 'string' isnt options.dialect and connector and 'function' is typeof connector.getDialect
@@ -124,9 +124,12 @@ exports.guessEscapeOpts = (options)->
         adapter = require './' + dialect
 
     if connector or adapter
-        for opt in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+        for opt in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith', 'exprNotEqual', 'exprEqual']
             if connector and 'function' isnt typeof options[opt] and 'function' is typeof connector[opt]
                 options[opt] = connector[opt].bind connector
             else if adapter and 'function' is typeof adapter[opt]
                 options[opt] = adapter[opt]
+            else if 'function' is typeof exports[opt]
+                options[opt] = exports[opt]
+
     options

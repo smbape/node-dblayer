@@ -332,13 +332,13 @@ module.exports = class RowMap
     # set column alias as field of prop
     # must be called step by step
     _selectProp: (prop, ancestors)->
+        parentId = @_getUniqueId null, ancestors
+        parentInfo = @_getInfo parentId
+        parentDefinition = @manager.getDefinition parentInfo.className
+
         if prop is '*'
-            id = @_getUniqueId null, ancestors
-            info = @_getInfo id
-            @_set info, 'selectAll', true
-            # info.selectAll = true
-            definition = @manager.getDefinition info.className
-            for prop of definition.availableProperties
+            @_set parentInfo, 'selectAll', true
+            for prop of parentDefinition.availableProperties
                 @_setField @_getUniqueId(prop, ancestors), true
             return
 
@@ -353,22 +353,28 @@ module.exports = class RowMap
         columnAlias = @_uniqColAlias()
         @select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
         @_set info, 'field', columnAlias
-        # info.field = columnAlias
         parentInfo = @_getInfo @_getUniqueId null, ancestors
         parentInfo.properties = parentInfo.properties or {}
         @_set parentInfo.properties, id, true
-        # parentInfo.properties[id] = true
         @_set info, 'selectAll', parentInfo.selectAll
-        # info.selectAll = parentInfo.selectAll
 
         if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'selectedAll'
+            if parentDefinition.availableProperties[prop].definition.nullable is false
+                isNullable = false
+                ancestors = ancestors.concat([prop])
+            else
+                isNullable = true
+
             parentProp = prop
             properties = @manager.getDefinition(info.className).availableProperties
             info.properties = {}
             for prop of properties
-                @_set info.properties, @_getUniqueId(prop, parentProp, ancestors), true
-                # info.properties[@_getUniqueId prop, parentProp, ancestors] = true
-            info.selectedAll = true
+                if isNullable
+                    @_set info.properties, @_getUniqueId(prop, parentProp, ancestors), true
+                else
+                    # not nullable => select all fields
+                    @_setField @_getUniqueId(prop, ancestors), true
+            @_set info, 'selectedAll', true
         return
 
     # Is called step by step .i.e. parent is supposed to be defined
@@ -425,7 +431,7 @@ module.exports = class RowMap
         definition = @manager.getDefinition parentInfo.className
         availableProperty = definition.availableProperties[prop]
         if 'undefined' is typeof availableProperty
-            throw new Error "Property '#{prop}' is not defined for '#{parentInfo.className}'"
+            throw new Error "Property '#{prop}' is not defined for class '#{parentInfo.className}'"
         propDef = availableProperty.definition
 
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
