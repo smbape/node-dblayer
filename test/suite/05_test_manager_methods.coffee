@@ -7,6 +7,7 @@ _ = require 'lodash'
 describe 'manager methods', ->
     it 'should get column', ->
         [pMgr, model, connector, Model] = setUpMapping()
+        assert.strictEqual pMgr.getTable('ClassA'), 'CLASS_A'
         assert.strictEqual pMgr.getColumn('ClassA', 'idA'), 'A_ID'
         assert.strictEqual pMgr.getColumn('ClassA', 'propA1'), 'PROP_A1'
         assert.strictEqual pMgr.getColumn('ClassA', 'propA2'), 'PROP_A2'

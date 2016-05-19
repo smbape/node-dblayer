@@ -8,7 +8,7 @@ _ = require 'lodash'
 describe 'test connector', ->
 
     before (done)->
-        query = knex.schema.withSchema(config.schema).createTable 'users', (table)->
+        query = knex.schema.withSchema(config.schema).createTable '_users', (table)->
             table.increments()
             table.string('name')
             return
@@ -16,7 +16,7 @@ describe 'test connector', ->
         return
 
     after (done)->
-        query = knex.schema.withSchema(config.schema).dropTableIfExists('users')
+        query = knex.schema.withSchema(config.schema).dropTableIfExists('_users')
         connectors.admin.query query.toString(), done
         return
 
@@ -242,16 +242,16 @@ describe 'test connector', ->
                 connector.acquire next
                 return
             (performed, next)->
-                query = knex('users').insert(values)
+                query = knex('_users').insert(values)
                 connector.query query.toString(), next
                 return
             (res, next)->
-                query = knex('users').select('id as num').where('id', '>=', offset)
+                query = knex('_users').select('id as num').where('id', '>=', offset)
                 connector.query query.toString(), next
                 return
             (res, next)->
                 assert.strictEqual res.rows.length, values.length
-                query = knex('users').select('id as num').where('id', '>=', offset)
+                query = knex('_users').select('id as num').where('id', '>=', offset)
                 connector.stream query.toString(), (row)->
                     if row.constructor.name isnt 'OkPacket'
                         assert.strictEqual row.num, values[rowCount++].id
@@ -272,7 +272,7 @@ describe 'test connector', ->
     return
 
 assertInsert = (connector, attributes, done)->
-    query = knex('users').insert(attributes).returning('id')
+    query = knex('_users').insert(attributes).returning('id')
     connector.query query.toString(), (err, res)->
         return done(err) if err
         if res.hasOwnProperty 'lastInsertId'
@@ -286,7 +286,7 @@ assertInsert = (connector, attributes, done)->
     return
 
 assertExist = (connector, {id, name}, done)->
-    query = knex.select().from('users').where({id})
+    query = knex.select().from('_users').where({id})
     connector.query query.toString(), (err, res)->
         return done(err) if err
         assert.equal res.rows[0].id, id
@@ -296,7 +296,7 @@ assertExist = (connector, {id, name}, done)->
     return
 
 assertNotExist = (connector, {id, name}, done)->
-    query = knex.select().from('users').where({id})
+    query = knex.select().from('_users').where({id})
     connector.query query.toString(), (err, res)->
         return done(err) if err
         assert.strictEqual res.rows.length, 0

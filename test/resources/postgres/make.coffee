@@ -39,7 +39,7 @@ env = _.pick process.env, [
 
 exports.generateScripts = (options = {})->
     {
-        owner: root
+        root
         password
         database
         schema
@@ -70,6 +70,9 @@ exports.generateScripts = (options = {})->
         GRANT ALL PRIVILEGES ON DATABASE "#{database}" TO "#{root}";
         """
 
+    # ================================
+    # Create users
+    # ================================
     if create.users isnt false
         for key, user of users
             sql.push """
@@ -135,7 +138,7 @@ exports.generateScripts = (options = {})->
 
 exports.install = (options = {}, done)->
     {
-        owner: root
+        root
         password
         database
         cmd: psql
@@ -172,14 +175,13 @@ exports.install = (options = {}, done)->
         script.push "#{psql} -h #{host} -p #{port} -U \"#{root}\" -d \"#{database}\" -f \"#{modelSQL}\""
 
     join = if process.platform is 'win32' then ' &\n' else ' &&\n'
-
     script = createScript sysPath.join(tmp, 'install'), env, script.join(join)
     executeScript script, [], [process.stdin, stdout, stderr], done
     return
 
 exports.uninstall = (options = {}, done)->
     {
-        owner: root
+        root
         password
         database
         schema
@@ -244,6 +246,7 @@ exports.uninstall = (options = {}, done)->
         DROP ROLE IF EXISTS "#{users.writer.name}";
         DROP ROLE IF EXISTS "#{users.admin.name}";
         """
+
     if sql.length
         dropschemaSQL = sysPath.join tmp, '99_drop.sql'
         fs.writeFileSync dropschemaSQL, sql.join('\n'), 'utf-8'
@@ -258,7 +261,6 @@ exports.uninstall = (options = {}, done)->
         env.PGPASSFILE = pgpass
 
     join = if process.platform is 'win32' then ' &\n' else ' &&\n'
-
     script = createScript sysPath.join(tmp, 'uninstall'), env, script.join(join)
     executeScript script, [], [process.stdin, stdout, stderr], done
 

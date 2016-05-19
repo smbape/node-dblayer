@@ -100,7 +100,8 @@ before (done)->
                 {pools: global.pools, connectors: global.connectors} = initPools()
                 pMgr.defaults.insert = pMgr.defaults.update = pMgr.defaults.delete = {connector: connectors.writer}
                 pMgr.defaults.list = {connector: connectors.reader}
-                next()
+
+                require('./sqlscripts') next
                 return
             return
     ], done

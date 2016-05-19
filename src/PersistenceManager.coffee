@@ -11,7 +11,11 @@ semLib = require 'sem-lib'
 LRU = require 'lru-cache'
 {guessEscapeOpts} = require './adapters/common'
 
-delegateMethod = (self, className, method)->
+delegateMethod = (self, className, method, target = method)->
+    if method is 'new'
+        self[method + className] = self.newInstance.bind self, className
+        return
+
     self[method + className] = (model, options, done)->
         if _.isPlainObject model
             model = self.newInstance className, model
@@ -20,7 +24,7 @@ delegateMethod = (self, className, method)->
             done = options
             options = {}
 
-        self[method] model, _.extend({className}, options), done
+        self[target] model, _.extend({className}, options), done
     return
 
 module.exports = class PersistenceManager extends CompiledMapping
@@ -36,6 +40,7 @@ module.exports = class PersistenceManager extends CompiledMapping
             for method in ['insert', 'update', 'save', 'delete']
                 delegateMethod @, className, method
 
+            delegateMethod @, className, 'new'
             @['list' + className] = @list.bind @, className
             @['remove' + className] = @['delete' + className]
 
@@ -159,6 +164,10 @@ PersistenceManager::getInsertQuery = (model, options, guess = true)->
     new InsertQuery @, model, options
 
 PersistenceManager::list = (className, options, callback)->
+    if 'function' is typeof options
+        callback = options
+        options = {}
+
     options = guessEscapeOpts(options, @defaults.list)
     try
         query = @getSelectQuery className, options, false
@@ -243,6 +252,10 @@ PersistenceManager::getUpdateQuery = (model, options, guess = true)->
     new UpdateQuery @, model, options
 
 PersistenceManager::delete = PersistenceManager::remove = (model, options, callback)->
+    if 'function' is typeof options
+        callback = options
+        options = {}
+
     options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.delete)
     try
         query = @getDeleteQuery model, options, false
@@ -1294,6 +1307,24 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         query = @oriToString()
         connector.query query, callback, @options.executeOptions
         return
+
+PersistenceManager::getInsertQueryString = (className, entries, options)->
+    options = _.defaults guessEscapeOpts(options), @defaults.insert
+    table = @getTable className
+    rows = []
+
+    for attributes in entries
+        row = {}
+        query = pMgr.getInsertQuery pMgr.newInstance className, attributes
+        {fields: columns, values: [values]} = query.toQuery().blocks[2]
+        for column, i in columns
+            row[column] = values[i]
+        rows.push row
+
+    squel.insert(squelOptions)
+        .into options.escapeId @getTable className
+        .setFieldsRows rows
+        .toString()
 
 # error codes abstraction
 # check: database and mapping are compatible
