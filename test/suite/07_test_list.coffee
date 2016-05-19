@@ -21,9 +21,7 @@ describe 'list', ->
             listOptions: {connector}
 
         id1 = id2 = null
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)->
                 id1 = id
@@ -122,9 +120,7 @@ describe 'list', ->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassB'
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)->
                 options =
@@ -148,9 +144,7 @@ describe 'list', ->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)->
                 options =
@@ -169,16 +163,13 @@ describe 'list', ->
 
         return
 
-
     it 'should list on mapping with mixins 2/2', (done)->
 
         # Test list of class with nested parent inheritance
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)->
                 options =
@@ -213,9 +204,7 @@ describe 'list', ->
         newFC1Value = 'value2'
 
         options = null
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert modelD, {connector, reflect: true}, next
             (id, next)->
                 pMgr.insert modelE, {connector}, next
@@ -296,7 +285,6 @@ describe 'list', ->
                     assertPropSubClass model, modelD, modelE
                 next()
                 return
-            (next)-> connector.rollback next, true
         ], done
 
         return
@@ -319,9 +307,7 @@ describe 'list', ->
         newF1Value = 'value2'
 
         id0 = null
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert modelD, {connector, reflect: true}, next
             (id, next)->
                 idName = pMgr.getIdName 'ClassD'
@@ -421,7 +407,57 @@ describe 'list', ->
                 assert.strictEqual model.propC1, modelF.get 'propC1'
                 next()
                 return
-            (next)-> connector.rollback next, true
+        ], done
+
+        return
+
+    it 'should fix issue: Combination of where and fields throws on certain circumstances', (done)->
+        [pMgr, model, connector, Model] = setUpMapping()
+        modelF = model.clone()
+        modelF.className = 'ClassF'
+        modelD = model.clone()
+        modelD.className = 'ClassD'
+        modelF.set 'propClassD', modelD
+
+        # F -> C
+        # E -> (B -> A), C
+        # D -> A, C
+
+        idD = null
+        twaterfall connector, [
+            (next)-> pMgr.save modelD, {connector: connector}, next
+            (id, msg, next)->
+                assert.strictEqual msg, 'insert'
+                idD = id
+                pMgr.save modelF, {connector: connector}, next
+                return
+            (id, msg, next)->
+                assert.strictEqual msg, 'insert'
+                assert.strictEqual id, modelF.get pMgr.getIdName modelF.className
+                options =
+                    classNameLetter: 'F'
+                    model: modelF
+                    letters: ['C', 'F']
+                    listOptions:
+                        fields: [
+                            'propC1'
+                            'propClassD:propA1'
+                        ]
+                        where: [
+                            '{idC} = ' + id
+                            '{propClassD} = ' + idD
+                        ]
+                        connector: connector
+                        type: 'json'
+                assertList pMgr, options, next
+                return
+            (models, next)->
+                assert.strictEqual models.length, 1
+                model = models[0]
+                assert.strictEqual model.propClassD.propA1, modelD.get 'propA1'
+                assert.strictEqual model.propC1, modelF.get 'propC1'
+                next()
+                return
         ], done
 
         return

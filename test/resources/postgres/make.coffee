@@ -108,7 +108,7 @@ exports.generateScripts = (options = {})->
         GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA "#{schema}" TO "#{users.writer.name}";
         ALTER DEFAULT PRIVILEGES IN SCHEMA "#{schema}" GRANT EXECUTE ON FUNCTIONS TO "#{users.writer.name}";
         """
-        
+
         schemaSQL = sysPath.join tmp, '02_schema.sql'
         fs.writeFileSync schemaSQL, sql, 'utf-8'
 

@@ -221,7 +221,6 @@ describe 'test connector', ->
         return
 
     it 'should stream', (done)->
-        @timeout 3600 * 1000
         connector = pools.writer.createConnector()
         rowCount = 0
         num = Math.pow 2, 8

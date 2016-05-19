@@ -334,11 +334,11 @@ module.exports = class RowMap
     _selectProp: (prop, ancestors)->
         parentId = @_getUniqueId null, ancestors
         parentInfo = @_getInfo parentId
-        parentDefinition = @manager.getDefinition parentInfo.className
+        parentDef = @manager.getDefinition parentInfo.className
 
         if prop is '*'
             @_set parentInfo, 'selectAll', true
-            for prop of parentDefinition.availableProperties
+            for prop of parentDef.availableProperties
                 @_setField @_getUniqueId(prop, ancestors), true
             return
 
@@ -359,7 +359,7 @@ module.exports = class RowMap
         @_set info, 'selectAll', parentInfo.selectAll
 
         if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'selectedAll'
-            if parentDefinition.availableProperties[prop].definition.nullable is false
+            if parentDef.availableProperties[prop].mixin or parentDef.availableProperties[prop].definition.nullable is false
                 isNullable = false
                 ancestors = ancestors.concat([prop])
             else
@@ -400,7 +400,8 @@ module.exports = class RowMap
 
         if parentInfo
             parentDef = @manager.getDefinition parentInfo.className
-            if parentDef.properties.hasOwnProperty(info.attribute) and not parentDef.properties[info.attribute].nullable and parentInfo.hasJoin is JOIN_FUNC.default
+            prop = info.attribute
+            if (parentDef.availableProperties[prop].mixin or parentDef.availableProperties[prop].definition.nullable is false) and parentInfo.hasJoin is JOIN_FUNC.default
                 hasJoin = JOIN_FUNC.default
 
         if typeof hasJoin is 'undefined'

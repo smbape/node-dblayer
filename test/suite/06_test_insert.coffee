@@ -9,12 +9,9 @@ describe 'insert', ->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)-> assertPersist pMgr, model, 'A', id, connector, next
-            (row, next)-> connector.rollback next, true
         ], done
         return
 
@@ -22,13 +19,10 @@ describe 'insert', ->
         [pMgr, model, connector] = setUpMapping()
         model.className = 'ClassB'
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.getInsertQuery(model, {connector}).execute connector, next
             (id, next)-> assertPersist pMgr, model, 'B', id, connector, next
             (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
-            (row, next)-> connector.rollback next, true
         ], done
 
         return
@@ -38,9 +32,7 @@ describe 'insert', ->
         model.className = 'ClassD'
         rowD = null
 
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
+        twaterfall connector, [
             (next)-> pMgr.insert model, {connector}, next
             (id, next)-> assertPersist pMgr, model, 'D', id, connector, next
             (row, next)->
@@ -50,7 +42,6 @@ describe 'insert', ->
                 return
             # Inherited parent must have the correct id
             (row, next)-> assertPersist pMgr, model, 'A', rowD, connector, next
-            (row, next)-> connector.rollback next, true
         ], done
 
         return
@@ -63,10 +54,8 @@ describe 'insert', ->
         model.className = 'ClassE'
 
         rowE = null
-        async.waterfall [
-            (next)-> connector.acquire next
-            (performed, next)-> connector.begin next
-            (next)-> pMgr.insert model, {connector: connector}, next
+        twaterfall connector, [
+            (next)-> pMgr.insert model, {connector}, next
             (id, next)-> assertPersist pMgr, model, 'E', id, connector, next
             (row, next)->
                 rowE = row
@@ -79,7 +68,6 @@ describe 'insert', ->
 
             # Inherited parent of inherited parent must have the correct id
             (row, next)-> assertPersist pMgr, model, 'A', row, connector, next
-            (row, next)-> connector.rollback next, true
         ], done
 
         return

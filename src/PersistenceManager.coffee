@@ -189,7 +189,7 @@ PersistenceManager::getSelectQuery = (className, options, guess = true)->
 
     if not options.where and _.isPlainObject options.attributes
         definition = @_getDefinition className
-        options.where = _getInitializeCondition @, null, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+        {where: options.where} = _getInitializeCondition @, null, className, definition, _.defaults({useDefinitionColumn: false}, options)
 
     new SelectQuery @, className, options
 
@@ -271,26 +271,35 @@ PersistenceManager::save = (model, options, callback)->
     definition = @_getDefinition className
 
     try
-        where = _getInitializeCondition @, model, className, definition, options,
+        {fields, where} = _getInitializeCondition @, model, className, definition, _.defaults(
             useDefinitionColumn: false
             useAttributes: false
+        ,  options)
     catch err
         callback err
         return
 
     if where.length is 0
-        @insert model, _.extend({}, options, reflect: true), callback
+        @insert model, _.defaults({reflect: true}, options), (err, id)->
+            callback(err, id, 'insert')
+            return
     else
         backup = options
-        options = _.extend {}, options,
+        options = _.defaults
+            fields: fields
             where: where
             limit: 2 # Expecting one result. Limit is for unique checking without getting all results
+        , options
         @list className, options, (err, models)=>
             return callback(err) if err
             if models.length is 1
+                # update properties
+                model.set _.defaults model.toJSON(), models[0].toJSON()
                 @update model, backup, callback
             else
-                @insert model, _.extend({}, backup, reflect: true), callback
+                @insert model, _.defaults({reflect: true}, backup), (err, id)->
+                    callback(err, id, 'insert')
+                    return
             return
     return
 
@@ -306,9 +315,10 @@ PersistenceManager::initializeOrInsert = (model, options, callback)->
     definition = @_getDefinition className
 
     try
-        where = _getInitializeCondition @, model, className, definition, _.extend {}, options,
+        {where} = _getInitializeCondition @, model, className, definition, _.defaults(
             useDefinitionColumn: false
             useAttributes: false
+        , options)
     catch err
         callback err
         return
@@ -349,7 +359,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
         models: [model]
 
     try
-        options.where = _getInitializeCondition @, model, className, definition, _.extend {}, options, {useDefinitionColumn: false}
+        {where: options.where} = _getInitializeCondition @, model, className, definition, _.defaults({useDefinitionColumn: false}, options)
     catch err
         callback err
         return
@@ -358,13 +368,16 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
 
 # return where condition to be parsed by RowMap
 _getInitializeCondition = (pMgr, model, className, definition, options)->
+    where = []
+
     if typeof options.where is 'undefined'
         if not model
             attributes = options.attributes
         else if _.isPlainObject(definition.id) and value = model.get definition.id.name
-            # id is define
+            # id is defined
             attributes = {}
             attributes[definition.id.name] = value
+            fields = [definition.id.name]
         else
             if definition.constraints.unique.length isnt 0 and (options.useAttributes is false or not options.attributes)
                 attributes = {}
@@ -383,16 +396,21 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
                         attributes[prop] = value
                     break if isSetted
 
+                if not isSetted
+                    # the model cannot be initialized using it's attributes
+                    return {fields, where}
+
+                fields = Object.keys attributes
+
             attributes = options.attributes or model.toJSON() if not isSetted and options.useAttributes isnt false
-        where = []
 
         if _.isPlainObject attributes
             for attr, value of attributes
-                _addWhereCondition pMgr, model, attr, value, definition, where, options
+                _addWhereAttr pMgr, model, attr, value, definition, where, options
         else if Array.isArray attributes
             for attr in attributes
                 value = model.get attr
-                _addWhereCondition pMgr, model, attr, value, definition, where, options
+                _addWhereAttr pMgr, model, attr, value, definition, where, options
     else
         where = options.where
 
@@ -400,17 +418,24 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
         _.isPlainObject(options.result) or (options.result = {})
         options.result.constraint = index
 
-    where or []
+    {fields, where}
 
 PRIMITIVE_TYPES = /^(?:string|boolean|number)$/
 
-_addWhereCondition = (pMgr, model, attr, value, definition, where, options)->
+_addWhereAttr = (pMgr, model, attr, value, definition, where, options)->
     if typeof value is 'undefined'
         return
 
     if options.useDefinitionColumn
+        # ignore not defined properties
+        if not definition.properties.hasOwnProperty attr
+            return
         column = options.escapeId definition.properties[attr].column
     else
+        # ignore not defined properties
+        if not definition.availableProperties.hasOwnProperty attr
+            return
+
         column = '{' + attr + '}'
 
     propDef = definition.availableProperties[attr].definition
@@ -590,9 +615,7 @@ PersistenceManager.InsertQuery = class InsertQuery
             if options.reflect
                 if definition.id.hasOwnProperty 'column'
                     where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
-                options = _.extend {}, options,
-                    where: where
-                pMgr.initialize model, options, (err, models)->
+                pMgr.initialize model, _.defaults({connector, where}, options), (err, models)->
                     callback err, id
                 , false
             else
@@ -855,6 +878,7 @@ PersistenceManager.SelectQuery = class SelectQuery
             if Array.isArray options.models
                 models = options.models
                 if models.length isnt rows.length
+                    debugger
                     err = new Error 'Returned rows and given number of models doesn\'t match'
                     err.extend = [models.length, rows.length]
                     err.code = 'OPT_MODELS'
@@ -869,7 +893,7 @@ PersistenceManager.SelectQuery = class SelectQuery
 
             if tasks.length > 0
                 async.eachSeries tasks, (task, next)->
-                    pMgr.list task.className , _.extend({connector: options.connector, dialect: options.dialect}, task.options), (err, models)->
+                    pMgr.list task.className , _.defaults({connector}, task.options), (err, models)->
                         return next(err) if err
                         if models.length isnt 1
                             err = new Error 'database is corrupted or there is bug'
@@ -905,7 +929,7 @@ _addUpdateOrDeleteCondition = (action, name, pMgr, model, className, definition,
     hasNoCondition = hasNoId = id is null or 'undefined' is typeof id
     if hasNoId
         options = _.extend {}, options, {useDefinitionColumn: true}
-        where = _getInitializeCondition pMgr, model, className, definition, options
+        {where} = _getInitializeCondition pMgr, model, className, definition, options
         result = options.result
         hasNoCondition = where.length is 0
         for condition in where
@@ -1041,17 +1065,12 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     params = values: []
 
                 for mixin, index in definition.mixins
+                    nested = options.nested or 0
                     params.values.push new UpdateQuery pMgr, model,
                         className: mixin.className
                         dialect: options.dialect
+                        nested: ++nested
                 return params
-
-        # check
-        # for block in update.blocks
-        #     if block instanceof squel.cls.SetFieldBlock
-        #         if block.fields.length is 0
-        #             hasNoUpdate = true
-        #         break
 
         @toString() if @hasData
 
@@ -1062,15 +1081,17 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         params = @toParam()
         idIndex = 0
         tasks = []
+
+        addTask = (query, connector)->
+            tasks.push (next)->
+                query.execute connector, next
+                return
+            return
+
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
             if value instanceof UpdateQuery and value.hasData
-                ((query, connector)->
-                    tasks.push (next)->
-                        query.execute connector, next
-                        return
-                    return
-                )(value, connector)
+                addTask(value, connector)
             else
                 break
 
@@ -1083,9 +1104,8 @@ PersistenceManager.UpdateQuery = class UpdateQuery
             if Array.isArray(results) and results.length > 0
                 for result in results
                     if Array.isArray(result) and result.length > 0
-                        id = result[0]
-                        extended = result[1]
-                        if not extended
+                        [id, msg] = result
+                        if msg is 'update'
                             logger.trace '[' + definition.className + '] - UPDATE: has update ' + id
                             hasUpdate = true
                             break
@@ -1101,9 +1121,9 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 logger.trace '[' + definition.className + '] - UPDATE: has no update ' + id
                 @setChangeCondition()
 
-            @_execute connector, (err, id, extended)->
-                hasUpdate = not extended
-                callback err, id, extended
+            @_execute connector, (err, id, msg)->
+                hasUpdate = hasUpdate or msg is 'update'
+                callback err, id, if hasUpdate then 'update' else 'no-update'
                 return
             return
         return
@@ -1128,17 +1148,32 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
             id = model.get definition.id.name
 
+            msg = if hasNoUpdate then 'no-update' else 'update'
+
+            if options.nested isnt undefined and options.nested isnt 0
+                callback err, id, msg
+                return
+
             if 'undefined' is typeof id
                 try
-                    where = _getInitializeCondition pMgr, model, definition.className, definition, _.extend {}, options, useDefinitionColumn: false
+                    {where} = _getInitializeCondition pMgr, model, definition.className, definition, _.defaults({connector, useDefinitionColumn: false}, options)
                 catch err
                     callback err
                     return
             else if definition.id.hasOwnProperty 'column'
                 where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
 
-            options = _.extend {}, options, where: where
+            # only initialize owned properties
+            # parent and mixins will initialized their owned properties
+            fields = Object.keys definition.availableProperties
+            for field, i in fields
+                propDef = definition.availableProperties[field]
+                if definition.id isnt propDef.definition and not propDef.mixin and propDef.definition.hasOwnProperty('className')
+                    fields[i] = field + ':*'
 
+            options = _.defaults({connector, fields, where}, options)
+
+            logger.debug '[' + definition.className + '] - UPDATE initializing ' + id
             pMgr.initialize model, options, (err, models)->
                 return callback err if err
                 id = model.get definition.id.name
@@ -1147,12 +1182,12 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     if models.length is 0
                         err = new Error 'id or lock condition'
                         err.code = 'NO_UPDATE'
-                        logger.trace '[' + definition.className + '] - NO UPDATE ' + id
-                    else
-                        extended = 'no-update'
+                        logger.debug '[' + definition.className + '] - NO UPDATE ' + id
                 else
-                    logger.trace '[' + definition.className + '] - UPDATE ' + id
-                callback err, id, extended
+                    logger.debug '[' + definition.className + '] - UPDATE ' + id
+
+                logger.debug '[' + definition.className + '] - UPDATE initialized ' + id
+                callback err, id, msg
                 return
             , false
             return

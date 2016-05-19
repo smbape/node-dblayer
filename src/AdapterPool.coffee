@@ -4,8 +4,9 @@ logger = log4js.getLogger 'AdapterPool'
 _ = require 'lodash'
 url = require 'url'
 sysPath = require 'path'
-GenericUtil = require './GenericUtil'
 semLib = require 'sem-lib'
+GenericUtil = require './GenericUtil'
+Connector = require './Connector'
 
 internal = {}
 internal.adapters = {}
@@ -297,8 +298,7 @@ module.exports = class AdapterPool extends SemaphorePool
     getDialect: ->
         return @options.adapter
     createConnector: (options)->
-        Connector = require './Connector'
-        new Connector @, options
+        new Connector @, _.defaults {}, options, @options
     getMaxConnection: ->
         @options.maxConnection
     # escape: ->

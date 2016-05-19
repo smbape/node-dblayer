@@ -47,6 +47,7 @@ initPools = ->
             password: config.password
             minConnectio: 0
             maxConnection: 1
+            timeout: 3600 * 1000
         }
 
     for name, user of config.users
@@ -61,6 +62,7 @@ initPools = ->
             password: user.password
             minConnectio: 0
             maxConnection: 1
+            timeout: 3600 * 1000
         }
 
     connectors = {}
@@ -115,6 +117,24 @@ after (done)->
             logger.warn(err) if err
             done()
             return
+        return
+    return
+
+global.twaterfall = (connector, tasks, done)->
+    acquired = false
+    transaction = false
+    async.waterfall [
+        (next)-> connector.acquire next
+        (performed, next)->
+            acquired = performed
+            connector.begin next
+            return
+        (next)->
+            transaction = true
+            next()
+            return
+    ].concat(tasks), (err)->
+        connector.rollback done, true
         return
     return
 
@@ -397,4 +417,29 @@ global.assertPropSubClass = (modelF, modelD, modelE)->
                 prop = 'prop' + letter + index
                 assert.strictEqual modelE.get(prop), pModelE.get prop
 
+    return
+
+global.assertCount = (pMgr, expected, connector, next)->
+    done = 0
+    query = ''
+    options = _.extend {}, pMgr.getSquelOptions(connector.getDialect()), autoQuoteFieldNames: false
+    for letter in ['A', 'B', 'C', 'D', 'E', 'F']
+        definition = pMgr.getDefinition 'Class' + letter
+        query += ' UNION ALL ' + squel
+            .select options
+            .field('COUNT(1)', 'count', dontQuote: true)
+            .from connector.escapeId definition.table
+            .toString()
+
+    query = query.substring 11
+    connector.query query, (err, res)->
+        return next err if err
+        assert.strictEqual expected[0], parseInt res.rows[0].count, 10
+        assert.strictEqual expected[1], parseInt res.rows[1].count, 10
+        assert.strictEqual expected[2], parseInt res.rows[2].count, 10
+        assert.strictEqual expected[3], parseInt res.rows[3].count, 10
+        assert.strictEqual expected[4], parseInt res.rows[4].count, 10
+        assert.strictEqual expected[5], parseInt res.rows[5].count, 10
+        next err
+        return
     return

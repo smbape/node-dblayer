@@ -1529,6 +1529,7 @@ task = (config, assert)->
             _next()
 
         # Test list on a class with parent and mixins
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassD'
 
@@ -1566,6 +1567,7 @@ task = (config, assert)->
             _next()
 
         # Test list of class with nested parent inheritance
+
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassE'
 
@@ -1623,6 +1625,7 @@ task = (config, assert)->
             _next()
 
         # Test listing properties that are classes
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -1738,6 +1741,7 @@ task = (config, assert)->
 
         # Test listing with only selected fields
         # Test handlers
+
         [pMgr, model, connector, Model] = setUpMapping()
         modelF = model.clone()
         modelF.className = 'ClassF'
@@ -3112,7 +3116,8 @@ task = (config, assert)->
             _next()
 
         # unique constraint used on initialize, update, delete => where must be on properties
-        # For performance concern, even if an entry has a unique constraint, add a primary key column
+        # For convenience, even if a table has a unique constraint on multiple column,
+        # add a unique primary key column to get it when insert or update
         # initialize goes with list => where is handled
         # update and delete, for each unique constraint, take the first one that has all it's fields not null
 

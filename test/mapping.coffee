@@ -72,22 +72,6 @@ mapping['User'] =
         {type: 'unique', properties: ['email']}
     ]
 
-mapping['Right'] =
-    table: 'RIGHTS'
-    id:
-        name: 'id'
-        column: 'RGT_ID'
-    properties:
-        code: 'RGT_CODE'
-    constraints: {type: 'unique', properties: ['code']}
-
-mapping['UserRight'] =
-    table: 'USR_RGT'
-    properties:
-        user: className: 'User'
-        right: className: 'Right'
-    constraints: {type: 'unique', properties: ['user', 'right']}
-
 mapping['Property'] =
     table: 'PROPERTIES'
     id:
@@ -124,27 +108,3 @@ mapping['Country'] =
     properties:
         code: 'CRY_CODE'
         property: className: 'Property'
-
-mapping['Processor'] =
-    table: 'PROCESSORS'
-    id: className: 'Data'
-    properties:
-        code: 'PRC_CODE'
-        nbCores: 'PRC_NB_CORES'
-        serie: 'PRC_SERIE'
-        socket: 'PRC_SOCKET'
-        manufacturer: 'PRC_MANUFACTURER'
-        price: 'PRC_PRICE'
-        tdp: 'PRC_TDP'
-        releaseDate:
-            column: 'PRC_RELEASE_DATE'
-            handlers: handlersDate
-
-mapping['Token'] =
-    table: 'TOKEN'
-    id:
-        name: 'id'
-        column: 'TOK_ID'
-    properties:
-        value: 'TOK_VALUE'
-        user: className: 'User'
