@@ -28,7 +28,9 @@ delegateMethod = (self, className, method, target = method)->
 
 module.exports = class PersistenceManager extends CompiledMapping
     defaults:
-        list: {}
+        list: {
+            depth: 10
+        }
         insert: {}
         update: {}
         save: {}
@@ -113,8 +115,9 @@ PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialec
     else
         query
 
-PersistenceManager::insert = (model, options, callback)->
-    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert)
+PersistenceManager::insert = (model, options, callback, guess = true)->
+    if guess
+        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert, PersistenceManager::defaults.insert)
     try
         query = @getInsertQuery model, options, false
     catch err
@@ -159,15 +162,16 @@ PersistenceManager::insert = (model, options, callback)->
 
 PersistenceManager::getInsertQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.insert)
-    new InsertQuery @, model, options
+        options = guessEscapeOpts(options, @defaults.insert, PersistenceManager::defaults.insert)
+    new InsertQuery @, model, options, false
 
-PersistenceManager::list = (className, options, callback)->
+PersistenceManager::list = (className, options, callback, guess = true)->
     if 'function' is typeof options
         callback = options
         options = {}
 
-    options = guessEscapeOpts(options, @defaults.list)
+    if guess
+        options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
     try
         query = @getSelectQuery className, options, false
     catch err
@@ -177,7 +181,7 @@ PersistenceManager::list = (className, options, callback)->
     query.list connector, callback
 
 PersistenceManager::stream = (className, options, callback, done)->
-    options = guessEscapeOpts(options, @defaults.list)
+    options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
     try
         query = @getSelectQuery className, options, false
     catch err
@@ -189,7 +193,7 @@ PersistenceManager::stream = (className, options, callback, done)->
 
 PersistenceManager::getSelectQuery = (className, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.list)
+        options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
 
     if _.isPlainObject options.where
         options.attributes = options.where
@@ -199,10 +203,11 @@ PersistenceManager::getSelectQuery = (className, options, guess = true)->
         definition = @_getDefinition className
         {where: options.where} = _getInitializeCondition @, null, className, definition, _.defaults({useDefinitionColumn: false}, options)
 
-    new SelectQuery @, className, options
+    new SelectQuery @, className, options, false
 
-PersistenceManager::update = (model, options, callback)->
-    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.update)
+PersistenceManager::update = (model, options, callback, guess = true)->
+    if guess
+        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.update, PersistenceManager::defaults.update)
     try
         query = @getUpdateQuery model, options, false
     catch err
@@ -247,15 +252,15 @@ PersistenceManager::update = (model, options, callback)->
 
 PersistenceManager::getUpdateQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.update)
-    new UpdateQuery @, model, options
+        options = guessEscapeOpts(options, @defaults.update, PersistenceManager::defaults.update)
+    new UpdateQuery @, model, options, false
 
 PersistenceManager::delete = PersistenceManager::remove = (model, options, callback)->
     if 'function' is typeof options
         callback = options
         options = {}
 
-    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.delete)
+    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.delete, PersistenceManager::defaults.delete)
     try
         query = @getDeleteQuery model, options, false
     catch err
@@ -267,12 +272,12 @@ PersistenceManager::delete = PersistenceManager::remove = (model, options, callb
 
 PersistenceManager::getDeleteQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.delete)
-    new DeleteQuery @, model, options
+        options = guessEscapeOpts(options, @defaults.delete, PersistenceManager::defaults.delete)
+    new DeleteQuery @, model, options, false
 
 PersistenceManager::save = (model, options, callback)->
     return callback err if (err = isValidModelInstance model) instanceof Error
-    options = guessEscapeOpts(options, @defaults.save)
+    options = guessEscapeOpts(options, @defaults.save, PersistenceManager::defaults.save)
 
     # if arguments.length is 2 and 'function' is typeof options
     #     callback = options
@@ -295,6 +300,7 @@ PersistenceManager::save = (model, options, callback)->
         @insert model, _.defaults({reflect: true}, options), (err, id)->
             callback(err, id, 'insert')
             return
+        , false
     else
         backup = options
         options = _.defaults
@@ -307,12 +313,14 @@ PersistenceManager::save = (model, options, callback)->
             if models.length is 1
                 # update properties
                 model.set _.defaults model.toJSON(), models[0].toJSON()
-                @update model, backup, callback
+                @update model, backup, callback, false
             else
                 @insert model, _.defaults({reflect: true}, backup), (err, id)->
                     callback(err, id, 'insert')
                     return
+                , false
             return
+        , false
     return
 
 PersistenceManager::initialize = (model, options, callback, guess = true)->
@@ -339,7 +347,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
         callback err
         return
 
-    @list className, options, callback
+    @list className, options, callback, false
 
 # return where condition to be parsed by RowMap
 _getInitializeCondition = (pMgr, model, className, definition, options)->
@@ -431,9 +439,11 @@ _addWhereAttr = (pMgr, model, attr, value, definition, where, options)->
     return
 
 PersistenceManager.InsertQuery = class InsertQuery
-    constructor: (pMgr, model, options)->
+    constructor: (pMgr, model, options, guess = true)->
         assertValidModelInstance model
-        @options = options = guessEscapeOpts(options)
+        if guess
+            options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
+        @options = options
 
         @model = model
         @pMgr = pMgr
@@ -461,7 +471,12 @@ PersistenceManager.InsertQuery = class InsertQuery
             @toParam = ->
                 params = insert.toParam()
                 for mixin, index in definition.mixins
-                    params.values[index] = new InsertQuery pMgr, model, _.extend {}, options, className: mixin.className
+                    nested = options.nested or 0
+                    params.values[index] = new InsertQuery pMgr, model, _.defaults({
+                        className: mixin.className
+                        dialect: options.dialect
+                        nested: ++nested
+                    }, options) , false
                 return params
 
             for mixin in definition.mixins
@@ -729,13 +744,16 @@ PersistenceManager::getCachedRowMap = (cacheId, className, options)->
     rowMap
 
 PersistenceManager.SelectQuery = class SelectQuery
-    constructor: (pMgr, className, options)->
+    constructor: (pMgr, className, options, guess = true)->
         if arguments.length is 1
             if arguments[0] instanceof RowMap
                 @rowMap = arguments[0]
                 return @
             else
                 throw new Error 'Given parameter do not resolve to a RowMap'
+
+        if guess
+            options = guessEscapeOpts(options, pMgr.defaults.list, PersistenceManager::defaults.list)
 
         useCache = options.cache isnt false
         cacheId = _getCacheId options if useCache
@@ -919,10 +937,11 @@ _addUpdateOrDeleteCondition = (action, name, pMgr, model, className, definition,
     return result
 
 PersistenceManager.UpdateQuery = class UpdateQuery
-    constructor: (pMgr, model, options)->
+    constructor: (pMgr, model, options, guess = true)->
         assertValidModelInstance model
-
-        @options = options = guessEscapeOpts(options)
+        if guess
+            options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
+        @options = options
 
         @model = model
         @pMgr = pMgr
@@ -1041,10 +1060,11 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
                 for mixin, index in definition.mixins
                     nested = options.nested or 0
-                    params.values.push new UpdateQuery pMgr, model,
+                    params.values.push new UpdateQuery pMgr, model, _.defaults({
                         className: mixin.className
                         dialect: options.dialect
                         nested: ++nested
+                    }, options) , false
                 return params
 
         @toString() if @hasData
@@ -1170,10 +1190,11 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         return
 
 PersistenceManager.DeleteQuery = class DeleteQuery
-    constructor: (pMgr, model, options)->
+    constructor: (pMgr, model, options, guess = true)->
         assertValidModelInstance model
-
-        options = guessEscapeOpts(options)
+        if guess
+            options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
+        @options = options
 
         @toParam = ->
             remove.toParam()
@@ -1217,9 +1238,12 @@ PersistenceManager.DeleteQuery = class DeleteQuery
             @toParam = ->
                 params = remove.toParam()
                 for mixin, index in definition.mixins
-                    params.values.push new DeleteQuery pMgr, model,
+                    nested = options.nested or 0
+                    params.values.push new DeleteQuery pMgr, model, _.defaults({
                         className: mixin.className
                         dialect: options.dialect
+                        nested: ++nested
+                    }, options) , false
                 return params
 
         # check
@@ -1271,20 +1295,19 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         return
 
 PersistenceManager::getInsertQueryString = (className, entries, options)->
-    options = _.defaults guessEscapeOpts(options), @defaults.insert
     table = @getTable className
     rows = []
 
     for attributes in entries
         row = {}
-        query = pMgr.getInsertQuery pMgr.newInstance className, attributes
+        query = pMgr.getInsertQuery pMgr.newInstance(className, attributes), options
         {fields: columns, values: [values]} = query.toQuery().blocks[2]
         for column, i in columns
             row[column] = values[i]
         rows.push row
 
     squel.insert(squelOptions)
-        .into options.escapeId @getTable className
+        .into query.options.escapeId @getTable className
         .setFieldsRows rows
         .toString()
 

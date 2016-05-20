@@ -147,7 +147,7 @@ describe 'mapping', ->
             table: 'TableA'
             id:
                 name: 'idA'
-                clumn: undefined
+                column: undefined
         , 'ID_COLUMN'
 
         # Column cannot be setted as null
@@ -372,12 +372,14 @@ describe 'mapping', ->
         , 'INCOMP_ID'
 
         # constraint
+        delete mapping.ClassB
         assertPartialThrows mapping, 'ClassA',
             table: 'TableA'
+            id: 'idA'
             properties:
                 propA1: 'colPropA1'
                 propA2: 'colPropA2'
-            constraints: null
+            constraints: {}
         , 'CONSTRAINT'
 
         # constraint

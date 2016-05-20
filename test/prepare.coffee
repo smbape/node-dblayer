@@ -97,8 +97,8 @@ before (done)->
             make.install config, (err)->
                 logger.warn(err) if err
                 {pools: global.pools, connectors: global.connectors} = initPools()
-                pMgr.defaults.insert = pMgr.defaults.update = pMgr.defaults.delete = {connector: connectors.writer}
-                pMgr.defaults.list = {connector: connectors.reader}
+                PersistenceManager::defaults.insert = PersistenceManager::defaults.update = PersistenceManager::defaults.delete = {connector: connectors.writer}
+                PersistenceManager::defaults.list = {connector: connectors.reader}
 
                 require('./sqlscripts') next
                 return
@@ -144,7 +144,11 @@ global.squelFields = (attributes)->
         fields[escapeOpts.escapeId(field)] = value
     fields
 
-global.assertThrows = (fn, callback)->
+global.assertThrows = (fn, callback, msg = 'Throws and unexpected error')->
+    if 'string' is typeof callback
+        expected = callback
+        callback = (err)->
+            assert.strictEqual err.code, expected
     try
         fn()
         throw new Error "expected #{fn} to throw"
@@ -157,9 +161,7 @@ global.assertPartialThrows = (mapping, className, given, expected)->
     assertThrows ->
         pMgr = new PersistenceManager mapping
         return
-    , (err)->
-        err.code is expected
-    , 'unexpected error'
+    , expected
     return
 
 global.assertPartial = (mapping, className, given, expected)->
@@ -183,9 +185,7 @@ global.assertInsertQueryThrows = (mapping, model, className, expected)->
     assertThrows ->
         pMgr.getInsertQuery model, {dialect: config.dialect}
         return
-    , (err)->
-        err.code is expected
-    , 'unexpected error'
+    , expected
     return
 
 global.assertPersist = (pMgr, model, classNameLetter, id, connector, next)->

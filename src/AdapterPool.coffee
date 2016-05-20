@@ -62,8 +62,10 @@ class SemaphorePool extends semLib.Semaphore
         @_timers = {}
         @_avalaible = []
         @_ensureMinimum()
+
     getName: ->
         @_factory.name
+
     acquire: (callback, opts = {})->
         self = @
         self.semTake
@@ -85,6 +87,7 @@ class SemaphorePool extends semLib.Semaphore
                 self._removeIdle client
                 callback null, client
                 return
+
     release: (client)->
         index = @_created.indexOf client
         if ~index
@@ -93,6 +96,7 @@ class SemaphorePool extends semLib.Semaphore
             @_idle client
             return @semGive()
         return false
+
     _idle: (client)->
         self = @
         if @_factory.idle > 0
@@ -102,31 +106,34 @@ class SemaphorePool extends semLib.Semaphore
                 return
             , self._factory.idle
         return
+
     _removeIdle: (client)->
         clearTimeout @_timers[client.id]
         delete @_timers[client.id]
         return
-    destroy: (client, force)->
-        index = @_created.indexOf client
 
-        # ensure minimum
-        if ~index
-            if force or @_factory.min < @_created.length
-                logger.debug "[#{this._factory.name}] [#{this.id}] destroying '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
-                @_created.splice index, 1
+    # destroy: (client, force)->
+    #     index = @_created.indexOf client
 
-                # remove it from available since it will be destroyed
-                index = @_avalaible.indexOf client
-                @_avalaible.splice index, 1 if ~index
+    #     # ensure minimum
+    #     if ~index
+    #         if force or @_factory.min < @_created.length
+    #             logger.debug "[#{this._factory.name}] [#{this.id}] destroying '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
+    #             @_created.splice index, 1
 
-                @_factory.destroy client
-                logger.debug "[#{this._factory.name}] [#{this.id}] destroyed '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
+    #             # remove it from available since it will be destroyed
+    #             index = @_avalaible.indexOf client
+    #             @_avalaible.splice index, 1 if ~index
 
-                @_ensureMinimum() if force
-                return true
-            else
-                @_idle client
-        return false
+    #             @_factory.destroy client
+    #             logger.debug "[#{this._factory.name}] [#{this.id}] destroyed '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
+
+    #             @_ensureMinimum() if force
+    #             return true
+    #         else
+    #             @_idle client
+    #     return false
+
     _superDestroy: (safe, _onDestroy)->
         SemaphorePool.__super__.destroy.call @, safe, _onDestroy
 
@@ -209,6 +216,7 @@ module.exports = class AdapterPool extends SemaphorePool
                 @options[key] = parsed.query[key]
 
             _.extend @options, options
+            options or (options = {})
         else if options
             @options = _.clone options
             parsed = query: {}

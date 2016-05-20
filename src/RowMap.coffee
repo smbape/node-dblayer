@@ -336,6 +336,9 @@ module.exports = class RowMap
         parentDef = @manager.getDefinition parentInfo.className
 
         if prop is '*'
+            if @options.depth < ancestors.length
+                logger.warn 'max depth reached'
+                return
             @_set parentInfo, 'selectAll', true
             for prop of parentDef.availableProperties
                 @_setField @_getUniqueId(prop, ancestors), true
@@ -358,7 +361,7 @@ module.exports = class RowMap
         @_set info, 'selectAll', parentInfo.selectAll
 
         if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'selectedAll'
-            if parentDef.availableProperties[prop].mixin or parentDef.availableProperties[prop].definition.nullable is false
+            if parentDef.availableProperties[prop].definition.nullable is false
                 isNullable = false
                 ancestors = ancestors.concat([prop])
             else
@@ -400,7 +403,7 @@ module.exports = class RowMap
         if parentInfo
             parentDef = @manager.getDefinition parentInfo.className
             prop = info.attribute
-            if (parentDef.availableProperties[prop].mixin or parentDef.availableProperties[prop].definition.nullable is false) and parentInfo.hasJoin is JOIN_FUNC.default
+            if (parentDef.availableProperties[prop].definition.nullable is false) and parentInfo.hasJoin is JOIN_FUNC.default
                 hasJoin = JOIN_FUNC.default
 
         if typeof hasJoin is 'undefined'

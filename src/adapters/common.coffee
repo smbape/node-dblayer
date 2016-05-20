@@ -1,7 +1,47 @@
-_extend = (dst, src)->
-    for prop of src
-        dst[prop] = src[prop]
-    dst
+# ==============
+# From jQuery
+# ==============
+extend = ->
+    target = arguments[0] or {}
+    i = 1
+    length = arguments.length
+    deep = false
+    # Handle a deep copy situation
+    if typeof target == 'boolean'
+        deep = target
+        # skip the boolean and the target
+        target = arguments[i] or {}
+        i++
+    # Handle case when target is a string or something (possible in deep copy)
+    if typeof target != 'object' and !isFunction(target)
+        target = {}
+    while i < length
+        # Only deal with non-null/undefined values
+        if (options = arguments[i]) != null
+            # Extend the base object
+            for name of options
+                `name = name`
+                src = target[name]
+                copy = options[name]
+                # Prevent never-ending loop
+                if target == copy
+                    i++
+                    continue
+                # Recurse if we're merging plain objects or arrays
+                if deep and copy and (isObject(copy) or (copyIsArray = Array.isArray(copy)))
+                    if copyIsArray
+                        copyIsArray = false
+                        clone = if src and Array.isArray(src) then src else []
+                    else
+                        clone = if src and isObject(src) then src else {}
+                    # Never move original objects, clone them
+                    target[name] = extend(deep, clone, copy)
+                    # Don't bring in undefined values
+                else if copy != undefined
+                    target[name] = copy
+        i++
+    # Return the modified object
+    target
 
 exports.CONSTANTS = CONSTANTS =
     MYSQL: 'mysql'
@@ -42,9 +82,9 @@ _escapeConfigs[CONSTANTS.MYSQL] =
             '%': '!%'
             '_': '!_'
             '!': '!!'
-_escapeConfigs[CONSTANTS.MYSQL].begin = _extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
+_escapeConfigs[CONSTANTS.MYSQL].begin = extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
 _escapeConfigs[CONSTANTS.MYSQL].begin.quoteStart = "'"
-_escapeConfigs[CONSTANTS.MYSQL].end = _extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
+_escapeConfigs[CONSTANTS.MYSQL].end = extend {}, _escapeConfigs[CONSTANTS.MYSQL].search
 _escapeConfigs[CONSTANTS.MYSQL].end.quoteEnd = "'"
 
 _escapeConfigs[CONSTANTS.POSTGRES] =
@@ -79,9 +119,9 @@ _escapeConfigs[CONSTANTS.POSTGRES] =
             '%': '!%'
             '_': '!_'
             '!': '!!'
-_escapeConfigs[CONSTANTS.POSTGRES].begin = _extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
+_escapeConfigs[CONSTANTS.POSTGRES].begin = extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
 _escapeConfigs[CONSTANTS.POSTGRES].begin.quoteStart = "'"
-_escapeConfigs[CONSTANTS.POSTGRES].end = _extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
+_escapeConfigs[CONSTANTS.POSTGRES].end = extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
 _escapeConfigs[CONSTANTS.POSTGRES].end.quoteEnd = "'"
 
 exports._escape = _escape = (str, opts)->
@@ -113,8 +153,10 @@ exports.exprEqual = (value, escapeColumn)->
     else
         escapeColumn + ' = ' + @escape value
 
-exports.guessEscapeOpts = (options, defaults)->
-    options = _extend  _extend({}, defaults), options
+exports.guessEscapeOpts = ()->
+    args = Array::slice.call(arguments).reverse()
+    args.unshift {}
+    options = extend.apply @, args
     {connector, dialect} = options
 
     if 'string' isnt options.dialect and connector and 'function' is typeof connector.getDialect

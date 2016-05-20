@@ -29,6 +29,7 @@ describe 'insert query', ->
             properties:
                 propA1: 'colPropA1'
 
+        debugger
         assertInsertQuery(mapping, model, 'ClassA', squel.insert(squelOptions)
             .into escapeOpts.escapeId mapping['ClassA'].table
             .setFields squelFields {colIdA: 'idAValue', colPropA1: 'propA1Value'}

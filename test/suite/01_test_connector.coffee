@@ -24,37 +24,44 @@ describe 'test connector', ->
         assertThrows ->
             new AdapterPool()
             return
-        , (err)->
-            return  err.code is 'INVALID_ARGUMENTS'
-        , 'unexpected error'
+        , 'INVALID_ARGUMENTS'
 
         assertThrows ->
             new AdapterPool 'url'
             return
-        , (err)->
-            err.code is 'BAD_ADAPTER'
-        , 'unexpected error'
+        , 'BAD_ADAPTER'
 
         assertThrows ->
             new AdapterPool 'url', adapter: null
             return
-        , (err)->
-            err.code is 'BAD_ADAPTER'
-        , 'unexpected error'
+        , 'BAD_ADAPTER'
 
         assertThrows ->
             new AdapterPool 'url', adapter: ''
             return
-        , (err)->
-            err.code is 'BAD_ADAPTER'
-        , 'unexpected error'
+        , 'BAD_ADAPTER'
 
         assertThrows ->
             new AdapterPool 'url', adapter: 1
             return
-        , (err)->
-            err.code is 'BAD_ADAPTER'
-        , 'unexpected error'
+        , 'BAD_ADAPTER'
+
+        user = encodeURIComponent config.users.reader.name
+        password = encodeURIComponent config.users.reader.password
+        url = "#{config.dialect}://#{user}:#{password}@#{config.host}:#{config.port}/#{config.database}"
+        pool = new AdapterPool "#{url}?schema=schema&minConnection=0&maxConnection=1&idleTimeout=1800"
+
+        options = ['adapter', 'user', 'password', 'host', 'port', 'database', 'schema', 'minConnection', 'maxConnection', 'idleTimeout']
+        expected = _.pick(config, options)
+        expected.adapter = config.dialect
+        expected.user = config.users.reader.name
+        expected.password = config.users.reader.password
+        expected.adapter = config.dialect
+        expected.schema = 'schema'
+        expected.minConnection = 0
+        expected.maxConnection = 1
+        expected.idleTimeout = 1800
+        assert.deepEqual _.pick(pool.options, options), _.pick(expected, options)
 
         tasks = []
         for type in ['admin', 'writer', 'reader']

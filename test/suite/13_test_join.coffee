@@ -5,6 +5,115 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'join', ->
+    it 'should generate select with join query', ->
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'INNER JOIN'
+
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    type: 'default'
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'INNER JOIN'
+
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    type: 'outer'
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'OUTER JOIN'
+
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    type: 'left'
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'LEFT JOIN'
+
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    type: 'right'
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'RIGHT JOIN'
+
+        query = pMgr.getSelectQuery 'User', {
+            join:
+                translation:
+                    type: 'CROSS JOIN'
+                    entity: 'Translation'
+                    condition: squel.expr().and '{translation, property} = {country:property}'
+                    fields: [
+                        'value'
+                        'property:code'
+                    ]
+        }
+        assert.include query.toString(), 'CROSS JOIN'
+
+        assertThrows ->
+            pMgr.getSelectQuery 'User', {
+                join:
+                    translation:
+                        entity: 'Translation'
+                        condition: squel.expr().and '{xxxxx, property} = {country:property}'
+                        fields: [
+                            'value'
+                            'property:code'
+                        ]
+            }
+            return
+        , 'TABLE_UNDEF'
+
+        assertThrows ->
+            pMgr.getSelectQuery 'User', {
+                join:
+                    translation:
+                        type: {}
+                        entity: 'Translation'
+                        condition: squel.expr().and '{translation, property} = {country:property}'
+                        fields: [
+                            'value'
+                            'property:code'
+                        ]
+            }
+            return
+        , 'JOIN_TYPE'
+
+        return
+
     it 'should join', (done)->
         connector = pools.reader.createConnector()
 
