@@ -9,8 +9,8 @@
   "scripts": {
     "prepublish": "coffee -bo lib/ src/",
     "postinstall": "node -e \"require('fs').readdir('lib',function(e){e&&require('child_process').exec('npm run prepublish')})\"",
-    "test": "node node_modules/mocha/bin/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite",
-    "test-cover": "node node_modules/istanbul/lib/cli.js --dir=test/coverage cover node_modules/mocha/bin/_mocha -- --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite"
+    "test": "node test/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite",
+    "test-cover": "node node_modules/istanbul/lib/cli.js --dir=test/coverage cover test/_mocha -- --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite"
   },
   "repository": {
     "type": "git",
@@ -42,8 +42,9 @@
     "squel": "^4.4.2"
   },
   "devDependencies": {
-    "anyspawn": "^1.0.7",
+    "anyspawn": "^1.0.8",
     "chai": "^3.5.0",
+    "chalk": "^1.1.3",
     "coffee-script": "^1.10.0",
     "commander": "^2.8.1",
     "istanbul": "^0.4.3",

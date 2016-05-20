@@ -2,7 +2,6 @@ sysPath = require 'path'
 _ = require 'lodash'
 async = require 'async'
 fs = require 'fs'
-anyspawn = require 'anyspawn'
 chai = require 'chai'
 moment = require 'moment'
 squel = require 'squel'
@@ -84,7 +83,7 @@ destroyPools = (done)->
     return
 
 before (done)->
-    @timeout 5 * 1000
+    @timeout 15 * 1000
     async.waterfall [
         (next)->
             logger.debug 'uninstall'
@@ -107,7 +106,7 @@ before (done)->
     ], done
 
 after (done)->
-    @timeout 5 * 1000
+    @timeout 15 * 1000
     destroyPools (err)->
         logger.warn(err) if err
         if config.keep
