@@ -2,7 +2,7 @@ _ = require 'lodash'
 path = require 'path'
 PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger 'RowMap'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 squel = require 'squel'
 {guessEscapeOpts} = require './tools'
 

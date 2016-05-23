@@ -1,5 +1,5 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger 'CompiledMapping'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 _ = require 'lodash'
 LRU = require 'lru-cache'
 
@@ -39,7 +39,7 @@ class Model
 specProperties = ['type', 'type_args', 'nullable', 'pk', 'fk']
 
 module.exports = class CompiledMapping
-    constructor: (mapping, options)->
+    constructor: (mapping)->
         for prop in ['classes', 'resolved', 'unresolved', 'tables']
             @[prop] = {}
 
@@ -72,7 +72,7 @@ module.exports = class CompiledMapping
                         parentDef = @_getDefinition propDef.className
                         fk = "#{classDef.table}_#{propDef.column}_HAS_#{parentDef.table}_#{parentDef.id.column}"
                         propDef.fk = fk
-                    _addIndexName propDef.fk, 'fk', classDef
+                    _addIndexName propDef.fk, 'fk', @
 
             # Set undefined constraint names
             {indexes, constraints: {unique, names}} = classDef
@@ -80,7 +80,7 @@ module.exports = class CompiledMapping
                 classDef.hasUniqueConstraints = true
                 if not names[key]
                     name = 'UK_' + properties.map(propToColumn).join('_')
-                    _addIndexName name, 'uk', classDef
+                    _addIndexName name, 'uk', @
                     names[key] = name
 
         @resolved = true
@@ -132,7 +132,6 @@ module.exports = class CompiledMapping
 
         classDef =
             className: className
-            manager: @
             properties: {}
             availableProperties: {}
             columns: {}
@@ -340,7 +339,7 @@ _resolve = (className, mapping, compiled)->
     # =============================================================================
     #  Constraints checking
     # =============================================================================
-    _addConstraints classDef, rawDefinition
+    _addConstraints compiled, classDef, rawDefinition
     # =============================================================================
     #  Constraints checking - End
     # =============================================================================
@@ -348,7 +347,7 @@ _resolve = (className, mapping, compiled)->
     # =============================================================================
     #  Indexes checking
     # =============================================================================
-    _addIndexes classDef, rawDefinition
+    _addIndexes compiled, classDef, rawDefinition
     # =============================================================================
     #  Indexes checking - End
     # =============================================================================
@@ -375,7 +374,7 @@ _resolve = (className, mapping, compiled)->
     if not classDef.id.pk
         pk = classDef.table
         classDef.id.pk = pk
-    _addIndexName classDef.id.pk, 'pk', classDef
+    _addIndexName classDef.id.pk, 'pk', compiled
 
     _setConstructor classDef, rawDefinition.ctor
 
@@ -433,7 +432,7 @@ _addProperties = (compiled, classDef, rawProperties)->
 
         if rawPropDef.unique
             propDef.unique = rawPropDef.unique
-            _addUniqueConstraint propDef.unique, [prop], classDef
+            _addUniqueConstraint propDef.unique, [prop], classDef, compiled
 
     return
 
@@ -531,7 +530,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
         if not _mixin.fk
             fk = "#{classDef.table}_#{_mixin.column}_EXT_#{mixinDef.table}_#{mixinDef.id.column}"
             _mixin.fk = fk
-        _addIndexName _mixin.fk, 'fk', classDef
+        _addIndexName _mixin.fk, 'fk', compiled
 
         for prop of mixinDef.availableProperties
             if not classDef.availableProperties.hasOwnProperty prop
@@ -541,7 +540,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
 
     return
 
-_addConstraints = (classDef, rawDefinition)->
+_addConstraints = (compiled, classDef, rawDefinition)->
     constraints = classDef.constraints
 
     ERR_CODE = 'CONSTRAINT'
@@ -592,11 +591,11 @@ _addConstraints = (classDef, rawDefinition)->
             propDef = classDef.properties[prop]
             propDef.unique = true
 
-        _addUniqueConstraint constraint.name, keys, classDef
+        _addUniqueConstraint constraint.name, keys, classDef, compiled
 
     return
 
-_addIndexes = (classDef, rawDefinition)->
+_addIndexes = (compiled, classDef, rawDefinition)->
     indexes = classDef.indexes
 
     ERR_CODE = 'INDEX'
@@ -634,12 +633,12 @@ _addIndexes = (classDef, rawDefinition)->
             err.code = ERR_CODE
             throw err
 
-        _addIndexName name, 'ix', classDef
+        _addIndexName name, 'ix', compiled
         indexes[name] = properties
 
     return
 
-_addUniqueConstraint = (name, properties, classDef)->
+_addUniqueConstraint = (name, properties, classDef, compiled)->
     properties.sort()
     key = properties.join(':')
     {constraints} = classDef
@@ -649,18 +648,18 @@ _addUniqueConstraint = (name, properties, classDef)->
         throw err
 
     if name
-        _addIndexName name, 'uk', classDef
+        _addIndexName name, 'uk', compiled
         constraints.names[key] = name
     constraints.unique[key] = properties
     return
 
-_addIndexName = (name, type, classDef)->
+_addIndexName = (name, type, compiled)->
     if not isStringNotEmpty name
         err = new Error "a #{type} index must be a not empty string"
         err.code = 'INDEX'
         throw err
 
-    indexNames = classDef.manager.indexNames[type]
+    indexNames = compiled.indexNames[type]
     if indexNames.hasOwnProperty name
         err = new Error "a #{type} index with name #{name} is already defined"
         err.code = 'INDEX'
@@ -695,7 +694,7 @@ _addSpecProperties = (definition, rawDefinition)->
                 when 'type_args'
                     if value and not Array.isArray(value)
                         err = new Error "[#{definition.className}] - property '#{prop}': type_args must be an Array"
-                        err.code = ERR_CODE
+                        err.code = 'TYPE_ARGS'
                         throw err
             definition[prop] = value
     return

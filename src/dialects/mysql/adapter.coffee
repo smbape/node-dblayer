@@ -1,14 +1,17 @@
+_ = require 'lodash'
+common = require '../../schema/adapter'
+adapter = module.exports
+_.extend adapter, common
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+
 mysql = require 'mysql'
 MySQLLibConnection = require 'mysql/lib/Connection'
 ConnectionConfig = require 'mysql/lib/ConnectionConfig'
 prependListener = require 'prepend-listener'
 once = require 'once'
-_ = require 'lodash'
 path = require 'path'
 HWM = Math.pow 2, 7
-logger = log4js.getLogger 'MySQLAdapter'
-
-adapter = exports
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 class MySQLConnection extends MySQLLibConnection
     adapter: adapter
@@ -51,9 +54,22 @@ class MySQLConnection extends MySQLLibConnection
             return
         stream
 
-common = require '../../schema/adapter'
-_.extend adapter, common,
+_.extend adapter,
     name: 'mysql'
+
+    createConnection: (options, callback)->
+        callback = (->) if typeof callback isnt 'function'
+        client = new MySQLConnection options
+        client.connect (err)->
+            return callback(err) if err
+            callback err, client
+
+    squelOptions:
+        replaceSingleQuotes: true
+        nameQuoteCharacter: '`'
+        fieldAliasQuoteCharacter: '`'
+        tableAliasQuoteCharacter: '`'
+
     createQuery: (text, values, callback)->
         if typeof callback is 'undefined' and typeof values is 'function'
             callback = values
@@ -107,18 +123,6 @@ _.extend adapter, common,
             return
 
         stream
-    createConnection: (options, callback)->
-        callback = (->) if typeof callback isnt 'function'
-        client = new MySQLConnection options
-        client.connect (err)->
-            return callback(err) if err
-            callback err, client
-
-    squelOptions:
-        replaceSingleQuotes: true
-        nameQuoteCharacter: '`'
-        fieldAliasQuoteCharacter: '`'
-        tableAliasQuoteCharacter: '`'
 
     # getModel: (callback)->
     #     callback = (->) if typeof callback isnt 'function'

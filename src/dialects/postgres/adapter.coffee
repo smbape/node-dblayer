@@ -1,11 +1,8 @@
-pg = require('pg')
-QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
-logger = log4js.getLogger 'PostgresAdapter'
 common = require '../../schema/adapter'
-
 adapter = module.exports
 _.extend adapter, common
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 escapeOpts =
     id:
@@ -50,6 +47,9 @@ adapter.escapeSearch = common._escape.bind common, escapeOpts.search
 adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
 adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
 
+pg = require('pg')
+QueryStream = require 'pg-query-stream'
+
 pg.Client::stream = (query, params, callback, done)->
         if arguments.length is 3
             done = callback
@@ -83,7 +83,7 @@ class PostgresQueryStream extends QueryStream
         QueryStream::handleRowDescription.call this, message
         @emit 'fields', message.fields
         return
-    handleError: (err) ->
+    handleError: ->
         @push null
         super
 
@@ -97,7 +97,7 @@ _.extend adapter,
             return callback(err, null) if err
             query = "SET SCHEMA '#{options.schema}'"
             logger.trace '[query] - ' + query
-            client.query query, (err, result)->
+            client.query query, (err)->
                 callback err, client
                 return
             return

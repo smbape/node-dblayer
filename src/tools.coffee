@@ -15,7 +15,7 @@ exports.guessEscapeOpts = ->
     if 'string' isnt options.dialect and connector and 'function' is typeof connector.getDialect
         dialect = options.dialect = connector.getDialect()
     try
-        adapter = exports.getAdapter(dialect)
+        adapter = exports.adapter(dialect)
 
     if connector or adapter
         for opt in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith', 'exprNotEqual', 'exprEqual']

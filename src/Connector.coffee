@@ -1,5 +1,5 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger 'Connector'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 EventEmitter = require('events').EventEmitter
 semLib = require 'sem-lib'
@@ -217,7 +217,7 @@ module.exports = class Connector extends EventEmitter
             done.apply null, arguments
         return
 
-    begin: (callback, options)->
+    begin: (callback)->
         if @_savepoints is 0
             # No automatic acquire because there cannot be an automatic release
             # Programmer may or may not perform a query/stream with the connection.
@@ -242,9 +242,9 @@ module.exports = class Connector extends EventEmitter
                 err.code = 'NO_CONNECTION'
                 return ret err
 
-            @_begin ret, options
+            @_begin ret
 
-    _begin: (callback, options)->
+    _begin: (callback)->
         if @_savepoints is 1
             # we have no transaction
             query = 'BEGIN'

@@ -11,8 +11,8 @@ _escape = exports._escape = (opts, str)->
         return '(' + ret.join(', ') + ')'
 
     str = '' + str if 'string' isnt type
-    str = str.replace opts.matcher, (match, char, index, str)->
-        opts.replace[char]
+    str = str.replace opts.matcher, (match, _char)->
+        opts.replace[_char]
     return (opts.quoteStart or opts.quote) + str + (opts.quoteEnd or opts.quote)
 
 exports.exprNotEqual = (value, escapeColumn)->

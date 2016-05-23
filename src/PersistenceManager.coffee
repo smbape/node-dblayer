@@ -1,5 +1,5 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger 'PersistenceManager'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 _ = require 'lodash'
 squel = require 'squel'
@@ -7,8 +7,6 @@ RowMap = require './RowMap'
 CompiledMapping = require './CompiledMapping'
 async = require 'async'
 semLib = require 'sem-lib'
-LRU = require 'lru-cache'
-knex = require 'knex'
 tools = require './tools'
 {adapter: getAdapter, guessEscapeOpts} = tools
 
@@ -113,6 +111,7 @@ PersistenceManager::insert = (model, options, callback, guess = true)->
                             args[0] = err
                     if performed
                         connector.release (err)->
+                            logger.error err if err
                             callback.apply null, args
                             return
                     else
@@ -164,7 +163,7 @@ PersistenceManager::getSelectQuery = (className, options, guess = true)->
 
     if not options.where and _.isPlainObject options.attributes
         definition = @_getDefinition className
-        {where: options.where} = _getInitializeCondition @, null, className, definition, _.defaults({useDefinitionColumn: false}, options)
+        {where: options.where} = _getInitializeCondition @, null, definition, _.defaults({useDefinitionColumn: false}, options)
 
     new SelectQuery @, className, options, false
 
@@ -203,6 +202,7 @@ PersistenceManager::update = (model, options, callback, guess = true)->
                             args[0] = err
                     if performed
                         connector.release (err)->
+                            logger.error(err) if err
                             callback.apply null, args
                             return
                     else
@@ -251,7 +251,7 @@ PersistenceManager::save = (model, options, callback)->
     definition = @_getDefinition className
 
     try
-        {fields, where} = _getInitializeCondition @, model, className, definition, _.defaults(
+        {fields, where} = _getInitializeCondition @, model, definition, _.defaults(
             useDefinitionColumn: false
             useAttributes: false
         ,  options)
@@ -305,7 +305,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
         models: [model]
 
     try
-        {where: options.where} = _getInitializeCondition @, model, className, definition, _.defaults({useDefinitionColumn: false}, options)
+        {where: options.where} = _getInitializeCondition @, model, definition, _.defaults({useDefinitionColumn: false}, options)
     catch err
         callback err
         return
@@ -313,7 +313,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
     @list className, options, callback, false
 
 # return where condition to be parsed by RowMap
-_getInitializeCondition = (pMgr, model, className, definition, options)->
+_getInitializeCondition = (pMgr, model, definition, options)->
     where = []
 
     if typeof options.where is 'undefined'
@@ -571,8 +571,9 @@ PersistenceManager.InsertQuery = class InsertQuery
             if options.reflect
                 if definition.id.hasOwnProperty 'column'
                     where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
-                pMgr.initialize model, _.defaults({connector, where}, options), (err, models)->
+                pMgr.initialize model, _.defaults({connector, where}, options), (err)->
                     callback err, id
+                    return
                 , false
             else
                 callback err, id
@@ -887,7 +888,7 @@ _addUpdateOrDeleteCondition = (action, name, pMgr, model, className, definition,
     hasNoCondition = hasNoId = id is null or 'undefined' is typeof id
     if hasNoId
         options = _.extend {}, options, {useDefinitionColumn: true}
-        {where} = _getInitializeCondition pMgr, model, className, definition, options
+        {where} = _getInitializeCondition pMgr, model, definition, options
         result = options.result
         hasNoCondition = where.length is 0
         for condition in where
@@ -910,7 +911,6 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
         @model = model
         @pMgr = pMgr
-        @options = options
 
         @toQuery = -> update
         @toParam = -> update.toParam()
@@ -924,7 +924,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         className = options.className or model.className
         definition = @definition = pMgr._getDefinition className
         table = definition.table
-        update = squel.update(pMgr.getSquelOptions(options.dialect)).table @options.escapeId(table)
+        update = squel.update(pMgr.getSquelOptions(options.dialect)).table options.escapeId(table)
 
         result = _addUpdateOrDeleteCondition update, 'update', pMgr, model, className, definition, options
 
@@ -999,7 +999,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
             if typeof value is 'undefined'
                 continue
 
-            update.set @options.escapeId(column), value, {dontQuote: !!dontQuote}
+            update.set options.escapeId(column), value, {dontQuote: !!dontQuote}
             @hasData = true
 
             if not dontLock and not propDef.lock
@@ -1113,7 +1113,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
             if 'undefined' is typeof id
                 try
-                    {where} = _getInitializeCondition pMgr, model, definition.className, definition, _.defaults({connector, useDefinitionColumn: false}, options)
+                    {where} = _getInitializeCondition pMgr, model, definition, _.defaults({connector, useDefinitionColumn: false}, options)
                 catch err
                     callback err
                     return

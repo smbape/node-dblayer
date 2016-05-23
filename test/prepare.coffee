@@ -13,8 +13,7 @@ logger = log4js.getLogger __filename.replace /^(?:.+[\\\/])?([^.\\\/]+)(?:.[^.]+
 global.assert = chai.assert
 global.expect = chai.expect
 
-{AdapterPool, PersistenceManager} = require('../')
-tools = require('../src/tools')
+{AdapterPool, PersistenceManager, tools} = require('../')
 
 resources = sysPath.resolve __dirname, 'resources'
 {getTemp} = require './tools'
@@ -24,7 +23,7 @@ config = global.config = require('./config')[dialect]
 config.dialect = dialect
 config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 
-global.knex = require('knex')({dialect})
+global.knex = require('knex') { dialect }
 
 make = require sysPath.resolve resources, dialect, 'make'
 mapping = require('./mapping')

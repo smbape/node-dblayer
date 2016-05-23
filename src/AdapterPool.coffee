@@ -1,12 +1,11 @@
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger 'AdapterPool'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 _ = require 'lodash'
 url = require 'url'
 sysPath = require 'path'
 semLib = require 'sem-lib'
 Connector = require './Connector'
-tools = require './tools'
 
 # Based on jQuery 1.11
 isNumeric = (obj) ->
@@ -19,7 +18,7 @@ internal.getAdapter = (options)->
     if typeof options.adapter is 'string'
         adapter = internal.adapters[options.adapter]
         if typeof adapter is 'undefined'
-            adapter = tools.adapter options.adapter
+            adapter = require './dialects/' + options.adapter + '/adapter'
             internal.adapters[options.adapter] = adapter
     else if _.isObject options.adapter
         adapter = options.adapter
@@ -276,7 +275,7 @@ module.exports = class AdapterPool extends SemaphorePool
                         return
 
                     # Remove connection from pool on disconnect because it is no more usable
-                    client.on 'end', (err)->
+                    client.on 'end', ->
                         return if client._destroying
                         self.destroy client, true
                         return

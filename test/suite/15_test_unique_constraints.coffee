@@ -52,7 +52,6 @@ describe 'unique constraints', ->
             (rows, next)->
                 assert.strictEqual rows[0].get(pMgr.getIdName model.className), id2
                 model.unset pMgr.getIdName model.className
-                debugger
                 pMgr.save model, {connector: connector}, next
                 return
             (id, msg, next)->

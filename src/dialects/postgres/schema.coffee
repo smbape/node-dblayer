@@ -231,9 +231,11 @@ module.exports =
 
         tablesql.join('')
 
-    diffPrimaryKey: (oldPkName, oldColumns, newPkName, newColumns, options)->
+    diffPrimaryKey: (tableName, oldPkName, oldColumns, newPkName, newColumns, options)->
         typecompiler = new TypeCompiler options
         {words, args, adapter} = typecompiler
+        LF = '\n'
+        indent = '    '
 
         if oldColumns isnt newColumns
             # primary key changed, drop previous, add new

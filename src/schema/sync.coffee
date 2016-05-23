@@ -177,7 +177,7 @@ _tableDiff = (oldModel, newModel, options = {})->
             newColumns = columns.sort().map(adapter.escapeId).join(', ')
             # newPk = _pkString(pkName, columns, typecompiler)
 
-    alter = schema.diffPrimaryKey oldPkName, oldColumns, newPkName, newColumns, options
+    alter = schema.diffPrimaryKey tableName, oldPkName, oldColumns, newPkName, newColumns, options
     alters.push alter if alter
 
     # foreign keys
