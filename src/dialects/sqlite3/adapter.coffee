@@ -12,7 +12,7 @@ MODES =
 
 adapter = module.exports
 
-common = require './common'
+common = require '../../schema/adapter'
 escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
 
 _.extend adapter, common,

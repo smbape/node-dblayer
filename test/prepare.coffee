@@ -13,8 +13,8 @@ logger = log4js.getLogger __filename.replace /^(?:.+[\\\/])?([^.\\\/]+)(?:.[^.]+
 global.assert = chai.assert
 global.expect = chai.expect
 
-{AdapterPool, PersistenceManager, adapters} = require('../')
-{guessEscapeOpts} = adapters.common
+{AdapterPool, PersistenceManager} = require('../')
+{guessEscapeOpts} = require '../src/schema/adapter'
 
 resources = sysPath.resolve __dirname, 'resources'
 {getTemp} = require './tools'
@@ -24,13 +24,11 @@ config = global.config = require('./config')[dialect]
 config.dialect = dialect
 config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 
-global.knex = require('knex') {
-    dialect
-}
+global.knex = require('knex') { dialect }
 
 make = require sysPath.resolve resources, dialect, 'make'
 global.pMgr = new PersistenceManager require './mapping'
-global.escapeOpts = guessEscapeOpts { dialect }
+global.escapeOpts = require '../src/dialects/' + dialect + '/adapter'
 global.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
 initPools = ->

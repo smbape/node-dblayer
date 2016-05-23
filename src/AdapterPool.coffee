@@ -15,14 +15,13 @@ internal = {}
 internal.adapters = {}
 
 internal.getAdapter = (options)->
-    ### istanbul ignore else ###
     if typeof options.adapter is 'string'
         adapter = internal.adapters[options.adapter]
         if typeof adapter is 'undefined'
-            adapter = require sysPath.join __dirname, 'adapters', options.adapter
+            adapter = require './dialects/' + options.adapter + '/adapter'
             internal.adapters[options.adapter] = adapter
-    # else if _.isPlainObject options.adapter
-    #     adapter = options.adapter
+    else if _.isPlainObject options.adapter
+        adapter = options.adapter
 
     if typeof adapter.createConnection isnt 'function'
         err = new Error 'adapter object has no method createConnection'

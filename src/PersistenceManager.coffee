@@ -8,7 +8,7 @@ CompiledMapping = require './CompiledMapping'
 async = require 'async'
 semLib = require 'sem-lib'
 LRU = require 'lru-cache'
-{guessEscapeOpts} = require './adapters/common'
+{guessEscapeOpts} = require './schema/adapter'
 
 delegateMethod = (self, className, method, target = method)->
     if method is 'new'

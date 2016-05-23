@@ -2,7 +2,7 @@ pg = require('pg')
 QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
 logger = log4js.getLogger 'PostgresAdapter'
-common = require './common'
+common = require '../../schema/adapter'
 adapter = module.exports
 _.extend adapter, common
 escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
