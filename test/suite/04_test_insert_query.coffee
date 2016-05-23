@@ -29,9 +29,8 @@ describe 'insert query', ->
             properties:
                 propA1: 'colPropA1'
 
-        debugger
         assertInsertQuery(mapping, model, 'ClassA', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassA'].table
+            .into adapter.escapeId mapping['ClassA'].table
             .setFields squelFields {colIdA: 'idAValue', colPropA1: 'propA1Value'}
             .toString())
 
@@ -61,7 +60,7 @@ describe 'insert query', ->
                 propB2: 'colPropB2'
 
         assertInsertQuery(mapping, model, 'ClassB', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassB'].table
+            .into adapter.escapeId mapping['ClassB'].table
             .setFields squelFields {colIdB: 'idBValue', colIdA: 'idAValue', colPropB2: 'propB2Value'}
             .toString())
 
@@ -78,7 +77,7 @@ describe 'insert query', ->
                 propB2: 'colPropB2'
 
         assertInsertQuery(mapping, model, 'ClassB', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassB'].table
+            .into adapter.escapeId mapping['ClassB'].table
             .setFields squelFields {colIdB: 'idBValue', colPropB1: 'idAValue', colPropB2: 'propB2Value'}
             .toString())
 
@@ -99,7 +98,7 @@ describe 'insert query', ->
                     className: 'ClassB'
 
         assertInsertQuery(mapping, model, 'ClassC', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassC'].table
+            .into adapter.escapeId mapping['ClassC'].table
             .setFields squelFields {idC: 'idCValue', colIdA: 'idAValue'}
             .toString())
 
@@ -118,7 +117,7 @@ describe 'insert query', ->
                     className: 'ClassB'
 
         assertInsertQuery(mapping, model, 'ClassC', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassC'].table
+            .into adapter.escapeId mapping['ClassC'].table
             .setFields squelFields {idC: 'idCValue', colIdB: 'idAValue'}
             .toString())
 
@@ -140,7 +139,7 @@ describe 'insert query', ->
                     className: 'ClassC'
 
         assertInsertQuery(mapping, model, 'ClassD', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassD'].table
+            .into adapter.escapeId mapping['ClassD'].table
             .setFields squelFields {idD: 'idDValue', colIdA: 'idAValue'}
             .toString())
 
@@ -163,7 +162,7 @@ describe 'insert query', ->
                     className: 'ClassC'
 
         assertInsertQuery(mapping, model, 'ClassD', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassD'].table
+            .into adapter.escapeId mapping['ClassD'].table
             .setFields squelFields {idD: 'idDValue', colIdB: 'idAValue'}
             .toString())
 
@@ -187,7 +186,7 @@ describe 'insert query', ->
                     className: 'ClassC'
 
         assertInsertQuery(mapping, model, 'ClassD', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassD'].table
+            .into adapter.escapeId mapping['ClassD'].table
             .setFields squelFields {idD: 'idDValue', colIdC: 'idAValue'}
             .toString())
 
@@ -235,7 +234,7 @@ describe 'insert query', ->
                 propD3: 'colPropD3'
 
         assertInsertQuery(mapping, model, 'ClassD', squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassD'].table
+            .into adapter.escapeId mapping['ClassD'].table
             .setFields squelFields
                 idD: 'idDValue'
                 colIdC: 'idAValue'
@@ -287,7 +286,7 @@ describe 'insert query', ->
         query = query.toParam()
 
         assert.strictEqual(query.text, squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassB'].table
+            .into adapter.escapeId mapping['ClassB'].table
             .setFields(squelFields({
                 colIdA: '?'
                 colPropB0: '?'
@@ -302,7 +301,7 @@ describe 'insert query', ->
 
         query = query.values[0]
         assert.strictEqual(query.toString(), squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassA'].table
+            .into adapter.escapeId mapping['ClassA'].table
             .setFields squelFields
                 colIdA: 'idAValue'
                 colPropA1: 'propA1Value'
@@ -344,7 +343,7 @@ describe 'insert query', ->
         query = pMgr.getInsertQuery model
         query = query.toParam()
         assert.strictEqual(query.text, squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassC'].table
+            .into adapter.escapeId mapping['ClassC'].table
             .setFields(squelFields({
                 colIdA: '?'
                 colIdB: '?'
@@ -361,7 +360,7 @@ describe 'insert query', ->
 
         query2 = query.values[0]
         assert.strictEqual(query2.toString(), squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassA'].table
+            .into adapter.escapeId mapping['ClassA'].table
             .setFields squelFields
                 colIdA: 'idAValue'
                 colPropA1: 'propA1Value'
@@ -370,7 +369,7 @@ describe 'insert query', ->
 
         query2 = query.values[1]
         assert.strictEqual(query2.toString(), squel.insert(squelOptions)
-            .into escapeOpts.escapeId mapping['ClassB'].table
+            .into adapter.escapeId mapping['ClassB'].table
             .setFields squelFields
                 colIdB: 'idBValue'
                 colPropB0: 'idAB0Value'

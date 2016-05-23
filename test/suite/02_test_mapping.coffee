@@ -146,6 +146,19 @@ describe 'mapping', ->
                 column: 'idA'
                 pk: 'TableA'
 
+        # must keep given pk name
+        assertPartial mapping, 'ClassA',
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: 'custom'
+        ,
+            table: 'ClassA'
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: 'custom'
+
         return
 
     it 'should throws', ->
@@ -183,7 +196,6 @@ describe 'mapping', ->
                 column: ''
         , 'ID_COLUMN'
 
-        debugger
         # Column key is mandatory for setted properties
         assertPartialThrows mapping, 'ClassA',
             id:
@@ -435,6 +447,15 @@ describe 'mapping', ->
                 propA1: 'colPropA1'
                 propA2: 'colPropA2'
         , 'CTOR'
+
+        # primary key can only be a string
+        assertPartialThrows mapping, 'ClassA',
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: true
+        , 'INDEX'
+
         return
 
     return

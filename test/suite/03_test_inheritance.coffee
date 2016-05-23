@@ -33,6 +33,7 @@ describe 'inheritance', ->
                 name: 'idA'
                 className: 'ClassA'
                 column: 'colIdA'
+                pk: 'ClassB'
 
         # Check consitency
         assertPartial mapping, 'ClassB',
@@ -44,6 +45,7 @@ describe 'inheritance', ->
                 name: 'idA'
                 className: 'ClassA'
                 column: 'colIdB'
+                pk: 'ClassB'
 
         # Deep child, inherits it ancestor first setted properties
         mapping['ClassB'] =
@@ -57,6 +59,7 @@ describe 'inheritance', ->
                 name: 'idA'
                 className: 'ClassB'
                 column: 'colIdA'
+                pk: 'ClassC'
 
         # Deep child, inherits it ancestor first setted properties
         mapping['ClassB'] =
@@ -71,6 +74,7 @@ describe 'inheritance', ->
                 name: 'idA'
                 className: 'ClassB'
                 column: 'colIdB'
+                pk: 'ClassC'
         delete mapping['ClassC']
 
         # Parent is considered as a mixin. Cannot appear as a mixin
@@ -89,6 +93,7 @@ describe 'inheritance', ->
             mixins: [
                 className: 'ClassA'
                 column: 'colIdA'
+                fk: "ClassB_colIdA_EXT_ClassA_colIdA"
             ]
 
         # mixin as Array
@@ -100,6 +105,7 @@ describe 'inheritance', ->
             mixins: [
                 className: 'ClassA'
                 column: 'colIdA'
+                fk: "ClassB_colIdA_EXT_ClassA_colIdA"
             ]
 
         # mixin as Array of object
@@ -113,6 +119,32 @@ describe 'inheritance', ->
             mixins: [
                 className: 'ClassA'
                 column: 'colIdA'
+                fk: "ClassB_colIdA_EXT_ClassA_colIdA"
+            ]
+
+        # fk can only be a string
+        assertPartialThrows mapping, 'ClassB',
+            id:
+                name: 'ClassB'
+            mixins: [
+                className: 'ClassA'
+                fk: true
+            ]
+        , 'INDEX'
+
+        #  should keep mixin fk
+        assertPartial mapping, 'ClassB',
+            id:
+                name: 'ClassB'
+            mixins: [
+                className: 'ClassA'
+                fk: 'custom'
+            ]
+        ,
+            mixins: [
+                className: 'ClassA'
+                column: 'colIdA'
+                fk: "custom"
             ]
 
         # Duplicate table
@@ -125,7 +157,7 @@ describe 'inheritance', ->
                 propC1: 'colPropC1'
         , 'DUP_TABLE'
 
-        # mixin column take class id column
+        # mixin column takes class id column
         mapping['ClassB'] =
             id:
                 className: 'ClassA'
@@ -137,6 +169,7 @@ describe 'inheritance', ->
             mixins: [
                 className: 'ClassB'
                 column: 'colIdA'
+                fk: "ClassC_colIdA_EXT_ClassB_colIdA"
             ]
 
         # Check consistency
@@ -151,12 +184,13 @@ describe 'inheritance', ->
             mixins: [
                 className: 'ClassB'
                 column: 'colMixB'
+                fk: "ClassC_colMixB_EXT_ClassB_colIdA"
             ]
 
         # prop className, if no column, use id column
         assertPartial mapping, 'ClassC',
             id:
-                name: 'idB'
+                name: 'idC'
             properties:
                 propB1:
                     className: 'ClassB'
@@ -165,6 +199,87 @@ describe 'inheritance', ->
                 propB1:
                     column: 'colIdA'
                     className: 'ClassB'
+                    fk: 'ClassC_colIdA_HAS_ClassB_colIdA'
+
+        # should keep prop class fk
+        assertPartial mapping, 'ClassC',
+            id:
+                name: 'idC'
+            properties:
+                propB1:
+                    className: 'ClassB'
+                    fk: 'custom'
+                propB2:
+                    column: 'propB2'
+                    className: 'ClassA'
+        ,
+            properties:
+                propB1:
+                    column: 'colIdA'
+                    className: 'ClassB'
+                    fk: 'custom'
+                propB2:
+                    column: 'propB2'
+                    className: 'ClassA'
+                    fk: 'ClassC_propB2_HAS_ClassA_colIdA'
+
+        # should allow only distinct fk names
+        assertPartialThrows mapping, 'ClassC',
+            id:
+                name: 'idC'
+            properties:
+                propB1:
+                    className: 'ClassB'
+                    fk: 'custom'
+                propB2:
+                    column: 'propB2'
+                    className: 'ClassA'
+                    fk: 'custom'
+        , 'INDEX'
+
+        assertPartialThrows mapping, 'ClassC',
+            id:
+                name: 'idC'
+            mixins: [
+                className: 'ClassB'
+                column: 'colMixB'
+                fk: 'custom'
+            ]
+            properties:
+                propB1:
+                    className: 'ClassB'
+                    fk: 'custom'
+        , 'INDEX'
+
+        mapping['ClassB'] =
+            id: 'idB'
+            mixins: [
+                className: 'ClassA'
+                column: 'colMixA'
+                fk: 'custom'
+            ]
+        assertPartialThrows mapping, 'ClassC',
+            id:
+                name: 'idC'
+            mixins: [
+                className: 'ClassB'
+                column: 'colMixB'
+            ]
+            properties:
+                propB1:
+                    className: 'ClassB'
+                    fk: 'custom'
+        , 'INDEX'
+
+        # fk prop class can only be a string
+        assertPartialThrows mapping, 'ClassC',
+            id:
+                name: 'idC'
+            properties:
+                propB1:
+                    className: 'ClassB'
+                    fk: true
+        , 'INDEX'
 
         # if prop column name is given, it is preserved
         delete mapping['ClassC']
@@ -180,6 +295,7 @@ describe 'inheritance', ->
                 propB1:
                     column: 'colPropB1'
                     className: 'ClassA'
+                    fk: 'ClassB_colPropB1_HAS_ClassA_colIdA'
 
         # test that, if not only normalize class are given in the mixins, 
         # throws an error, telling what class depends on which one

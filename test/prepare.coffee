@@ -14,7 +14,7 @@ global.assert = chai.assert
 global.expect = chai.expect
 
 {AdapterPool, PersistenceManager} = require('../')
-{guessEscapeOpts} = require('../src/tools')
+tools = require('../src/tools')
 
 resources = sysPath.resolve __dirname, 'resources'
 {getTemp} = require './tools'
@@ -29,7 +29,7 @@ global.knex = require('knex')({dialect})
 make = require sysPath.resolve resources, dialect, 'make'
 mapping = require('./mapping')
 global.pMgr = new PersistenceManager mapping
-global.escapeOpts = guessEscapeOpts { dialect }
+global.adapter = tools.adapter(dialect)
 global.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
 initPools = ->
@@ -144,7 +144,7 @@ global.twaterfall = (connector, tasks, done)->
 global.squelFields = (attributes)->
     fields = {}
     for field, value of attributes
-        fields[escapeOpts.escapeId(field)] = value
+        fields[adapter.escapeId(field)] = value
     fields
 
 global.assertThrows = (fn, callback, msg = 'Throws and unexpected error')->

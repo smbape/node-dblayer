@@ -63,15 +63,16 @@ module.exports = class CompiledMapping
                     _inheritType propDef, parentDef.id
                     if not propDef.hasOwnProperty('column')
                         propDef.column = parentDef.id.column
-                        @_addColumn className, propDef.column, prop
+                @_addColumn className, propDef.column, prop
 
             # Set undefined fk for className properties
             for prop, propDef of classDef.properties
-                if propDef.hasOwnProperty('className') and not propDef.hasOwnProperty('fk')
-                    parentDef = @_getDefinition propDef.className
-                    fk = "#{classDef.table}_#{propDef.column}_HAS_#{parentDef.table}_#{parentDef.id.column}"
-                    _addIndexName fk, 'fk', classDef
-                    propDef.fk = fk
+                if propDef.hasOwnProperty('className')
+                    if not propDef.hasOwnProperty('fk')
+                        parentDef = @_getDefinition propDef.className
+                        fk = "#{classDef.table}_#{propDef.column}_HAS_#{parentDef.table}_#{parentDef.id.column}"
+                        propDef.fk = fk
+                    _addIndexName propDef.fk, 'fk', classDef
 
             # Set undefined constraint names
             {indexes, constraints: {unique, names}} = classDef
@@ -400,7 +401,6 @@ _addProperties = (compiled, classDef, rawProperties)->
         classDef.properties[prop] = propDef = {}
         if isStringNotEmpty rawPropDef.column
             propDef.column = rawPropDef.column
-            compiled._addColumn classDef.className, propDef.column, prop
 
         # add this property as available properties for this className
         # Purposes:
@@ -648,17 +648,22 @@ _addUniqueConstraint = (name, properties, classDef)->
         err.code = 'CONSTRAINT'
         throw err
 
-    if 'string' is typeof name
+    if name
         _addIndexName name, 'uk', classDef
         constraints.names[key] = name
     constraints.unique[key] = properties
     return
 
 _addIndexName = (name, type, classDef)->
+    if not isStringNotEmpty name
+        err = new Error "a #{type} index must be a not empty string"
+        err.code = 'INDEX'
+        throw err
+
     indexNames = classDef.manager.indexNames[type]
     if indexNames.hasOwnProperty name
         err = new Error "a #{type} index with name #{name} is already defined"
-        err.code = ERR_CODE
+        err.code = 'INDEX'
         throw err
 
     indexNames[name] = true
@@ -676,18 +681,23 @@ _inheritType = (child, parent)->
             else
                 type = 'integer'
 
-    child.type = type
-    child.type_args = type_args
+    child.type = type if type
+    child.type_args = type_args if type_args
     child
 
 _addSpecProperties = (definition, rawDefinition)->
     for prop in specProperties
         if rawDefinition.hasOwnProperty prop
-            definition[prop] = rawDefinition[prop]
-            if prop is 'type'
-                definition[prop] = rawDefinition[prop].toLowerCase()
-            else
-                definition[prop] = rawDefinition[prop]
+            value = rawDefinition[prop]
+            switch prop
+                when 'type'
+                    value = value.toLowerCase()
+                when 'type_args'
+                    if value and not Array.isArray(value)
+                        err = new Error "[#{definition.className}] - property '#{prop}': type_args must be an Array"
+                        err.code = ERR_CODE
+                        throw err
+            definition[prop] = value
     return
 
 _setConstructor = (classDef, Ctor)->
