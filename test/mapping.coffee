@@ -1,116 +1,6 @@
 _ = require 'lodash'
 moment = require 'moment'
-
-mapping = module.exports
-
-handlersDate = 
-    read: (value, options)->
-        moment.utc(value, 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
-    write: (value, model, options)->
-        moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
-
-handlersCreation = _.extend
-    insert: (value, model, options)->
-        new Date()
-, handlersDate
-
-handlersModification = _.extend {update: handlersCreation.insert}, handlersCreation
-
-mapping['Data'] =
-    table: 'BASIC_DATA'
-    id:
-        name: 'id'
-        column: 'DAT_ID'
-    properties:
-        title:
-            className: 'Property'
-        author:
-            column: 'AOR_ID'
-            className: 'User'
-        delegator: 
-            column: 'DOR_ID'
-            className: 'User'
-        operator: 
-            column: 'OOR_ID'
-            className: 'User'
-        cdate:
-            column: 'DAT_CDATE'
-            handlers: handlersCreation
-        mdate:
-            lock: true
-            column: 'DAT_MDATE'
-            handlers: handlersModification
-        version:
-            lock: true
-            column: 'DAT_VERSION'
-            handlers:
-                insert: (value, model, options)->
-                    '1.0'
-                update: (value, model, options)->
-                    if 'major' is model.get('semver')
-                        return (parseInt(value.split('.')[0], 10) + 1) + '.0'
-                    else
-                        value = value.split('.')
-                        value[1] = 1 + parseInt(value[1], 10)
-                        return value.join('.')
-
-mapping['User'] =
-    table: 'USERS'
-    id: className: 'Data'
-    properties:
-        name: 'USE_NAME'
-        firstName: 'USE_FIRST_NAME'
-        email: 'USE_EMAIL'
-        login: 'USE_LOGIN'
-        password: 'USE_PASSWORD'
-        country: className: 'Country'
-        occupation: 'USE_OCCUPATION'
-        language: className: 'Language'
-        ip: 'USE_IP'
-    constraints: [
-        {type: 'unique', properties: ['login']}
-        {type: 'unique', properties: ['email']}
-    ]
-
-mapping['Property'] =
-    table: 'PROPERTIES'
-    id:
-        name: 'id'
-        column: 'LPR_ID'
-    properties:
-        code: 'LPR_CODE'
-    constraints: {type: 'unique', properties: ['code']}
-
-mapping['Language'] =
-    table: 'LANGUAGES'
-    id:
-        name: 'id'
-        column: 'LNG_ID'
-    properties:
-        code: 'LNG_CODE'
-        key: 'LNG_KEY'
-        label: 'LNG_LABEL'
-        property: className: 'Property'
-    constraints: {type: 'unique', properties: ['code']}
-
-mapping['Translation'] =
-    table: 'TRANSLATIONS'
-    properties:
-        value: 'TRL_VALUE'
-        language: className: 'Language'
-        property: className: 'Property'
-
-mapping['Country'] =
-    table: 'COUNTRIES'
-    id:
-        name: 'id'
-        column: 'CRY_ID'
-    properties:
-        code: 'CRY_CODE'
-        property: className: 'Property'
-
-{PersistenceManager} = require('../')
-Model = PersistenceManager::Model
+mapping = exports
 
 domains = {
     serial:
@@ -124,6 +14,9 @@ domains = {
     long_label:
         type: 'varchar'
         type_args: [255]
+    comment:
+        type: 'varchar'
+        type_args: [1024]
     version:
         type: 'varchar'
         type_args: [10]
@@ -148,6 +41,12 @@ domains = {
                 moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
             write: (value, model, options)->
                 moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
+    email:
+        type: 'varchar'
+        type_args: [63]
+    code:
+        type: 'varchar'
+        type_args: [63]
 }
 
 domains.mdate = _.defaults {
@@ -155,6 +54,139 @@ domains.mdate = _.defaults {
     update: (model, options, extra)->
         new Date()
 }, domains.datetime
+
+handlersDate = 
+    read: (value, options)->
+        moment.utc(value, 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
+    write: (value, model, options)->
+        moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
+
+handlersCreation = _.extend
+    insert: (value, model, options)->
+        new Date()
+, handlersDate
+
+handlersModification = _.extend {update: handlersCreation.insert}, handlersCreation
+
+mapping['Data'] =
+    table: 'BASIC_DATA'
+    id:
+        name: 'id'
+        column: 'DAT_ID'
+        domain: domains.serial
+    properties:
+        title: className: 'Property'
+        author:
+            column: 'AOR_ID'
+            className: 'User'
+        delegator: 
+            column: 'DOR_ID'
+            className: 'User'
+        operator: 
+            column: 'OOR_ID'
+            className: 'User'
+        cdate:
+            column: 'DAT_CDATE'
+            domain: domains.datetime
+        mdate:
+            lock: true
+            column: 'DAT_MDATE'
+            domain: domains.mdate
+        version:
+            column: 'DAT_VERSION'
+            domain: domains.version
+
+mapping['User'] =
+    table: 'USERS'
+    id: className: 'Data'
+    properties:
+        name:
+            column: 'USE_NAME'
+            domain: domains.medium_label
+        firstName:
+            column: 'USE_FIRST_NAME'
+            domain: domains.long_label
+        email:
+            column: 'USE_EMAIL'
+            domain: domains.email
+        login:
+            column: 'USE_LOGIN'
+            domain: domains.short_label
+        password:
+            column: 'USE_PASSWORD'
+            domain: domains.long_label
+        country: className: 'Country'
+        occupation:
+            column: 'USE_OCCUPATION'
+            domain: domains.long_label
+        language: className: 'Language'
+        ip:
+            column: 'USE_IP'
+            domain: domains.medium_label
+    constraints: [
+        {type: 'unique', name: 'LOGIN', properties: ['login']}
+        {type: 'unique', name: 'EMAIL', properties: ['email']}
+    ]
+
+mapping['Property'] =
+    table: 'PROPERTIES'
+    id:
+        name: 'id'
+        column: 'LPR_ID'
+        domain: domains.serial
+    properties:
+        code:
+            column: 'LPR_CODE'
+            domain: domains.code
+    constraints: {type: 'unique', properties: ['code']}
+
+mapping['Language'] =
+    table: 'LANGUAGES'
+    id:
+        name: 'id'
+        column: 'LNG_ID'
+        domain: domains.serial
+    properties:
+        code:
+            column: 'LNG_CODE'
+            domain: domains.short_label
+        key:
+            column: 'LNG_KEY'
+            domain: domains.short_label
+        label:
+            column: 'LNG_LABEL'
+            domain: domains.medium_label
+        property: className: 'Property'
+    constraints: {type: 'unique', properties: ['code']}
+
+mapping['Translation'] =
+    table: 'TRANSLATIONS'
+    properties:
+        value:
+            column: 'TRL_VALUE'
+            domain: domains.comment
+        language:
+            className: 'Language'
+            nullable: false
+        property:
+            className: 'Property'
+            nullable: false
+    constraints: {type: 'unique', properties: ['language', 'property']}
+
+mapping['Country'] =
+    table: 'COUNTRIES'
+    id:
+        name: 'id'
+        column: 'CRY_ID'
+        domain: domains.serial
+    properties:
+        code:
+            column: 'CRY_CODE'
+            domain: domains.code
+        property: className: 'Property'
+
+{PersistenceManager} = require('../')
+Model = PersistenceManager::Model
 
 class ModelA extends Model
     className: 'ClassA'

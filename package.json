@@ -12,7 +12,8 @@
     "test": "node test/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite",
     "test-postgres": "node -e \"require('anyspawn').exec('node node_modules/mocha/bin/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite', {stdio: 'inherit', env: {DIALECT: 'postgres'}})\"",
     "test-mysql": "node -e \"require('anyspawn').exec('node node_modules/mocha/bin/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite', {stdio: 'inherit', env: {DIALECT: 'mysql'}})\"",
-    "test-cover": "node node_modules/istanbul/lib/cli.js --dir=test/coverage cover test/_mocha -- --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite"
+    "test-cover": "node node_modules/istanbul/lib/cli.js --dir=test/coverage cover test/_mocha -- --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite",
+    "lint": "node node_modules/jshint/bin/jshint ./lib"
   },
   "repository": {
     "type": "git",

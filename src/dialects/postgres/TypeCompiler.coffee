@@ -10,7 +10,12 @@ LOWERWORDS =
     text_check: 'text check'
     add_primary_key: 'add primary key'
     rename_to: 'rename to'
+    no_action: 'no action'
+    set_null: 'set null'
+    set_default: 'set default'
+    rename_constraint: 'rename constraint'
 
+# http://www.postgresql.org/docs/9.4/static/datatype.html
 module.exports = class PgTypeCompiler extends TypeCompiler
     adapter: require './adapter'
     smallincrements: -> @words.smallserial
