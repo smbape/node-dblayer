@@ -3,3 +3,5 @@
 /test/coverage
 /test/databases/buma_test.sqlite
 /test/resources/postgres/crebas.sql
+/test/tmp
+/project.sublime-workspace

@@ -13,8 +13,8 @@ logger = log4js.getLogger __filename.replace /^(?:.+[\\\/])?([^.\\\/]+)(?:.[^.]+
 global.assert = chai.assert
 global.expect = chai.expect
 
-{AdapterPool, PersistenceManager, adapters} = require('../')
-{guessEscapeOpts} = adapters.common
+{AdapterPool, PersistenceManager} = require('../')
+{guessEscapeOpts} = require('../src/tools')
 
 resources = sysPath.resolve __dirname, 'resources'
 {getTemp} = require './tools'
@@ -24,12 +24,11 @@ config = global.config = require('./config')[dialect]
 config.dialect = dialect
 config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 
-global.knex = require('knex') {
-    dialect
-}
+global.knex = require('knex')({dialect})
 
 make = require sysPath.resolve resources, dialect, 'make'
-global.pMgr = new PersistenceManager require './mapping'
+mapping = require('./mapping')
+global.pMgr = new PersistenceManager mapping
 global.escapeOpts = guessEscapeOpts { dialect }
 global.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
@@ -134,7 +133,11 @@ global.twaterfall = (connector, tasks, done)->
             next()
             return
     ].concat(tasks), (err)->
-        connector.rollback done, true
+        connector.rollback (_err)->
+            logger.error(_err) if _err
+            done(err)
+            return
+        , true
         return
     return
 
@@ -210,153 +213,9 @@ global.assertPersist = (pMgr, model, classNameLetter, id, connector, next)->
     return
 
 global.setUpMapping = ->
-    mapping = {}
-    modelId = 0
+    _mapping = _.cloneDeep mapping
     Model = PersistenceManager::Model
-
-    class ModelA extends Model
-        className: 'ClassA'
-
-    handlersCreation =
-        insert: (model, options, extra)->
-            new Date()
-        read: (value, model, options)->
-            moment.utc(moment(value).format 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
-        write: (value, model, options)->
-            moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
-
-    handlersModification = _.extend {}, handlersCreation, update: handlersCreation.insert
-
-    mapping['ClassA'] =
-        ctor: ModelA
-        table: 'CLASS_A'
-        id:
-            name: 'idA'
-            column: 'A_ID'
-        properties:
-            propA1: 'PROP_A1'
-            propA2: 'PROP_A2'
-            propA3: 'PROP_A3'
-            creationDate:
-                column: 'CREATION_DATE'
-                handlers: handlersCreation
-            modificationDate:
-                lock: true
-                column: 'MODIFICATION_DATE'
-                handlers: handlersModification
-            version:
-                lock: true
-                column: 'VERSION'
-                handlers: insert: (model)->
-                    '1.0'
-
-    class ModelB extends Model
-        className: 'ClassB'
-
-    mapping['ClassB'] =
-        ctor: ModelB
-        table: 'CLASS_B'
-        id: className: 'ClassA'
-        properties:
-            propB1: 'PROP_B1'
-            propB2: 'PROP_B2'
-            propB3: 'PROP_B3'
-
-    class ModelC extends Model
-        className: 'ClassC'
-
-    mapping['ClassC'] =
-        ctor: ModelC
-        table: 'CLASS_C'
-        id:
-            name: 'idC'
-            column: 'C_ID'
-        properties:
-            propC1: 'PROP_C1'
-            propC2: 'PROP_C2'
-            propC3: 'PROP_C3'
-
-    class ModelD extends Model
-        className: 'ClassD'
-
-    mapping['ClassD'] =
-        ctor: ModelD
-        table: 'CLASS_D'
-        id: className: 'ClassA'
-        mixins: 'ClassC'
-        properties:
-            propD1: 'PROP_D1'
-            propD2: 'PROP_D2'
-            propD3: 'PROP_D3'
-
-    class ModelE extends Model
-        className: 'ClassE'
-
-    mapping['ClassE'] =
-        ctor: ModelE
-        table: 'CLASS_E'
-        id: className: 'ClassB'
-        mixins: 'ClassC'
-        properties:
-            propE1: 'PROP_E1'
-            propE2: 'PROP_E2'
-            propE3: 'PROP_E3'
-
-    class ModelF extends Model
-        className: 'ClassF'
-
-    mapping['ClassF'] =
-        ctor: ModelF
-        table: 'CLASS_F'
-        id: className: 'ClassC'
-        properties:
-            propF1: 'PROP_F1'
-            propF2: 'PROP_F2'
-            propF3: 'PROP_F3'
-            propClassD:
-                column: 'A_ID'
-                className: 'ClassD'
-            propClassE:
-                column: 'CLA_A_ID'
-                className: 'ClassE'
-
-    class ModelG extends Model
-        className: 'ClassG'
-
-    mapping['ClassG'] =
-        ctor: ModelG
-        table: 'CLASS_G'
-        id:
-            name: 'idG'
-            column: 'G_ID'
-        constraints: {type: 'unique', properties: ['propG1', 'propG2']}
-        properties:
-            propG1: 'PROP_G1'
-            propG2: 'PROP_G2'
-            propG3: 'PROP_G3'
-
-    class ModelH extends Model
-        className: 'ClassH'
-
-    mapping['ClassH'] =
-        ctor: ModelH
-        table: 'CLASS_H'
-        mixins: ['ClassD', 'ClassG']
-        properties:
-            propH1: 'PROP_H1'
-            propH2: 'PROP_H2'
-            propH3: 'PROP_H3'
-
-    class ModelI extends Model
-        className: 'ClassI'
-
-    mapping['ClassI'] =
-        ctor: ModelI
-        table: 'CLASS_I'
-        id: className: 'ClassG'
-
-    pMgr = new PersistenceManager mapping
-
+    pMgr = new PersistenceManager _mapping
     model = new Model()
 
     for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
@@ -365,7 +224,7 @@ global.setUpMapping = ->
 
     connector = pools.writer.createConnector()
 
-    return [pMgr, model, connector, Model, mapping]
+    return [pMgr, model, connector, Model, _mapping]
 
 global.assertList = (pMgr, options, next)->
     classNameLetter = options.classNameLetter

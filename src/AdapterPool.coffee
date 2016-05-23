@@ -6,6 +6,7 @@ url = require 'url'
 sysPath = require 'path'
 semLib = require 'sem-lib'
 Connector = require './Connector'
+tools = require './tools'
 
 # Based on jQuery 1.11
 isNumeric = (obj) ->
@@ -15,14 +16,13 @@ internal = {}
 internal.adapters = {}
 
 internal.getAdapter = (options)->
-    ### istanbul ignore else ###
     if typeof options.adapter is 'string'
         adapter = internal.adapters[options.adapter]
         if typeof adapter is 'undefined'
-            adapter = require sysPath.join __dirname, 'adapters', options.adapter
+            adapter = tools.adapter options.adapter
             internal.adapters[options.adapter] = adapter
-    # else if _.isPlainObject options.adapter
-    #     adapter = options.adapter
+    else if _.isObject options.adapter
+        adapter = options.adapter
 
     if typeof adapter.createConnection isnt 'function'
         err = new Error 'adapter object has no method createConnection'
@@ -255,6 +255,9 @@ module.exports = class AdapterPool extends SemaphorePool
                 @options[prop] = defaultOptions[prop]
 
         @adapter = internal.getAdapter @options
+        for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+            if 'function' is typeof @adapter[method]
+                @[method] = @adapter[method].bind @adapter
 
         self = @
         super
@@ -312,11 +315,3 @@ module.exports = class AdapterPool extends SemaphorePool
         new Connector @, _.defaults {}, options, @options
     getMaxConnection: ->
         @options.maxConnection
-    # escape: ->
-    #     @adapter.escape.apply @adapter, arguments
-    # escapeId: ->
-    #     @adapter.escapeId.apply @adapter, arguments
-    # exprEqual: ->
-    #     @adapter.exprEqual.apply @adapter, arguments
-    # exprNotEqual: ->
-    #     @adapter.exprNotEqual.apply @adapter, arguments

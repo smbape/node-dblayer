@@ -5,6 +5,7 @@ mkdirp = require 'mkdirp'
 _ = require 'lodash'
 
 env = process.env
+umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
 
 exports.generateScripts = (options = {})->
     {
@@ -95,7 +96,9 @@ exports.install = (options = {}, done)->
     } = exports.generateScripts options
 
     if password.length > 0
-        mysql = "#{mysql} --user=#{root} --password=#{password}"
+        my = sysPath.join tmp, 'my.conf'
+        fs.writeFileSync my, "[client]\npassword=#{password}\n", umask
+        mysql = "#{mysql} --defaults-extra-file=#{my} --user=#{root}"
     else
         mysql = "#{mysql} --user=#{root}"
 
@@ -156,7 +159,9 @@ exports.uninstall = (options = {}, done)->
         sql.push "DROP DATABASE IF EXISTS `#{database}`;"
 
     if password.length > 0
-        mysql = "#{mysql} --user=#{root} --password=#{password}"
+        my = sysPath.join tmp, 'my.conf'
+        fs.writeFileSync my, "[client]\npassword=#{password}\n", umask
+        mysql = "#{mysql} --defaults-extra-file=#{my} --user=#{root}"
     else
         mysql = "#{mysql} --user=#{root}"
 

@@ -36,6 +36,7 @@ env = _.pick process.env, [
     'PGSYSCONFDIR'
     'PGLOCALEDIR'
 ]
+umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
 
 exports.generateScripts = (options = {})->
     {
@@ -160,7 +161,7 @@ exports.install = (options = {}, done)->
 
     if password
         pgpass = sysPath.join tmp, 'pgpass.conf'
-        fs.writeFileSync pgpass, "*:*:*:#{root}:#{password}", 'utf-8'
+        fs.writeFileSync pgpass, "*:*:*:#{root}:#{password}", umask
         env.PGPASSFILE = pgpass
 
     script = []
@@ -257,7 +258,7 @@ exports.uninstall = (options = {}, done)->
 
     if password
         pgpass = sysPath.join tmp, 'pgpass.conf'
-        fs.writeFileSync pgpass, "*:*:*:#{root}:#{password}", 'utf-8'
+        fs.writeFileSync pgpass, "*:*:*:#{root}:#{password}", umask
         env.PGPASSFILE = pgpass
 
     join = if process.platform is 'win32' then ' &\n' else ' &&\n'

@@ -49,5 +49,5 @@ for dialect, config of module.exports
                 password: 'bcms_reader'
         stdout: null # 1, process.stdout
         stderr: null # 2, process.stderr
-        keep: false
+        keep: true
 

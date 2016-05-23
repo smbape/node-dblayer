@@ -4,7 +4,7 @@ PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'
 squel = require 'squel'
-{guessEscapeOpts} = require './adapters/common'
+{guessEscapeOpts} = require './tools'
 
 STATIC =
     PROP_SEP: ':'
