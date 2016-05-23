@@ -27,7 +27,8 @@ config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 global.knex = require('knex') { dialect }
 
 make = require sysPath.resolve resources, dialect, 'make'
-global.pMgr = new PersistenceManager require './mapping'
+mapping = require('./mapping')
+global.pMgr = new PersistenceManager mapping
 global.escapeOpts = require '../src/dialects/' + dialect + '/adapter'
 global.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
@@ -132,7 +133,11 @@ global.twaterfall = (connector, tasks, done)->
             next()
             return
     ].concat(tasks), (err)->
-        connector.rollback done, true
+        connector.rollback (_err)->
+            logger.error(_err) if _err
+            done(err)
+            return
+        , true
         return
     return
 

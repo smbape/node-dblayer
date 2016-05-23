@@ -27,6 +27,13 @@ module.exports = class Connector extends EventEmitter
             error.code = 'POOL_UNDEFINED'
             throw error
 
+        for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+            if 'function' is typeof pool.adapter[method]
+                @[method] = pool.adapter[method].bind pool.adapter
+
+        if 'function' is typeof pool.getDialect
+            @getDialect = pool.getDialect.bind pool
+
         if _.isPlainObject options
             @options = _.clone options
         else
@@ -44,9 +51,6 @@ module.exports = class Connector extends EventEmitter
 
     clone: ->
         new Connector @pool, @options
-
-    getDialect: ->
-        @pool.getDialect()
 
     getPool: ->
         @pool
@@ -377,18 +381,3 @@ module.exports = class Connector extends EventEmitter
         @_removeSavepoint()
         callback(errors)
         return
-
-    escape: ->
-        @pool.adapter.escape.apply @pool.adapter, arguments
-    escapeId: ->
-        @pool.adapter.escapeId.apply @pool.adapter, arguments
-    escapeSearch: ->
-        @pool.adapter.escapeSearch.apply @pool.adapter, arguments
-    escapeBeginWith: ->
-        @pool.adapter.escapeBeginWith.apply @pool.adapter, arguments
-    escapeEndWith: ->
-        @pool.adapter.escapeEndWith.apply @pool.adapter, arguments
-    exprEqual: ->
-        @pool.adapter.exprEqual.apply @pool.adapter, arguments
-    exprNotEqual: ->
-        @pool.adapter.exprNotEqual.apply @pool.adapter, arguments

@@ -3,9 +3,52 @@ QueryStream = require 'pg-query-stream'
 _ = require 'lodash'
 logger = log4js.getLogger 'PostgresAdapter'
 common = require '../../schema/adapter'
+
 adapter = module.exports
 _.extend adapter, common
-escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
+
+escapeOpts =
+    id:
+        quote: '"'
+        matcher: /(["\\\0\n\r\b])/g
+        replace:
+            '"': '""'
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    literal:
+        quote: "'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "''"
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    search:
+        quoteStart: "'%"
+        quoteEnd: "%'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "''"
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+            '%': '!%'
+            '_': '!_'
+            '!': '!!'
+escapeOpts.begin = _.clone escapeOpts.search
+escapeOpts.begin.quoteStart = "'"
+escapeOpts.end = _.clone escapeOpts.search
+escapeOpts.end.quoteEnd = "'"
+
+adapter.escape = common._escape.bind common, escapeOpts.literal
+adapter.escapeId = common._escape.bind common, escapeOpts.id
+adapter.escapeSearch = common._escape.bind common, escapeOpts.search
+adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
+adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
 
 pg.Client::stream = (query, params, callback, done)->
         if arguments.length is 3
@@ -46,6 +89,7 @@ class PostgresQueryStream extends QueryStream
 
 _.extend adapter,
     name: 'postgres'
+
     createConnection: (options, callback) ->
         callback = (->) if typeof callback isnt 'function'
         client = new pg.Client options
@@ -58,13 +102,15 @@ _.extend adapter,
                 return
             return
         client
-    escape: (value)->
-        common._escape value, escapeOpts.literal
-    escapeId: (value)->
-        common._escape value, escapeOpts.id
-    escapeSearch: (value)->
-        common._escape value, escapeOpts.search
-    escapeBeginWith: (value)->
-        common._escape value, escapeOpts.begin
-    escapeEndWith: (value)->
-        common._escape value, escapeOpts.end
+
+    squelOptions:
+        replaceSingleQuotes: true
+        nameQuoteCharacter: '"'
+        fieldAliasQuoteCharacter: '"'
+        tableAliasQuoteCharacter: '"'
+
+    decorateInsert: (query, column)->
+        if typeof column is 'string' and column.length > 0
+            query += ' RETURNING "' + column + '"'
+        else
+            query

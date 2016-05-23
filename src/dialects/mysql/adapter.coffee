@@ -8,7 +8,51 @@ path = require 'path'
 HWM = Math.pow 2, 7
 logger = log4js.getLogger 'MySQLAdapter'
 
-adapter =
+adapter = exports
+
+class MySQLConnection extends MySQLLibConnection
+    adapter: adapter
+    constructor: (options)->
+        @options = _.clone options
+        super config: new ConnectionConfig options
+    query: (query, params, callback)->
+        stream = adapter.createQuery query, params, callback
+        super stream.query
+        stream
+    stream: (query, params, callback, done)->
+        if arguments.length is 3
+            done = callback
+            callback = params
+            params = []
+        params = [] if not (params instanceof Array)
+        done = (->) if typeof done isnt 'function'
+        stream = MySQLLibConnection::query.call(@, query, params).stream highWaterMark: HWM
+        hasError = false
+        result = rowCount: 0
+        stream.once 'error', (err)->
+            hasError = err
+            done err
+            return
+        stream.on 'fields', (fields) ->
+            result.fields = fields
+            return
+        stream.on 'data', (row)->
+            if row.constructor.name is 'OkPacket'
+                result.fieldCount = row.fieldCount
+                result.affectedRows = row.affectedRows
+                result.changedRows = row.changedRows
+                result.lastInsertId = row.insertId
+            else
+                ++result.rowCount
+                callback row
+            return
+        stream.once 'end', ->
+            done undefined, result unless hasError
+            return
+        stream
+
+common = require '../../schema/adapter'
+_.extend adapter, common,
     name: 'mysql'
     createQuery: (text, values, callback)->
         if typeof callback is 'undefined' and typeof values is 'function'
@@ -70,46 +114,12 @@ adapter =
             return callback(err) if err
             callback err, client
 
-class MySQLConnection extends MySQLLibConnection
-    adapter: adapter
-    constructor: (options)->
-        @options = _.clone options
-        super config: new ConnectionConfig options
-    query: (query, params, callback)->
-        stream = adapter.createQuery query, params, callback
-        super stream.query
-        stream
-    stream: (query, params, callback, done)->
-        if arguments.length is 3
-            done = callback
-            callback = params
-            params = []
-        params = [] if not (params instanceof Array)
-        done = (->) if typeof done isnt 'function'
-        stream = MySQLLibConnection::query.call(@, query, params).stream highWaterMark: HWM
-        hasError = false
-        result = rowCount: 0
-        stream.once 'error', (err)->
-            hasError = err
-            done err
-            return
-        stream.on 'fields', (fields) ->
-            result.fields = fields
-            return
-        stream.on 'data', (row)->
-            if row.constructor.name is 'OkPacket'
-                result.fieldCount = row.fieldCount
-                result.affectedRows = row.affectedRows
-                result.changedRows = row.changedRows
-                result.lastInsertId = row.insertId
-            else
-                ++result.rowCount
-                callback row
-            return
-        stream.once 'end', ->
-            done undefined, result unless hasError
-            return
-        stream
+    squelOptions:
+        replaceSingleQuotes: true
+        nameQuoteCharacter: '`'
+        fieldAliasQuoteCharacter: '`'
+        tableAliasQuoteCharacter: '`'
+
     # getModel: (callback)->
     #     callback = (->) if typeof callback isnt 'function'
     #     query = """
@@ -138,18 +148,47 @@ class MySQLConnection extends MySQLLibConnection
     #         DbUtil = require '../DbUtil'
     #         DbUtil.computeColumnRows result.rows, callback
 
-common = require '../../schema/adapter'
-escapeOpts = common._escapeConfigs[common.CONSTANTS.MYSQL]
-_.extend adapter, common,
-    escape: (value)->
-        common._escape value, escapeOpts.literal
-    escapeId: (value)->
-        common._escape value, escapeOpts.id
-    escapeSearch: (value)->
-        common._escape value, escapeOpts.search
-    escapeBeginWith: (value)->
-        common._escape value, escapeOpts.begin
-    escapeEndWith: (value)->
-        common._escape value, escapeOpts.end
+escapeOpts =
+    id:
+        quote: '`'
+        matcher: /([`\\\0\n\r\b])/g
+        replace:
+            '`': '\\`'
+            '\\': '\\\\'
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    literal:
+        quote: "'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "\\'"
+            '\\': '\\\\'
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    search:
+        quoteStart: "'%"
+        quoteEnd: "%'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "''"
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+            '%': '!%'
+            '_': '!_'
+            '!': '!!'
+escapeOpts.begin = _.clone escapeOpts.search
+escapeOpts.begin.quoteStart = "'"
+escapeOpts.end = _.clone escapeOpts.search
+escapeOpts.end.quoteEnd = "'"
 
-module.exports = adapter
+adapter.escape = common._escape.bind common, escapeOpts.literal
+adapter.escapeId = common._escape.bind common, escapeOpts.id
+adapter.escapeSearch = common._escape.bind common, escapeOpts.search
+adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
+adapter.escapeEndWith = common._escape.bind common, escapeOpts.end

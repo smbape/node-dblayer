@@ -124,7 +124,7 @@ _escapeConfigs[CONSTANTS.POSTGRES].begin.quoteStart = "'"
 _escapeConfigs[CONSTANTS.POSTGRES].end = extend {}, _escapeConfigs[CONSTANTS.POSTGRES].search
 _escapeConfigs[CONSTANTS.POSTGRES].end.quoteEnd = "'"
 
-exports._escape = _escape = (str, opts)->
+exports._escape = _escape = (opts, str)->
     type = typeof str
     if type is 'number'
         return str
@@ -133,7 +133,7 @@ exports._escape = _escape = (str, opts)->
     if Array.isArray str
         ret = []
         for iStr in str
-            ret[ret.length] = _escape iStr, opts
+            ret[ret.length] = _escape opts, iStr
         return '(' + ret.join(', ') + ')'
 
     str = '' + str if 'string' isnt type

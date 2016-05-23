@@ -20,7 +20,7 @@ internal.getAdapter = (options)->
         if typeof adapter is 'undefined'
             adapter = require './dialects/' + options.adapter + '/adapter'
             internal.adapters[options.adapter] = adapter
-    else if _.isPlainObject options.adapter
+    else if _.isObject options.adapter
         adapter = options.adapter
 
     if typeof adapter.createConnection isnt 'function'
@@ -254,6 +254,9 @@ module.exports = class AdapterPool extends SemaphorePool
                 @options[prop] = defaultOptions[prop]
 
         @adapter = internal.getAdapter @options
+        for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+            if 'function' is typeof @adapter[method]
+                @[method] = @adapter[method].bind @adapter
 
         self = @
         super
@@ -311,11 +314,3 @@ module.exports = class AdapterPool extends SemaphorePool
         new Connector @, _.defaults {}, options, @options
     getMaxConnection: ->
         @options.maxConnection
-    # escape: ->
-    #     @adapter.escape.apply @adapter, arguments
-    # escapeId: ->
-    #     @adapter.escapeId.apply @adapter, arguments
-    # exprEqual: ->
-    #     @adapter.exprEqual.apply @adapter, arguments
-    # exprNotEqual: ->
-    #     @adapter.exprNotEqual.apply @adapter, arguments

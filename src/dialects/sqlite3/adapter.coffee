@@ -10,13 +10,12 @@ MODES =
     WRITE: [Math.pow(2, 1), sqlite3.OPEN_READWRITE]
     CREATE: [Math.pow(2, 2), sqlite3.OPEN_CREATE]
 
-adapter = module.exports
+adapter = exports
 
 common = require '../../schema/adapter'
-escapeOpts = common._escapeConfigs[common.CONSTANTS.POSTGRES]
-
 _.extend adapter, common,
     name: 'sqlite3'
+
     createConnection: (options, callback)->
         database = options.database or ''
         if options.host
@@ -42,16 +41,55 @@ _.extend adapter, common,
             mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
 
         new SQLite3Connection filename, mode, callback
-    escape: (value)->
-        common._escape value, escapeOpts.literal
-    escapeId: (value)->
-        common._escape value, escapeOpts.id
-    escapeSearch: (value)->
-        common._escape value, escapeOpts.search
-    escapeBeginWith: (value)->
-        common._escape value, escapeOpts.begin
-    escapeEndWith: (value)->
-        common._escape value, escapeOpts.end
+
+    squelOptions:
+        replaceSingleQuotes: true
+        nameQuoteCharacter: '"'
+        fieldAliasQuoteCharacter: '"'
+        tableAliasQuoteCharacter: '"'
+
+escapeOpts =
+    id:
+        quote: '"'
+        matcher: /(["\\\0\n\r\b])/g
+        replace:
+            '"': '""'
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    literal:
+        quote: "'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "''"
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+    search:
+        quoteStart: "'%"
+        quoteEnd: "%'"
+        matcher: /(['\\\0\n\r\b])/g
+        replace:
+            "'": "''"
+            '\0': '\\0'
+            '\n': '\\n'
+            '\r': '\\r'
+            '\b': '\\b'
+            '%': '!%'
+            '_': '!_'
+            '!': '!!'
+escapeOpts.begin = _.clone escapeOpts.search
+escapeOpts.begin.quoteStart = "'"
+escapeOpts.end = _.clone escapeOpts.search
+escapeOpts.end.quoteEnd = "'"
+
+adapter.escape = common._escape.bind common, escapeOpts.literal
+adapter.escapeId = common._escape.bind common, escapeOpts.id
+adapter.escapeSearch = common._escape.bind common, escapeOpts.search
+adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
+adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
 
 class SQLite3Connection extends EventEmitter
     adapter: adapter
