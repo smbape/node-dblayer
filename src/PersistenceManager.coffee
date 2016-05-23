@@ -7,8 +7,8 @@ RowMap = require './RowMap'
 CompiledMapping = require './CompiledMapping'
 async = require 'async'
 semLib = require 'sem-lib'
-LRU = require 'lru-cache'
-{guessEscapeOpts} = require './schema/adapter'
+tools = require './tools'
+{adapter: getAdapter, guessEscapeOpts} = tools
 
 delegateMethod = (self, className, method, target = method)->
     if method is 'new'
@@ -35,6 +35,7 @@ module.exports = class PersistenceManager extends CompiledMapping
         update: {}
         save: {}
         delete: {}
+
     constructor: ->
         super
         for className of @classes
@@ -64,54 +65,14 @@ assertValidModelInstance = (model)->
     if err instanceof Error
         throw err
 
-PersistenceManager.dialects = PersistenceManager::dialects =
-    postgres:
-        squelOptions:
-            # autoQuoteTableNames: true
-            # autoQuoteFieldNames: true
-            replaceSingleQuotes: true
-            nameQuoteCharacter: '"'
-            fieldAliasQuoteCharacter: '"'
-            tableAliasQuoteCharacter: '"'
-        decorateInsert: (query, column)->
-            if typeof column is 'string' and column.length > 0
-                query += ' RETURNING "' + column + '"'
-            else
-                query
-    mysql:
-        squelOptions:
-            # autoQuoteTableNames: true
-            # autoQuoteFieldNames: true
-            replaceSingleQuotes: true
-            nameQuoteCharacter: '`'
-            fieldAliasQuoteCharacter: '`'
-            tableAliasQuoteCharacter: '`'
-    sqlite3:
-        squelOptions:
-            # autoQuoteTableNames: true
-            # autoQuoteFieldNames: true
-            replaceSingleQuotes: true
-            nameQuoteCharacter: '"'
-            fieldAliasQuoteCharacter: '"'
-            tableAliasQuoteCharacter: '"'
-
 PersistenceManager.getSquelOptions = PersistenceManager::getSquelOptions = (dialect)->
-    if @ instanceof PersistenceManager
-        instance = @
-    else
-        instance = PersistenceManager::
-
-    if instance.dialects.hasOwnProperty dialect
-        _.clone instance.dialects[dialect].squelOptions
+    getAdapter(dialect).squelOptions
 
 PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialect, query, column)->
-    if @ instanceof PersistenceManager
-        instance = @
-    else
-        instance = PersistenceManager::
+    adapter = getAdapter(dialect)
 
-    if @dialects.hasOwnProperty(dialect) and 'function' is typeof @dialects[dialect].decorateInsert
-        @dialects[dialect].decorateInsert query, column
+    if 'function' is typeof adapter.decorateInsert
+        adapter.decorateInsert query, column
     else
         query
 
@@ -362,10 +323,10 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
             attributes[definition.id.name] = value
             fields = [definition.id.name]
         else
-            if definition.constraints.unique.length isnt 0 and (options.useAttributes is false or not options.attributes)
+            if definition.hasUniqueConstraints and (options.useAttributes is false or not options.attributes)
                 attributes = {}
                 # check unique constraints properties
-                for constraint, index in definition.constraints.unique
+                for constraintKey, constraint of definition.constraints.unique
                     isSetted = true
                     for prop in constraint
                         value = model.get prop
@@ -399,7 +360,7 @@ _getInitializeCondition = (pMgr, model, className, definition, options)->
 
     if isSetted
         _.isPlainObject(options.result) or (options.result = {})
-        options.result.constraint = index
+        options.result.constraint = constraint
 
     {fields, where}
 
@@ -555,20 +516,23 @@ PersistenceManager.InsertQuery = class InsertQuery
         self = @
         definition = @definition
         params = @toParam()
-        idIndex = 0
         tasks = []
+
+        _addTask = (query, connector, index)->
+            tasks.push (next)->
+                query.execute connector, (err, id)->
+                    return next(err) if err
+                    column = definition.mixins[index].column
+                    self.set column, id
+                    next()
+                    return
+                return
+
+            return
+
         for value, index in params.values
             if value instanceof InsertQuery
-                tasks.push ((query)->
-                    (next)->
-                        query.execute connector, (err, id)->
-                            return next(err) if err
-                            column = definition.mixins[idIndex++].column
-                            self.set column, id
-                            next()
-                            return
-                        return
-                )(value)
+                _addTask value, connector, index
             else
                 break
 
@@ -871,7 +835,6 @@ PersistenceManager.SelectQuery = class SelectQuery
             if Array.isArray options.models
                 models = options.models
                 if models.length isnt rows.length
-                    debugger
                     err = new Error 'Returned rows and given number of models doesn\'t match'
                     err.extend = [models.length, rows.length]
                     err.code = 'OPT_MODELS'
@@ -913,7 +876,7 @@ PersistenceManager.SelectQuery = class SelectQuery
 _addUpdateOrDeleteCondition = (action, name, pMgr, model, className, definition, options)->
     idName = pMgr.getIdName className
     idName = null if typeof idName isnt 'string' or idName.length is 0
-    if definition.constraints.unique.length is 0 and idName is null
+    if ! definition.hasUniqueConstraints and idName is null
         err = new Error "Cannot #{name} #{className} models because id has not been defined"
         err.code = name.toUpperCase()
         throw err
@@ -945,7 +908,6 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
         @model = model
         @pMgr = pMgr
-        @options = options
 
         @toQuery = -> update
         @toParam = -> update.toParam()
@@ -959,7 +921,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         className = options.className or model.className
         definition = @definition = pMgr._getDefinition className
         table = definition.table
-        update = squel.update(pMgr.getSquelOptions(options.dialect)).table @options.escapeId(table)
+        update = squel.update(pMgr.getSquelOptions(options.dialect)).table options.escapeId(table)
 
         result = _addUpdateOrDeleteCondition update, 'update', pMgr, model, className, definition, options
 
@@ -969,11 +931,10 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
         # update owned properties
         for prop, propDef of definition.properties
-            if result
-                # contraint used as discriminator must not be update
+            if result and result.constraint
+                # constraint used as discriminator must not be update
                 # causes an error on postgres
-                constraint = definition.constraints.unique[result.constraint]
-                if -1 isnt constraint.indexOf prop
+                if -1 isnt result.constraint.indexOf prop
                     continue
 
             if propDef.hasOwnProperty('className') and typeof (parentModel = model.get prop) isnt 'undefined'
@@ -1035,7 +996,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
             if typeof value is 'undefined'
                 continue
 
-            update.set @options.escapeId(column), value, {dontQuote: !!dontQuote}
+            update.set options.escapeId(column), value, {dontQuote: !!dontQuote}
             @hasData = true
 
             if not dontLock and not propDef.lock
@@ -1077,16 +1038,14 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         idIndex = 0
         tasks = []
 
-        addTask = (query, connector)->
-            tasks.push (next)->
-                query.execute connector, next
-                return
+        _addTask = (query, connector)->
+            tasks.push (next)-> query.execute connector, next
             return
 
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
             if value instanceof UpdateQuery and value.hasData
-                addTask(value, connector)
+                _addTask value, connector
             else
                 break
 
@@ -1263,17 +1222,15 @@ PersistenceManager.DeleteQuery = class DeleteQuery
             return @_execute connector, next
 
         params = @toParam()
-        idIndex = 0
+        _addTask = (query, connector)->
+            tasks.push (next)-> query.execute connector, next
+            return
+
         tasks = []
         for index in [(params.values.length - 1)..0] by -1
             value = params.values[index]
             if value instanceof DeleteQuery
-                ((query)->
-                    tasks.push (next)->
-                        query.execute connector, next
-                        return
-                    return
-                )(value)
+                _addTask value, connector
             else
                 break
 
@@ -1300,16 +1257,18 @@ PersistenceManager::getInsertQueryString = (className, entries, options)->
 
     for attributes in entries
         row = {}
-        query = pMgr.getInsertQuery pMgr.newInstance(className, attributes), options
+        query = @getInsertQuery @newInstance(className, attributes), options
         {fields: columns, values: [values]} = query.toQuery().blocks[2]
         for column, i in columns
             row[column] = values[i]
         rows.push row
 
-    squel.insert(squelOptions)
+    squel.insert(@getSquelOptions(query.options.dialect))
         .into query.options.escapeId @getTable className
         .setFieldsRows rows
         .toString()
+
+PersistenceManager::sync = require('./schema/sync').sync
 
 # error codes abstraction
 # check: database and mapping are compatible

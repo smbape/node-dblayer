@@ -21,6 +21,7 @@ describe 'mapping', ->
             id:
                 name: 'id'
                 column: 'colIdA'
+                pk: 'TableA'
 
         # String id is for name and column
         assertPartial mapping, 'ClassA',
@@ -31,6 +32,7 @@ describe 'mapping', ->
             id:
                 name: 'idA'
                 column: 'idA'
+                pk: 'TableA'
 
         # Empty id column is replaced by id name
         assertPartial mapping, 'ClassA',
@@ -41,6 +43,7 @@ describe 'mapping', ->
             id:
                 name: 'idA'
                 column: 'idA'
+                pk: 'TableA'
 
         # default table name is className
         assertPartial mapping, 'ClassA',
@@ -52,6 +55,7 @@ describe 'mapping', ->
             id:
                 name: 'id'
                 column: 'colIdA'
+                pk: 'ClassA'
 
         # Check consistency
         assertPartial mapping, 'ClassA',
@@ -67,6 +71,7 @@ describe 'mapping', ->
             id:
                 name: 'id'
                 column: 'colIdA'
+                pk: 'TableA'
             properties:
                 propA1:
                     column: 'colPropA1'
@@ -84,6 +89,7 @@ describe 'mapping', ->
             id:
                 name: 'id'
                 column: 'colIdA'
+                pk: 'TableA'
             properties:
                 propA1:
                     column: 'colPropA1'
@@ -103,6 +109,7 @@ describe 'mapping', ->
             id:
                 name: 'idA'
                 column: 'idA'
+                pk: 'TableA'
 
         # constraint
         assertPartial mapping, 'ClassA',
@@ -120,6 +127,7 @@ describe 'mapping', ->
             id:
                 name: 'idA'
                 column: 'idA'
+                pk: 'TableA'
 
         # constraint
         assertPartial mapping, 'ClassA',
@@ -136,6 +144,20 @@ describe 'mapping', ->
             id:
                 name: 'idA'
                 column: 'idA'
+                pk: 'TableA'
+
+        # must keep given pk name
+        assertPartial mapping, 'ClassA',
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: 'custom'
+        ,
+            table: 'ClassA'
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: 'custom'
 
         return
 
@@ -425,6 +447,15 @@ describe 'mapping', ->
                 propA1: 'colPropA1'
                 propA2: 'colPropA2'
         , 'CTOR'
+
+        # primary key can only be a string
+        assertPartialThrows mapping, 'ClassA',
+            id:
+                name: 'id'
+                column: 'colIdA'
+                pk: true
+        , 'INDEX'
+
         return
 
     return

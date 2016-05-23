@@ -4,7 +4,7 @@ PlaceHolderParser = require './PlaceHolderParser'
 log4js = global.log4js or (global.log4js = require 'log4js')
 logger = log4js.getLogger 'RowMap'
 squel = require 'squel'
-{guessEscapeOpts} = require './schema/adapter'
+{guessEscapeOpts} = require './tools'
 
 STATIC =
     PROP_SEP: ':'
@@ -331,7 +331,6 @@ module.exports = class RowMap
     # set column alias as field of prop
     # must be called step by step
     _selectProp: (prop, ancestors)->
-        timerInit = new Date().getTime()
         parentId = @_getUniqueId null, ancestors
         parentInfo = @_getInfo parentId
         parentDef = @manager.getDefinition parentInfo.className
@@ -343,9 +342,6 @@ module.exports = class RowMap
             @_set parentInfo, 'selectAll', true
             for prop of parentDef.availableProperties
                 @_setField @_getUniqueId(prop, ancestors), true
-            timerDiff = new Date().getTime() - timerInit
-            if timerDiff > 30
-                logger.fatal @className, 'took', timerDiff, 'to set select prop', '*', Object.keys(parentDef.availableProperties).length
             return
 
         id = @_getUniqueId prop, ancestors
@@ -353,9 +349,6 @@ module.exports = class RowMap
 
         if info.hasOwnProperty 'field'
             # this property has already been selected
-            timerDiff = new Date().getTime() - timerInit
-            if timerDiff > 30
-                logger.fatal @className, 'took', timerDiff, 'to set select prop', prop
             return
 
         column = @_getColumn id
@@ -384,9 +377,6 @@ module.exports = class RowMap
                     # not nullable => select all fields
                     @_setField @_getUniqueId(prop, ancestors), true
             @_set info, 'selectedAll', true
-        timerDiff = new Date().getTime() - timerInit
-        if timerDiff > 30
-            logger.fatal @className, 'took', timerDiff, 'to set select prop', prop
         return
 
     # Is called step by step .i.e. parent is supposed to be defined

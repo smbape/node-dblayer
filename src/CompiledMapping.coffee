@@ -3,7 +3,7 @@ logger = log4js.getLogger 'CompiledMapping'
 _ = require 'lodash'
 LRU = require 'lru-cache'
 
-notEmptyString = (str)->
+isStringNotEmpty = (str)->
     typeof str is 'string' and str.length > 0
 
 modelId = 0
@@ -36,26 +36,57 @@ class Model
     toJSON: ->
         @attributes
 
+specProperties = ['type', 'type_args', 'nullable', 'pk', 'fk']
+
 module.exports = class CompiledMapping
-    constructor: (mapping)->
+    constructor: (mapping, options)->
         for prop in ['classes', 'resolved', 'unresolved', 'tables']
             @[prop] = {}
+
+        @indexNames =
+            pk: {}
+            uk: {}
+            fk: {}
+            ix: {}
 
         # Resolve mapping
         for className of mapping
             _resolve className, mapping, @
 
-        # Set undefined column for className properties
+        propToColumn = (prop)-> classDef.properties[prop].column
+
         for className, classDef of @classes
-            for prop, value of classDef.properties
-                if value.hasOwnProperty('className') and not value.hasOwnProperty('column')
-                    definition = @_getDefinition value.className
-                    value.column = definition.id.column
-                @_addColumn className, value.column, prop
+            # Set undefined column for className properties
+            for prop, propDef of classDef.properties
+                if propDef.hasOwnProperty('className')
+                    parentDef = @_getDefinition propDef.className
+                    _inheritType propDef, parentDef.id
+                    if not propDef.hasOwnProperty('column')
+                        propDef.column = parentDef.id.column
+                @_addColumn className, propDef.column, prop
+
+            # Set undefined fk for className properties
+            for prop, propDef of classDef.properties
+                if propDef.hasOwnProperty('className')
+                    if not propDef.hasOwnProperty('fk')
+                        parentDef = @_getDefinition propDef.className
+                        fk = "#{classDef.table}_#{propDef.column}_HAS_#{parentDef.table}_#{parentDef.id.column}"
+                        propDef.fk = fk
+                    _addIndexName propDef.fk, 'fk', @
+
+            # Set undefined constraint names
+            {indexes, constraints: {unique, names}} = classDef
+            for key, properties of unique
+                classDef.hasUniqueConstraints = true
+                if not names[key]
+                    name = 'UK_' + properties.map(propToColumn).join('_')
+                    _addIndexName name, 'uk', @
+                    names[key] = name
 
         @resolved = true
 
     Model: Model
+    specProperties: specProperties
 
     getConstructor: (className)->
         @assertClassHasMapping className
@@ -107,7 +138,11 @@ module.exports = class CompiledMapping
             dependencies:
                 resolved: {}
                 mixins: []
-            cache: LRU(50)
+            constraints:
+                unique: {}
+                names: {}
+            indexes: {}
+            cache: LRU(10)
 
         @classes[className] = classDef
 
@@ -158,7 +193,7 @@ module.exports = class CompiledMapping
             throw err
 
         definition = @classes[className]
-        if notEmptyString column
+        if isStringNotEmpty column
             definition.columns[column] = prop
         else
             err = new Error "[#{className}.#{prop}] column must be a not empty string"
@@ -189,7 +224,7 @@ module.exports = class CompiledMapping
                 parents.push dependencyClassName
 
         obj = className: mixinClassName
-        if notEmptyString mixin.column
+        if isStringNotEmpty mixin.column
             obj.column = mixin.column
         else
             obj.column = @classes[mixinClassName].id.column
@@ -221,7 +256,7 @@ _resolve = (className, mapping, compiled)->
     if not rawDefinition.hasOwnProperty 'table'
         # default table name is className
         classDef.table = className
-    else if notEmptyString rawDefinition.table
+    else if isStringNotEmpty rawDefinition.table
         classDef.table = rawDefinition.table
     else
         err = new Error "[#{classDef.className}] table is not a string"
@@ -230,13 +265,6 @@ _resolve = (className, mapping, compiled)->
 
     # check duplicate table and add
     compiled._addTable classDef.className
-
-    # All class definition must have an id column for performant read, join, update
-    # update: Collections are nn-tables that may not have id's
-    # if not rawDefinition.hasOwnProperty 'id'
-    #     err = new Error "[#{classDef.className}] id property must be defined"
-    #     err.code = 'NO_ID'
-    #     throw err
 
     if typeof rawDefinition.id is 'string'
         # id as string => name
@@ -256,13 +284,17 @@ _resolve = (className, mapping, compiled)->
         isIdMandatory = false
         id = {}
 
+
     if not _.isPlainObject id
         err = new Error "[#{classDef.className}] id is not well defined. Expecting String|{name: String}|{className: String}. Given #{id}"
         err.code = 'ID'
         throw err
 
+    _.defaults id, id.domain
+    delete id.domain
+
     classDef.id = name: null
-    if notEmptyString id.column
+    if isStringNotEmpty id.column
         classDef.id.column = id.column
 
     if id.hasOwnProperty('name') and id.hasOwnProperty('className')
@@ -270,18 +302,18 @@ _resolve = (className, mapping, compiled)->
         err.code = 'INCOMP_ID'
         throw err
 
-    if notEmptyString id.name
+    if isStringNotEmpty id.name
         classDef.id.name = id.name
         if not id.hasOwnProperty 'column'
             # default id column is id name
             classDef.id.column = id.name
-        else if not notEmptyString id.column
+        else if not isStringNotEmpty id.column
             err = new Error "[#{classDef.className}] column must be a not empty string for id"
             err.code = 'ID_COLUMN'
             throw err
 
         compiled._addColumn className, classDef.id.column, classDef.id.name
-    else if notEmptyString id.className
+    else if isStringNotEmpty id.className
         classDef.id.className = id.className
     else if isIdMandatory
         err = new Error "[#{classDef.className}] name xor className must be defined as a not empty string for id"
@@ -291,7 +323,7 @@ _resolve = (className, mapping, compiled)->
     # =============================================================================
     #  Properties checking
     # =============================================================================
-    _addProperties classDef, rawDefinition.properties
+    _addProperties compiled, classDef, rawDefinition.properties
     # =============================================================================
     #  Properties checking - End
     # =============================================================================
@@ -307,9 +339,17 @@ _resolve = (className, mapping, compiled)->
     # =============================================================================
     #  Constraints checking
     # =============================================================================
-    _addConstraints classDef, rawDefinition
+    _addConstraints compiled, classDef, rawDefinition
     # =============================================================================
     #  Constraints checking - End
+    # =============================================================================
+
+    # =============================================================================
+    #  Indexes checking
+    # =============================================================================
+    _addIndexes compiled, classDef, rawDefinition
+    # =============================================================================
+    #  Indexes checking - End
     # =============================================================================
 
     if typeof classDef.id.className is 'string'
@@ -318,22 +358,32 @@ _resolve = (className, mapping, compiled)->
         idClassDef = compiled.classes[classDef.id.className]
         classDef.id.name = idClassDef.id.name
 
-        # single parent no colum define => assume same column as parent
+        # single parent no column define => assume same column as parent
         if not classDef.id.hasOwnProperty 'column'
             classDef.id.column = idClassDef.id.column
             compiled._addColumn classDef.className, classDef.id.column, classDef.id.name
 
+        _inheritType classDef.id, idClassDef.id
+
     # add id as an available property
     if typeof classDef.id.name is 'string'
         classDef.availableProperties[classDef.id.name] = definition: classDef.id
+
+    _addSpecProperties classDef.id, id
+
+    if not classDef.id.pk
+        pk = classDef.table
+        classDef.id.pk = pk
+    _addIndexName classDef.id.pk, 'pk', compiled
 
     _setConstructor classDef, rawDefinition.ctor
 
     compiled._markResolved classDef.className
     return
 
-_addProperties = (classDef, rawProperties)->
+_addProperties = (compiled, classDef, rawProperties)->
     return if not _.isPlainObject rawProperties
+    constraints = classDef.constraints
 
     for prop, rawPropDef of rawProperties
         if typeof rawPropDef is 'string'
@@ -344,8 +394,11 @@ _addProperties = (classDef, rawProperties)->
             err.code = 'PROP'
             throw err
 
+        _.defaults rawPropDef, rawPropDef.domain
+        delete rawPropDef.domain
+
         classDef.properties[prop] = propDef = {}
-        if notEmptyString rawPropDef.column
+        if isStringNotEmpty rawPropDef.column
             propDef.column = rawPropDef.column
 
         # add this property as available properties for this className
@@ -375,16 +428,18 @@ _addProperties = (classDef, rawProperties)->
         if rawPropDef.hasOwnProperty 'lock'
             propDef.lock = typeof rawPropDef.lock is 'boolean' and rawPropDef.lock
 
-        for prop in ['nullable']
-            if rawPropDef.hasOwnProperty prop
-                propDef[prop] = rawPropDef[prop]
+        _addSpecProperties propDef, rawPropDef, classDef
+
+        if rawPropDef.unique
+            propDef.unique = rawPropDef.unique
+            _addUniqueConstraint propDef.unique, [prop], classDef, compiled
 
     return
 
 _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
     if not rawDefinition.hasOwnProperty 'mixins'
         mixins = []
-    else if notEmptyString(rawDefinition.mixins)
+    else if isStringNotEmpty(rawDefinition.mixins)
         mixins = [rawDefinition.mixins]
     else if Array.isArray(rawDefinition.mixins)
         mixins = rawDefinition.mixins[0..]
@@ -394,7 +449,7 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
         throw err
 
     classDef.mixins = []
-    if notEmptyString id.className
+    if isStringNotEmpty id.className
         mixins.unshift id
     seenMixins = {}
 
@@ -419,9 +474,12 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
             err.code = 'DUP_MIXIN'
             throw err
 
+        _.defaults mixin, mixin.domain
+        delete mixin.domain
+
         seenMixins[className] = true
         _mixin = className: className
-        if notEmptyString mixin.column
+        if isStringNotEmpty mixin.column
             _mixin.column = mixin.column
         else if mixin.hasOwnProperty 'column'
             err = new Error "[#{classDef.className}] mixin [#{mixin.className}]: Column is not a string or is empty"
@@ -466,6 +524,14 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
         # Purposes:
         #   - On read, to fastly check if join on this mixin is required
         mixinDef = compiled.classes[_mixin.className]
+        _inheritType _mixin, mixinDef.id
+        _addSpecProperties _mixin, mixin
+
+        if not _mixin.fk
+            fk = "#{classDef.table}_#{_mixin.column}_EXT_#{mixinDef.table}_#{mixinDef.id.column}"
+            _mixin.fk = fk
+        _addIndexName _mixin.fk, 'fk', compiled
+
         for prop of mixinDef.availableProperties
             if not classDef.availableProperties.hasOwnProperty prop
                 classDef.availableProperties[prop] =
@@ -474,14 +540,19 @@ _addMixins = (compiled, classDef, rawDefinition, id, mapping)->
 
     return
 
-_addConstraints = (classDef, rawDefinition)->
-    classDef.constraints = constraints = unique: []
+_addConstraints = (compiled, classDef, rawDefinition)->
+    constraints = classDef.constraints
+
+    ERR_CODE = 'CONSTRAINT'
 
     rawConstraints = rawDefinition.constraints
     rawConstraints = [rawConstraints] if _.isPlainObject rawConstraints
-    return if not Array.isArray rawConstraints
-
-    ERR_CODE = 'CONSTRAINT'
+    if not Array.isArray rawConstraints
+        if rawConstraints
+            err = new Error "[#{classDef.className}] constraints can only be a plain object or an array of plain objects"
+            err.code = ERR_CODE
+            throw err
+        return
 
     for constraint, index in rawConstraints
         if not _.isPlainObject constraint
@@ -495,7 +566,7 @@ _addConstraints = (classDef, rawDefinition)->
             throw err
 
         properties = constraint.properties
-        if notEmptyString properties
+        if isStringNotEmpty properties
             properties = [properties]
 
         if not Array.isArray properties
@@ -505,12 +576,127 @@ _addConstraints = (classDef, rawDefinition)->
 
         for prop in properties
             if not classDef.properties.hasOwnProperty prop
-                err = new Error "[#{classDef.className}] - constraint at index #{index}: property #{prop} is not owned"
+                err = new Error "[#{classDef.className}] - constraint at index #{index}: class does not owned property '#{prop}'"
                 err.code = ERR_CODE
                 throw err
 
-        constraints.unique.push properties[0..]
+        if constraint.name and ('string' isnt typeof constraint.name or constraint.name.length is 0)
+            err = new Error "[#{classDef.className}] constraint at index #{index}: Name must be a string"
+            err.code = ERR_CODE
+            throw err
 
+        keys = properties[0..]
+        if keys.length is 1
+            prop = properties[0]
+            propDef = classDef.properties[prop]
+            propDef.unique = true
+
+        _addUniqueConstraint constraint.name, keys, classDef, compiled
+
+    return
+
+_addIndexes = (compiled, classDef, rawDefinition)->
+    indexes = classDef.indexes
+
+    ERR_CODE = 'INDEX'
+
+    rawIndexes = rawDefinition.indexes
+    if not _.isPlainObject rawIndexes
+        if rawIndexes
+            err = new Error "[#{classDef.className}] indexes can only be a plain object"
+            err.code = ERR_CODE
+            throw err
+        return
+
+    constraints = classDef.constraints
+    names = constraints.names
+    for name, properties of rawIndexes
+        if isStringNotEmpty(properties)
+            properties = [properties]
+
+        if not Array.isArray properties
+            err = new Error "[#{classDef.className}] index '#{name}' is not an Array"
+            err.code = ERR_CODE
+            throw err
+
+        for prop in properties
+            if not classDef.properties.hasOwnProperty prop
+                err = new Error "[#{classDef.className}] - index '#{name}': class does not owned property '#{prop}'"
+                err.code = ERR_CODE
+                throw err
+
+        properties = properties[0..].sort()
+        key = properties.join(':')
+
+        if constraints.unique.hasOwnProperty(key)
+            err = new Error "the unique constraint with name #{constraints.names[key]} matches #{key}. Only one index per set of properties is allowed"
+            err.code = ERR_CODE
+            throw err
+
+        _addIndexName name, 'ix', compiled
+        indexes[name] = properties
+
+    return
+
+_addUniqueConstraint = (name, properties, classDef, compiled)->
+    properties.sort()
+    key = properties.join(':')
+    {constraints} = classDef
+    if constraints.unique.hasOwnProperty(key)
+        err = new Error "the unique constraint with name #{constraints.names[key]} matches #{key}. Only one index per set of properties is allowed"
+        err.code = 'CONSTRAINT'
+        throw err
+
+    if name
+        _addIndexName name, 'uk', compiled
+        constraints.names[key] = name
+    constraints.unique[key] = properties
+    return
+
+_addIndexName = (name, type, compiled)->
+    if not isStringNotEmpty name
+        err = new Error "a #{type} index must be a not empty string"
+        err.code = 'INDEX'
+        throw err
+
+    indexNames = compiled.indexNames[type]
+    if indexNames.hasOwnProperty name
+        err = new Error "a #{type} index with name #{name} is already defined"
+        err.code = 'INDEX'
+        throw err
+
+    indexNames[name] = true
+    return
+
+_inheritType = (child, parent)->
+    {type, type_args} = parent
+    if type and match = type.match(/^(?:(small|big)?(?:increments|serial)|serial([248]))$/)
+        length = match[1] or match[2]
+        switch length
+            when 'big', '8'
+                type = 'bigint'
+            when 'small', '2'
+                type = 'smallint'
+            else
+                type = 'integer'
+
+    child.type = type if type
+    child.type_args = type_args if type_args
+    child
+
+_addSpecProperties = (definition, rawDefinition)->
+    for prop in specProperties
+        if rawDefinition.hasOwnProperty prop
+            value = rawDefinition[prop]
+            switch prop
+                when 'type'
+                    value = value.toLowerCase()
+                when 'type_args'
+                    if value and not Array.isArray(value)
+                        err = new Error "[#{definition.className}] - property '#{prop}': type_args must be an Array"
+                        err.code = ERR_CODE
+                        throw err
+            definition[prop] = value
     return
 
 _setConstructor = (classDef, Ctor)->
