@@ -31,8 +31,9 @@ module.exports = class Connector extends EventEmitter
             if 'function' is typeof pool.adapter[method]
                 @[method] = pool.adapter[method].bind pool.adapter
 
-        if 'function' is typeof pool.getDialect
-            @getDialect = pool.getDialect.bind pool
+        for method in ['getDialect', 'exec', 'execute']
+            if 'function' is typeof pool[method]
+                @[method] = pool[method].bind pool
 
         if _.isPlainObject options
             @options = _.clone options

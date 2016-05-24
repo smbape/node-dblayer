@@ -19,7 +19,7 @@ class MySQLConnection extends MySQLLibConnection
         @options = _.clone options
         super config: new ConnectionConfig options
     query: (query, params, callback)->
-        stream = adapter.createQuery query, params, callback
+        stream = _createQuery query, params, callback
         super stream.query
         stream
     stream: (query, params, callback, done)->
@@ -54,6 +54,60 @@ class MySQLConnection extends MySQLLibConnection
             return
         stream
 
+_createQuery = (text, values, callback)->
+    if typeof callback is 'undefined' and typeof values is 'function'
+        callback = values
+        values = undefined
+
+    values = values or []
+    query = mysql.createQuery text, values
+
+    stream = query.stream highWaterMark: HWM
+    emitClose = once stream.emit.bind stream, 'close'
+    prependListener query, 'end', emitClose
+
+    stream.query = query
+    stream.text = text
+    stream.values = values
+    stream.callback = callback
+
+    if typeof callback is 'function'
+        result =
+            rows: []
+            rowCount: 0
+            lastInsertId: 0
+            fields: null
+            fieldCount: 0
+
+        hasError = false
+        stream.on 'error', (err)->
+            emitClose()
+            hasError = true
+            @callback err
+            return
+        stream.on 'fields', (fields) ->
+            result.fields = fields
+            return
+        stream.on 'data', (row) ->
+            if row.constructor.name is 'OkPacket'
+                result.fieldCount = row.fieldCount
+                result.affectedRows = row.affectedRows
+                result.changedRows = row.changedRows
+                result.lastInsertId = row.insertId
+            else
+                ++result.rowCount
+                result.rows.push(row)
+            return
+        stream.on 'end', ->
+            @callback null, result unless hasError
+            return
+
+    stream.once 'end', ->
+        delete @query
+        return
+
+    stream
+
 _.extend adapter,
     name: 'mysql'
 
@@ -70,59 +124,8 @@ _.extend adapter,
         fieldAliasQuoteCharacter: '`'
         tableAliasQuoteCharacter: '`'
 
-    createQuery: (text, values, callback)->
-        if typeof callback is 'undefined' and typeof values is 'function'
-            callback = values
-            values = undefined
-
-        values = values or []
-        query = mysql.createQuery text, values
-
-        stream = query.stream highWaterMark: HWM
-        emitClose = once stream.emit.bind stream, 'close'
-        prependListener query, 'end', emitClose
-
-        stream.query = query
-        stream.text = text
-        stream.values = values
-        stream.callback = callback
-
-        if typeof callback is 'function'
-            result =
-                rows: []
-                rowCount: 0
-                lastInsertId: 0
-                fields: null
-                fieldCount: 0
-
-            hasError = false
-            stream.on 'error', (err)->
-                emitClose()
-                hasError = true
-                @callback err
-                return
-            stream.on 'fields', (fields) ->
-                result.fields = fields
-                return
-            stream.on 'data', (row) ->
-                if row.constructor.name is 'OkPacket'
-                    result.fieldCount = row.fieldCount
-                    result.affectedRows = row.affectedRows
-                    result.changedRows = row.changedRows
-                    result.lastInsertId = row.insertId
-                else
-                    ++result.rowCount
-                    result.rows.push(row)
-                return
-            stream.on 'end', ->
-                @callback null, result unless hasError
-                return
-
-        stream.once 'end', ->
-            delete @query
-            return
-
-        stream
+    insertDefaultValue: (column)->
+        'VALUES ()'
 
     # getModel: (callback)->
     #     callback = (->) if typeof callback isnt 'function'

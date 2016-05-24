@@ -1,5 +1,9 @@
+fs = require 'fs'
+sysPath = require 'path'
 _ = require 'lodash'
+anyspawn = require 'anyspawn'
 common = require '../../schema/adapter'
+{getTemp} = require '../../tools'
 adapter = module.exports
 _.extend adapter, common
 logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
@@ -114,3 +118,104 @@ _.extend adapter,
             query += ' RETURNING "' + column + '"'
         else
             query
+
+    insertDefaultValue: (column)->
+        "(#{@escapeId(column)}) VALUES (DEFAULT)"
+
+# http://www.postgresql.org/docs/9.4/static/libpq-envars.html
+_env = _.pick process.env, [
+    'PGHOST'
+    'PGHOSTADDR'
+    'PGPORT'
+    'PGDATABASE'
+    'PGUSER'
+    'PGPASSWORD'
+    'PGPASSFILE'
+    'PGSERVICE'
+    'PGSERVICEFILE'
+    'PGREALM'
+    'PGOPTIONS'
+    'PGAPPNAME'
+    'PGSSLMODE'
+    'PGREQUIRESSL'
+    'PGSSLCOMPRESSION'
+    'PGSSLCERT'
+    'PGSSLKEY'
+    'PGSSLROOTCERT'
+    'PGSSLCRL'
+    'PGREQUIREPEER'
+    'PGKRBSRVNAME'
+    'PGGSSLIB'
+    'PGCONNECT_TIMEOUT'
+    'PGCLIENTENCODING'
+    'PGDATESTYLE'
+    'PGTZ'
+    'PGGEQO'
+    'PGSYSCONFDIR'
+    'PGLOCALEDIR'
+]
+umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
+
+# string|object|function
+# string|function|object
+# function|string|object
+# function|object|string
+# object|string|function
+# object|function|string
+adapter.exec = adapter.execute = (script, options, done)->
+    if _.isPlainObject(script)
+        _script = options
+        options = script
+        script = _script
+
+    if 'function' is typeof options
+        done = options
+        options = {}
+
+    if not _.isPlainObject(options)
+        options = {}
+
+    {
+        user
+        password
+        database
+        schema
+        cmd: psql
+        host
+        port
+        stdout
+        stderr
+        tmp
+        keep
+    } = options
+
+    database or (database = 'postgres')
+    schema or (schema = 'public')
+    host or (host = '127.0.0.1')
+    port or (port = 5432)
+    psql or (psql = 'psql')
+    psql or (psql = 'psql')
+    stdout or (stdout isnt null and stdout = process.stdout)
+    stderr or (stderr isnt null and stderr = process.stderr)
+    tmp = getTemp(tmp, options.keep isnt true)
+
+    sqlFile = sysPath.join(tmp, 'script.sql')
+    fs.writeFileSync sqlFile, "SET SCHEMA '#{schema}';\n#{script}", umask
+
+    env = _.clone _env
+    if user and password
+        pgpass = sysPath.join(tmp, 'pgpass.conf')
+        fs.writeFileSync pgpass, "*:*:*:#{user}:#{password}", umask
+        env.PGPASSFILE = pgpass
+
+    args = ['-h', host, '-p', port, '-d', database, '-f', sqlFile]
+    opts = _.defaults
+        stdio: [process.stdin, stdout, stderr]
+        env: env
+    , options
+    if user
+        args.push '-U'
+        args.push user
+
+    anyspawn.exec psql, args, opts, done
+    return

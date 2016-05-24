@@ -27,12 +27,13 @@
   "homepage": "https://github.com/smbape/node-dblayer",
   "readmeFilename": "readme.md",
   "dependencies": {
+    "anyspawn": "^1.0.8",
     "async": "^2.0.0-rc.5",
-    "backbone": "^1.3.3",
     "duplex-arraystream": "^0.0.1",
     "lodash": "^4.12.0",
     "log4js": "^0.6.36",
     "lru-cache": "^4.0.1",
+    "mkdirp": "^0.5.1",
     "moment": "^2.13.0",
     "mysql": "^2.8.0",
     "once": "^1.3.2",
@@ -40,12 +41,13 @@
     "pg-native": "^1.10.0",
     "pg-query-stream": "^0.7.0",
     "prepend-listener": "0.0.0",
+    "rimraf": "^2.5.2",
     "sem-lib": "^1.0.0",
     "sqlite3": "^3.1.4",
-    "squel": "^4.4.2"
+    "squel": "^4.4.2",
+    "temp": "^0.8.3"
   },
   "devDependencies": {
-    "anyspawn": "^1.0.8",
     "chai": "^3.5.0",
     "chalk": "^1.1.3",
     "coffee-script": "^1.10.0",
@@ -53,11 +55,8 @@
     "istanbul": "^0.4.3",
     "jshint": "^2.9.2",
     "knex": "^0.11.3",
-    "mkdirp": "^0.5.1",
     "mocha": "^2.4.5",
     "nodeunit": "^0.9.1",
-    "rimraf": "^2.5.2",
-    "sql": "^0.52.0",
-    "temp": "^0.8.3"
+    "sql": "^0.52.0"
   }
 }

@@ -1,26 +1,20 @@
 _ = require 'lodash'
 tools = require '../../tools'
-TypeCompiler = require './TypeCompiler'
+SchemaCompiler = require '../../schema/SchemaCompiler'
+ColumnCompiler = require './ColumnCompiler'
 
-LOWERWORDS =
-    inherits: 'inherits'
+validUpdateActions = ['no_action', 'restrict', 'cascade', 'set_null', 'set_default']
 
-_.extend TypeCompiler::LOWERWORDS, LOWERWORDS
-_.extend TypeCompiler::UPPERWORDS, tools.toUpperWords LOWERWORDS
-
-module.exports =
-    adapter: require('./adapter')
+module.exports = class PgSchemaCompiler extends SchemaCompiler
+    ColumnCompiler: ColumnCompiler
 
     # http://www.postgresql.org/docs/9.4/static/sql-createtable.html
-    createTable: (table, options = {})->
-        # console.log require('util').inspect(table, {colors: true, depth: null})
-        indent = options.indent or '    '
-        LF = '\n'
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
+    createTable: (table, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, columnCompiler, args, indent, LF} = @
 
         tableName = table.name
-        tableNameId = adapter.escapeId tableName
+        tableNameId = escapeId tableName
         args.table = tableName
         tablesql = []
 
@@ -42,7 +36,7 @@ module.exports =
 
         # column definition
         for column, spec of table.columns
-            columnId = adapter.escapeId(column)
+            columnId = escapeId(column)
             length = columnId.length
             spaceLen = 21 - length
             if spaceLen <= 0
@@ -54,7 +48,7 @@ module.exports =
             colsql = [columnId, ' '.repeat(spaceLen)]
             args.column = column
 
-            type = _getTypeString spec, typecompiler
+            type = columnCompiler.getTypeString(spec)
             colsql.push type
 
             length += type.length
@@ -63,7 +57,7 @@ module.exports =
                 spaceLen = 1
             colsql.push ' '.repeat(spaceLen)
 
-            colsql.push _getColumnModifier spec, typecompiler
+            colsql.push columnCompiler.getColumnModifier(spec)
 
             tablespec.push indent + colsql.join(' ')
 
@@ -72,22 +66,31 @@ module.exports =
             count = 0
             for pkName, columns of pk
                 if ++count is 2
-                    throw new Error "#{tableName} has more than one primary key"
-                tablespec.push indent + words.constraint + ' ' + _pkString(pkName, columns, typecompiler)
+                    err = new Error "#{tableName} has more than one primary key"
+                    err.code = 'MULTIPLE_PK'
+                    throw err
+                tablespec.push indent + words.constraint + ' ' + columnCompiler.pkString(pkName, columns)
 
         # unique indexes
-        if (uk = table.constraints['UNIQUE']) and not _.isEmpty(uk)
+        if (uk = table.constraints.UNIQUE) and not _.isEmpty(uk)
             for ukName, columns of uk
-                tablespec.push indent + words.constraint + ' ' + _ukString(ukName, columns, typecompiler)
+                tablespec.push indent + words.constraint + ' ' + columnCompiler.ukString(ukName, columns)
 
         tablesql.push tablespec.join(',' + LF)
         tablesql.push LF
-        tablesql.push ');'
+        tablesql.push ')'
 
         # indexes
         if table.indexes and not _.isEmpty(table.indexes)
+            tablesql.push ';'
             tablesql.push LF
+            count = 0
             for indexName, columns of table.indexes
+                if count is 0
+                    count = 1
+                else
+                    tablesql.push ';'
+                    tablesql.push LF
                 tablesql.push LF
                 spaceLen = ' '.repeat(66 - 10 - indexName.length - 2)
                 tablesql.push """
@@ -95,8 +98,7 @@ module.exports =
                 /* Index: #{indexName}#{spaceLen}*/
                 /*==============================================================*/
                 """
-                tablesql.push.apply tablesql, [LF, words.create_index, ' ', _indexString(indexName, columns, tableNameId, typecompiler)]
-                tablesql.push LF
+                tablesql.push.apply tablesql, [LF, words.create_index, ' ', columnCompiler.indexString(indexName, columns, tableNameId)]
 
         # foreign keys
         altersql = []
@@ -111,19 +113,23 @@ module.exports =
                 } = constraint
 
                 altersql.push.apply altersql, [
-                    LF, words.alter_table, ' ', adapter.escapeId(tableName)
-                    LF, indent, words.add_constraint, ' ', adapter.escapeId(fkName), ' ', words.foreign_key, ' (', adapter.escapeId(column), ')'
-                    LF, indent, indent, words.references, ' ', adapter.escapeId(references_table), ' (', adapter.escapeId(references_column) + ')'
+                    LF, words.alter_table, ' ', escapeId(tableName)
+                    LF, indent, words.add_constraint, ' ', escapeId(fkName), ' ', words.foreign_key, ' (', escapeId(column), ')'
+                    LF, indent, indent, words.references, ' ', escapeId(references_table), ' (', escapeId(references_column) + ')'
                 ]
 
                 delete_rule = if delete_rule then delete_rule.toLowerCase() else 'restrict'
                 update_rule = if update_rule then update_rule.toLowerCase() else 'restrict'
 
-                if not words[delete_rule]
-                    throw new Error "unknown delete rule #{delete_rule}"
+                if delete_rule not in validUpdateActions
+                    err = new Error "unknown delete rule #{delete_rule}"
+                    err.code = 'UPDATE RULE'
+                    throw err
 
-                if not words[update_rule]
-                    throw new Error "unknown update rule #{update_rule}"
+                if update_rule not in validUpdateActions
+                    err = new Error "unknown update rule #{update_rule}"
+                    err.code = 'UPDATE RULE'
+                    throw err
 
                 altersql.push.apply altersql, [LF, indent, indent, words.on_delete, ' ', words[delete_rule], ' ', words.on_update, ' ', words[update_rule], ';', LF]
 
@@ -131,14 +137,14 @@ module.exports =
 
     # http://www.postgresql.org/docs/9.4/static/sql-droptable.html
     # DROP TABLE [ IF EXISTS ] name [, ...] [ CASCADE | RESTRICT ]
-    dropTable: (tableName, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
+    dropTable: (tableName, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId} = @
 
         tablesql = [words.drop_table]
         if options.if_exists
             tablesql.push words.if_exists
-        tablesql.push adapter.escapeId(tableName)
+        tablesql.push escapeId(tableName)
 
         if options.cascade
             tablesql.push words.cascade
@@ -149,34 +155,31 @@ module.exports =
 
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ] ADD [ COLUMN ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]
-    addColumn: (tableName, column, spec, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    addColumn: (tableName, column, spec, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, columnCompiler, args, indent, LF} = @
 
         args.table = tableName
         args.column = column
-        columnId = adapter.escapeId(column)
+        columnId = escapeId(column)
 
         altersql = [words.alter_table, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
         altersql.push.apply altersql, [
-            adapter.escapeId(tableName), LF,
-            indent, words.add_column, ' ', adapter.escapeId(column), ' ', _getTypeString(spec, typecompiler), ' ', _getColumnModifier(spec, typecompiler)
+            escapeId(tableName), LF,
+            indent, words.add_column, ' ', escapeId(column), ' ', columnCompiler.getTypeString(spec), ' ', columnCompiler.getColumnModifier(spec)
         ]
 
         altersql.join('')
 
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ] DROP [ COLUMN ] [ IF EXISTS ] column_name [ RESTRICT | CASCADE ]
-    dropColumn: (tableName, column, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    dropColumn: (tableName, column, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, args, indent, LF} = @
+
         args.table = tableName
         args.column = column
 
@@ -184,11 +187,11 @@ module.exports =
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
-        altersql.push.apply altersql, [adapter.escapeId(tableName), LF, indent, words.drop_column, ' ']
+        altersql.push.apply altersql, [escapeId(tableName), LF, indent, words.drop_column, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
-        altersql.push adapter.escapeId(column)
+        altersql.push escapeId(column)
         if options.cascade
             altersql.push ' '
             altersql.push words.cascade
@@ -198,27 +201,28 @@ module.exports =
 
         altersql.join('')
 
-    diffType: (tableName, column, oldSpec, newSpec, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    diffType: (tableName, column, oldSpec, newSpec)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, columnCompiler, args, indent, LF} = @
 
-        columnId = adapter.escapeId column
+        args.table = tableName
+        args.column = column
+
+        columnId = escapeId column
 
         # ALTER TABLE [ IF EXISTS ] name
         tablesql = [words.alter_table, ' ']
         if options.if_exists
             tablesql.push words.if_exists
             tablesql.push ' '
-        tablesql.push.apply tablesql, [adapter.escapeId(tableName), LF]
+        tablesql.push.apply tablesql, [escapeId(tableName), LF]
 
         altersql = []
-        oldTypeString = _getTypeString(oldSpec, typecompiler)
-        newTypeString = _getTypeString(newSpec, typecompiler)
+        oldTypeString = columnCompiler.getTypeString(oldSpec)
+        newTypeString = columnCompiler.getTypeString(newSpec)
 
-        oldModifier = _getColumnModifier oldSpec, typecompiler
-        newModifier = _getColumnModifier newSpec, typecompiler
+        oldModifier = columnCompiler.getColumnModifier(oldSpec)
+        newModifier = columnCompiler.getColumnModifier(newSpec)
 
         if oldTypeString isnt newTypeString
             spec = newSpec
@@ -256,17 +260,15 @@ module.exports =
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   ADD [ constraint_name ] PRIMARY KEY ( column_name [, ... ] ) index_parameters [ NOT VALID ]
-    addPrimaryKey: (tableName, newPkName, newColumns, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    addPrimaryKey: (tableName, newPkName, newColumns, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, columnCompiler, indent, LF} = @
 
         altersql = [words.alter_table, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
-        altersql.push.apply altersql, [adapter.escapeId(tableName), LF, indent, words.add_constraint, ' ', _pkString(newPkName, newColumns, typecompiler)]
+        altersql.push.apply altersql, [escapeId(tableName), LF, indent, words.add_constraint, ' ', columnCompiler.pkString(newPkName, newColumns)]
 
         altersql.join('')
 
@@ -277,11 +279,9 @@ module.exports =
     #       [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE action ] [ ON UPDATE action ]
     #       
     #       action in [NO ACTION, RESTRICT, CASCADE, SET NULL, SET DEFAULT]
-    addForeignKey: (tableName, key, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    addForeignKey: (tableName, key, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, indent, LF} = @
 
         altersql = [words.alter_table, ' ']
         if options.if_exists
@@ -298,19 +298,23 @@ module.exports =
         } = key
 
         altersql.push.apply altersql, [
-            adapter.escapeId(tableName),
-            LF, indent, words.add_constraint, ' ', adapter.escapeId(fkName), ' ', words.foreign_key, ' (', adapter.escapeId(column), ')'
-            LF, indent, indent, words.references, ' ', adapter.escapeId(references_table), ' (', adapter.escapeId(references_column) + ')'
+            escapeId(tableName),
+            LF, indent, words.add_constraint, ' ', escapeId(fkName), ' ', words.foreign_key, ' (', escapeId(column), ')'
+            LF, indent, indent, words.references, ' ', escapeId(references_table), ' (', escapeId(references_column) + ')'
         ]
 
         delete_rule = if delete_rule then delete_rule.toLowerCase() else 'restrict'
         update_rule = if update_rule then update_rule.toLowerCase() else 'restrict'
 
-        if delete_rule not in ['no_action', 'restrict', 'cascade', 'set_null', 'set_default']
-            throw new Error "unknown delete rule #{delete_rule}"
+        if delete_rule not in validUpdateActions
+            err = new Error "unknown delete rule #{delete_rule}"
+            err.code = 'UPDATE RULE'
+            throw err
 
-        if update_rule not in ['no_action', 'restrict', 'cascade', 'set_null', 'set_default']
-            throw new Error "unknown update rule #{update_rule}"
+        if update_rule not in validUpdateActions
+            err = new Error "unknown update rule #{update_rule}"
+            err.code = 'UPDATE RULE'
+            throw err
 
         altersql.push.apply altersql, [LF, indent, indent, words.on_delete, ' ', words[delete_rule], ' ', words.on_update, ' ', words[update_rule]]
 
@@ -319,18 +323,16 @@ module.exports =
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   ADD [ constraint_name ] UNIQUE ( column_name [, ... ] ) index_parameters
-    addUniqueIndex: (tableName, indexName, columns, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    addUniqueIndex: (tableName, indexName, columns, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, indent, LF} = @
 
         altersql = [words.alter_table, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
-        altersql.push.apply altersql, [adapter.escapeId(tableName),
-            LF, indent, words.add_constraint, ' ', adapter.escapeId(indexName), ' ', words.unique, ' (', columns.sort().map(adapter.escapeId).join(', '), ')'
+        altersql.push.apply altersql, [escapeId(tableName),
+            LF, indent, words.add_constraint, ' ', escapeId(indexName), ' ', words.unique, ' (', columns.sort().map(escapeId).join(', '), ')'
         ]
 
         altersql.join('')
@@ -338,11 +340,9 @@ module.exports =
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   RENAME CONSTRAINT constraint_name TO new_constraint_name
-    renameConstraint: (tableName, oldName, newName, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    renameConstraint: (tableName, oldName, newName, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId} = @
 
         altersql = [words.alter_table]
 
@@ -351,31 +351,29 @@ module.exports =
         # if options.if_exists
         #     altersql.push words.if_exists
 
-        altersql.push.apply altersql, [adapter.escapeId(tableName), words.rename_constraint, adapter.escapeId(oldName), words.to, adapter.escapeId(newName)]
+        altersql.push.apply altersql, [escapeId(tableName), words.rename_constraint, escapeId(oldName), words.to, escapeId(newName)]
         
         altersql.join(' ')
 
     # http://www.postgresql.org/docs/9.4/static/sql-altertable.html
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   DROP CONSTRAINT [ IF EXISTS ]  constraint_name [ RESTRICT | CASCADE ]
-    dropConstraint: (tableName, oldPkName, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    dropConstraint: (tableName, oldPkName, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, indent, LF} = @
 
         altersql = [words.alter_table, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
-        altersql.push adapter.escapeId(tableName)
+        altersql.push escapeId(tableName)
 
         altersql.push.apply altersql, [LF, indent, words.drop_constraint, ' ']
         if options.if_exists
             altersql.push words.if_exists
             altersql.push ' '
 
-        altersql.push adapter.escapeId(oldPkName)
+        altersql.push escapeId(oldPkName)
 
         if options.cascade
             altersql.push ' '
@@ -390,39 +388,36 @@ module.exports =
     # http://www.postgresql.org/docs/9.4/static/sql-createindex.html
     # CREATE [ UNIQUE ] INDEX [ CONCURRENTLY ] [ name ] ON table_name
     #   ( { column_name | ( expression ) } [ COLLATE collation ] [ opclass ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [, ...] )
-    addIndex: (tableName, indexName, columns, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        [words.create_index, ' ', _indexString(indexName, columns, adapter.escapeId(tableName), typecompiler)].join('')
+    addIndex: (tableName, indexName, columns, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId, columnCompiler} = @
+
+        [words.create_index, ' ', columnCompiler.indexString(indexName, columns, escapeId(tableName))].join('')
 
     # http://www.postgresql.org/docs/9.4/static/sql-alterindex.html
     # ALTER INDEX [ IF EXISTS ] name RENAME TO new_name
-    renameIndex: (tableName, oldName, newName, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+    renameIndex: (tableName, oldName, newName, options)->
+        options = _.defaults {}, options, @options
+        {words, escapeId} = @
 
         altersql = [words.alter_index]
         if options.if_exists
             altersql.push words.if_exists
-        altersql.push.apply altersql, [adapter.escapeId(oldName), words.rename_to, adapter.escapeId(newName)]
+        altersql.push.apply altersql, [escapeId(oldName), words.rename_to, escapeId(newName)]
         
         altersql.join(' ')
 
     # http://www.postgresql.org/docs/9.4/static/sql-dropindex.html
     # DROP INDEX [ CONCURRENTLY ] [ IF EXISTS ] name [, ...] [ CASCADE | RESTRICT ]
     dropIndex: (tableName, indexName, options = {})->
-        typecompiler = new TypeCompiler options
-        {words, args, adapter} = typecompiler
-        LF = '\n'
-        indent = '    '
+        options = _.defaults {}, options, @options
+        {words, escapeId} = @
 
         altersql = [words.drop_index]
         if options.if_exists
             altersql.push words.if_exists
 
-        altersql.push adapter.escapeId(indexName)
+        altersql.push escapeId(indexName)
 
         if options.cascade
             altersql.push words.cascade
@@ -431,38 +426,6 @@ module.exports =
 
         altersql.join(' ')
 
-module.exports.dropPrimaryKey = module.exports.dropForeignKey = module.exports.dropUniqueIndex = module.exports.dropConstraint
-module.exports.renamePrimaryKey = module.exports.renameUniqueIndex = module.exports.renameForeignKey = module.exports.renameConstraint
-# module.exports.renamePrimaryKey = module.exports.renameIndex
-
-_pkString = (pkName, columns, typecompiler)->
-    {words, adapter} = typecompiler
-    adapter.escapeId(pkName) + ' ' + words.primary_key + ' (' + columns.sort().map(adapter.escapeId).join(', ') + ')'
-
-_ukString = (ukName, columns, typecompiler)->
-    {words, adapter} = typecompiler
-    adapter.escapeId(ukName) + ' ' + words.unique + ' (' + columns.sort().map(adapter.escapeId).join(', ') + ')'
-
-_indexString = (indexName, columns, tableNameId, typecompiler)->
-    {adapter, words} = typecompiler
-    adapter.escapeId(indexName) + ' ' + words.on + ' ' + tableNameId + '(' + columns.sort().map(adapter.escapeId).join(', ') + ')'
-
-_getTypeString = (spec, typecompiler)->
-    type = spec.type
-    type_args = if Array.isArray(spec.type_args) then spec.type_args else []
-    if 'function' is typeof typecompiler[type]
-        type = typecompiler[type].apply typecompiler, type_args
-    else
-        type_args.unshift type
-        type = type_args.join(' ')
-
-    type
-
-_getColumnModifier = (spec, typecompiler)->
-    {words} = typecompiler
-    if spec.nullable is false
-        return words.not_null
-    else if spec.defaultValue isnt undefined and spec.defaultValue isnt null
-        return words.default + ' ' + spec.defaultValue
-    else
-        return words.null
+PgSchemaCompiler::dropPrimaryKey = PgSchemaCompiler::dropForeignKey = PgSchemaCompiler::dropUniqueIndex = PgSchemaCompiler::dropConstraint
+PgSchemaCompiler::renamePrimaryKey = PgSchemaCompiler::renameUniqueIndex = PgSchemaCompiler::renameForeignKey = PgSchemaCompiler::renameConstraint
+# PgSchemaCompiler::renamePrimaryKey = PgSchemaCompiler::renameIndex

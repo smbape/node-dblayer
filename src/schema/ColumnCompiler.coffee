@@ -1,7 +1,7 @@
 _ = require 'lodash'
 tools = require '../tools'
 
-module.exports = class TypeCompiler
+module.exports = class ColumnCompiler
     adapter: require './adapter'
 
     constructor: (options)->
@@ -13,7 +13,11 @@ module.exports = class TypeCompiler
         else
             @words = @UPPERWORDS
 
-LOWERWORDS = TypeCompiler::LOWERWORDS = {
+        for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+            if 'function' is typeof @adapter[method]
+                @[method] = @adapter[method].bind @adapter
+
+LOWERWORDS = ColumnCompiler::LOWERWORDS = {
     add: 'add'
     add_column: 'add column'
     add_constraint: 'add constraint'
@@ -46,7 +50,7 @@ LOWERWORDS = TypeCompiler::LOWERWORDS = {
     on: 'on'
     on_delete: 'on delete'
     on_update: 'on update'
-    primary_key: 'primary_key'
+    primary_key: 'primary key'
     references: 'references'
     restrict: 'restrict'
     set: 'set'
@@ -60,32 +64,32 @@ LOWERWORDS = TypeCompiler::LOWERWORDS = {
 # ================================================================
 # Numeric Types
 # ================================================================
-TypeCompiler::smallincrements = -> throw new Error 'smallincrements type is not defined'
-TypeCompiler::increments = -> throw new Error 'increments type is not defined'
-TypeCompiler::bigincrements = -> throw new Error 'bigincrements type is not defined'
+ColumnCompiler::smallincrements = -> throw new Error 'smallincrements type is not defined'
+ColumnCompiler::increments = -> throw new Error 'increments type is not defined'
+ColumnCompiler::bigincrements = -> throw new Error 'bigincrements type is not defined'
 
 _.extend LOWERWORDS,
     smallint: 'smallint'
     integer: 'integer'
     bigint: 'bigint'
 
-TypeCompiler::tinyint =
-TypeCompiler::smallint = -> @words.smallint
-TypeCompiler::integer = -> @words.integer
-TypeCompiler::bigint = -> @words.bigint
+ColumnCompiler::tinyint =
+ColumnCompiler::smallint = -> @words.smallint
+ColumnCompiler::integer = -> @words.integer
+ColumnCompiler::bigint = -> @words.bigint
 
 _.extend LOWERWORDS,
     numeric: 'numeric'
     float: 'float'
     double: 'double precision'
 
-TypeCompiler::numeric = (precision, scale) ->
+ColumnCompiler::numeric = (precision, scale) ->
     @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
-TypeCompiler::float = (precision, scale) ->
+ColumnCompiler::float = (precision, scale) ->
     @words.float + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
-TypeCompiler::double = -> @words.double
+ColumnCompiler::double = -> @words.double
 
 # ================================================================
 # Character Types
@@ -95,13 +99,13 @@ _.extend LOWERWORDS,
     varchar: 'varchar'
     text: 'text'
 
-TypeCompiler::char = (length)->
+ColumnCompiler::char = (length)->
     @words.char + '(' + @_num(length, 255) + ')'
 
-TypeCompiler::varchar = (length)->
+ColumnCompiler::varchar = (length)->
     @words.varchar + '(' + @_num(length, 255) + ')'
 
-TypeCompiler::text = -> @words.text
+ColumnCompiler::text = -> @words.text
 
 # ================================================================
 # Date/Time Types
@@ -114,25 +118,25 @@ _.extend LOWERWORDS,
     timetz: 'timetz'
     timestamptz: 'timestamptz'
 
-TypeCompiler::date = -> @words.date
-TypeCompiler::datetime = -> @words.datetime
-TypeCompiler::time = -> @words.time
-TypeCompiler::timestamp = -> @words.timestamp
+ColumnCompiler::date = -> @words.date
+ColumnCompiler::datetime = -> @words.datetime
+ColumnCompiler::time = -> @words.time
+ColumnCompiler::timestamp = -> @words.timestamp
 
 _.extend LOWERWORDS,
     binary: 'binary'
     bool: 'bool'
 
-TypeCompiler::binary = -> @words.blob
-TypeCompiler::bool = -> @words.boolean
-TypeCompiler::enu = -> throw new Error 'enu type is not defined'
+ColumnCompiler::binary = -> @words.blob
+ColumnCompiler::bool = -> @words.boolean
+ColumnCompiler::enu = -> throw new Error 'enu type is not defined'
 
 _.extend LOWERWORDS,
     bit: 'bit'
     varbit: 'varbit'
 
-TypeCompiler::bit = -> throw new Error 'bit type is not defined'
-TypeCompiler::varbit = -> throw new Error 'varbit type is not defined'
+ColumnCompiler::bit = -> throw new Error 'bit type is not defined'
+ColumnCompiler::varbit = -> throw new Error 'varbit type is not defined'
 
 _.extend LOWERWORDS,
     xml: 'xml'
@@ -140,18 +144,18 @@ _.extend LOWERWORDS,
     jsonb: 'jsonb'
     uuid: 'uuid'
 
-TypeCompiler::xml =
-TypeCompiler::json =
-TypeCompiler::jsonb = -> @words.text
-TypeCompiler::uuid = -> @words.char
+ColumnCompiler::xml =
+ColumnCompiler::json =
+ColumnCompiler::jsonb = -> @words.text
+ColumnCompiler::uuid = -> @words.char
 
-TypeCompiler::_num = (val, fallback) ->
+ColumnCompiler::_num = (val, fallback) ->
     if val is undefined or val is null
         return fallback
     number = parseInt(val, 10)
     if isNaN(number) then fallback else number
 
-TypeCompiler::ALIASES =
+ColumnCompiler::ALIASES =
     smallincrements: ['serial2', 'smallserial']
     increments: ['serial', 'serial4']
     bigincrements: ['serial8', 'bigserial']
@@ -166,10 +170,10 @@ TypeCompiler::ALIASES =
     numeric: ['decimal']
     smallint: ['int2', 'smallinteger']
 
-TypeCompiler::aliases = ->
+ColumnCompiler::aliases = ->
     instance = @
 
-    for type, aliases of TypeCompiler::ALIASES
+    for type, aliases of ColumnCompiler::ALIASES
         for alias in aliases
             if 'function' isnt typeof instance[alias]
                 instance[alias] = instance[type]
@@ -181,4 +185,26 @@ TypeCompiler::aliases = ->
 
     instance
 
-TypeCompiler::UPPERWORDS = tools.toUpperWords TypeCompiler::LOWERWORDS
+ColumnCompiler::UPPERWORDS = tools.toUpperWords ColumnCompiler::LOWERWORDS
+
+ColumnCompiler::getTypeString = (spec)->
+    type = spec.type.toLowerCase()
+    type_args = if Array.isArray(spec.type_args) then spec.type_args else []
+    if 'function' is typeof @[type]
+        type = @[type].apply @, type_args
+    else
+        err = new Error 'Unknown type'
+        err.code = 'UNKNOWN TYPE'
+        throw err
+        # type_args.unshift type
+        # type = type_args.join(' ')
+
+    type
+
+ColumnCompiler::getColumnModifier = (spec)->
+    if spec.nullable is false
+        return @words.not_null
+    else if spec.defaultValue isnt undefined and spec.defaultValue isnt null
+        return @words.default + ' ' + spec.defaultValue
+    else
+        return @words.null

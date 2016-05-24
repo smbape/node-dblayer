@@ -1,5 +1,5 @@
 _ = require 'lodash'
-TypeCompiler = require '../../schema/TypeCompiler'
+ColumnCompiler = require '../../schema/ColumnCompiler'
 tools = require '../../tools'
 
 LOWERWORDS =
@@ -14,9 +14,10 @@ LOWERWORDS =
     set_null: 'set null'
     set_default: 'set default'
     rename_constraint: 'rename constraint'
+    inherits: 'inherits'
 
 # http://www.postgresql.org/docs/9.4/static/datatype.html
-module.exports = class PgTypeCompiler extends TypeCompiler
+module.exports = class PgColumnCompiler extends ColumnCompiler
     adapter: require './adapter'
     smallincrements: -> @words.smallserial
     increments: -> @words.serial
@@ -94,6 +95,15 @@ module.exports = class PgTypeCompiler extends TypeCompiler
     json: -> @words.json
     jsonb: -> @words.jsonb
 
-PgTypeCompiler::LOWERWORDS = _.defaults LOWERWORDS, TypeCompiler::LOWERWORDS
-PgTypeCompiler::UPPERWORDS = _.defaults tools.toUpperWords(LOWERWORDS), TypeCompiler::UPPERWORDS
-PgTypeCompiler::datetime = PgTypeCompiler::timestamp
+    pkString: (pkName, columns)->
+        @adapter.escapeId(pkName) + ' ' + @words.primary_key + ' (' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
+
+    ukString: (ukName, columns)->
+        @adapter.escapeId(ukName) + ' ' + @words.unique + ' (' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
+
+    indexString: (indexName, columns, tableNameId)->
+        @adapter.escapeId(indexName) + ' ' + @words.on + ' ' + tableNameId + '(' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
+
+PgColumnCompiler::LOWERWORDS = _.defaults LOWERWORDS, ColumnCompiler::LOWERWORDS
+PgColumnCompiler::UPPERWORDS = _.defaults tools.toUpperWords(LOWERWORDS), ColumnCompiler::UPPERWORDS
+PgColumnCompiler::datetime = PgColumnCompiler::timestamp

@@ -3,100 +3,33 @@ _ = require 'lodash'
 
 # PersistenceManager sync method
 exports.sync = (connector, options, callback)->
-    pMgr = @
+    newModel = @getDatabaseModel()
     dialect = connector.getDialect()
     sync = require('../dialects/' + dialect + '/sync')
 
     sync.getModel connector, (err, oldModel)->
         return callback(err) if err
-        schema = require('../dialects/' + dialect + '/schema')
         try
-            queries = _sync pMgr, schema, oldModel, options
-            console.log queries.drop_constraints.join(';\n'), ';\n'
-            console.log queries.drops.join(';\n'), ';\n'
-            console.log queries.creates.join('\n'), ';\n'
-            console.log queries.alters.join(';\n')
-            # console.log '\n'
-            callback null, queries
+            SchemaCompiler = require('../dialects/' + dialect + '/SchemaCompiler')
+            schema = new SchemaCompiler options
+            queries = _sync oldModel, newModel, schema, options
         catch err
             callback(err)
-        
+            return
+
+        {drop_constraints, drops, creates, alters} = queries
+        queries = drop_constraints.concat(drops).concat(creates).concat(alters).join(';\n')
+        if options.exec and queries.length > 0
+            connector.exec (queries + ';'), options, (err)->
+                callback err, queries, oldModel, newModel
+                return
+            return
+
+        callback err, queries, oldModel, newModel
         return
 
-_sync = (pMgr, schema, oldModel, options)->
-    newModel = {}
-
-    propToColumn = (prop)-> definition.properties[prop].column
-
-    for className, definition of pMgr.classes
-        tableName = definition.table
-        table = newModel[tableName] =
-            name: tableName
-            columns: {}
-            constraints:
-                'PRIMARY KEY': {}
-                'FOREIGN KEY': {}
-                'UNIQUE': {}
-            indexes: {}
-
-        if definition.id and definition.id.column
-            primaryKey = 'PK_' + (definition.id.pk or tableName)
-            table.constraints['PRIMARY KEY'][primaryKey] = [definition.id.column]
-            column = table.columns[definition.id.column] = _.pick definition.id, pMgr.specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for id"
-
-            column.nullable = false
-            # a primary key implies unique index and not null
-            # indexKey = tableName + '_PK'
-            # table.constraints['UNIQUE'][indexKey] = [definition.id.column]
-
-            if definition.id.className
-                parentDef = pMgr._getDefinition definition.id.className
-                _addOneNRelation 'EXT', table, definition.id, parentDef, {index: false}
-
-        if _.isEmpty table.constraints['PRIMARY KEY']
-            delete table.constraints['PRIMARY KEY']
-
-        for mixin, index in definition.mixins
-            if mixin.column is definition.id.column
-                continue
-
-            parentDef = pMgr._getDefinition mixin.className
-
-            column = table.columns[mixin.column] = _.pick mixin, pMgr.specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for mixin #{mixin.className}"
-
-            column.nullable = false
-            [foreignKey, indexKey] = _addOneNRelation 'EXT', table, mixin, parentDef, {index: false}
-
-            # enforce unique key
-            table.constraints['UNIQUE'][indexKey] = [mixin.column]
-
-        for prop, propDef of definition.properties
-            column = table.columns[propDef.column] = _.pick propDef, pMgr.specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for property #{prop}"
-
-            if propDef.className
-                parentDef = pMgr._getDefinition propDef.className
-                _addOneNRelation 'HAS', table, propDef, parentDef
-
-        if _.isEmpty table.constraints['FOREIGN KEY']
-            delete table.constraints['FOREIGN KEY']
-
-        {unique, names} = definition.constraints
-        for key, properties of unique
-            name = 'UK_' + names[key]
-            table.constraints['UNIQUE'][name] = properties.map propToColumn
-
-        if _.isEmpty table.constraints['UNIQUE']
-            delete table.constraints['UNIQUE']
-
-        for name, properties in definition.indexes
-            table.indexes[name] = properties.map propToColumn
-
+_sync = (oldModel, newModel, schema, options)->
+    newModel = _.clone newModel
     queries =
         creates: []
         alters: []
@@ -110,9 +43,8 @@ _sync = (pMgr, schema, oldModel, options)->
         # if tableName isnt 'CLASS_D'
         #     continue
         if newModel.hasOwnProperty(tableName)
-            {creates, alters, drops} = _tableDiff oldTable, newModel[tableName], opts
+            {alters, drops} = _tableDiff oldTable, newModel[tableName], opts
             delete newModel[tableName]
-            queries.creates.push.apply queries.creates, creates
             queries.alters.push.apply queries.alters, alters
             queries.drops.push.apply queries.drops, drops
         else if purge
@@ -122,7 +54,7 @@ _sync = (pMgr, schema, oldModel, options)->
                     queries.drop_constraints.push schema.dropForeignKey(tableName, fkName, options)
 
             # drop unique indexes
-            if (keys = oldTable.constraints['UNIQUE']) and not _.isEmpty(keys)
+            if (keys = oldTable.constraints.UNIQUE) and not _.isEmpty(keys)
                 for indexName of keys
                     queries.drop_constraints.push schema.dropUniqueIndex(tableName, indexName, options)
 
@@ -143,28 +75,10 @@ _sync = (pMgr, schema, oldModel, options)->
 
     return queries
 
-_addOneNRelation = (name, table, propDef, parentDef, options = {})->
-    keyName = propDef.fk or "#{table.name}_#{propDef.column}_#{name}_#{parentDef.table}_#{parentDef.id.column}"
-
-    foreignKey = "FK_#{keyName}"
-    table.constraints['FOREIGN KEY'][foreignKey] =
-        column: propDef.column
-        references_table: parentDef.table
-        references_column: parentDef.id.column
-        update_rule: 'RESTRICT'
-        delete_rule: 'RESTRICT'
-
-    indexKey = "#{keyName}_FK"
-    if ! propDef.unique and options.index isnt false
-        table.indexes[indexKey] = [propDef.column]
-
-    [foreignKey, indexKey]
-
 _tableDiff = (oldTable, newTable, options = {})->
     # console.log require('util').inspect(oldTable, {colors: true, depth: null})
     # console.log require('util').inspect(newTable, {colors: true, depth: null})
 
-    oldTable = _.cloneDeep oldTable
     newTable = _.cloneDeep newTable
     {schema, renames, queries, purge} = options
     {adapter} = schema
@@ -253,10 +167,10 @@ _tableDiff = (oldTable, newTable, options = {})->
             alters.push schema.addForeignKey(tableName, newKey, options)
 
     # unique indexes
-    if (indexes = oldTable.constraints['UNIQUE']) and not _.isEmpty(indexes)
+    if (indexes = oldTable.constraints.UNIQUE) and not _.isEmpty(indexes)
         oldIndexes = _flipIndex indexes, adapter
 
-    if (indexes = newTable.constraints['UNIQUE']) and not _.isEmpty(indexes)
+    if (indexes = newTable.constraints.UNIQUE) and not _.isEmpty(indexes)
         newIndexes = _flipIndex indexes, adapter
 
     for id, oldIndex of oldIndexes
@@ -310,4 +224,4 @@ _flipIndex = (keys, adapter)->
     flip
 
 _getIndexUniquId = (columns, adapter)->
-    columns.map(adapter.escapeId).join(':')
+    columns.sort().map(adapter.escapeId).join(':')

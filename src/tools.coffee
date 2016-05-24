@@ -1,4 +1,8 @@
+sysPath = require 'path'
 _ = require 'lodash'
+mkdirp = require 'mkdirp'
+temp = require 'temp'
+rimraf = require 'rimraf'
 
 exports.getExports = (name, dialect)->
     require('./dialects/' + dialect + '/' + name)
@@ -16,6 +20,7 @@ exports.guessEscapeOpts = ->
         dialect = options.dialect = connector.getDialect()
     try
         adapter = exports.adapter(dialect)
+    catch err
 
     if connector or adapter
         for opt in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith', 'exprNotEqual', 'exprEqual']
@@ -33,3 +38,16 @@ exports.toUpperWords = (lowerwords)->
     for key, value of lowerwords
         words[key] = value.toUpperCase()
     words
+
+tracked = {}
+exports.getTemp = (tmp, track = true)->
+    tmp = temp.mkdirSync('dblayer') if not tmp
+    tmp = sysPath.resolve tmp
+    mkdirp.sync tmp
+    if track and not tracked.hasOwnProperty tmp
+        tracked[tmp] = true
+        process.on 'exit', ->
+            rimraf.sync tmp
+            return
+
+    tmp

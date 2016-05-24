@@ -71,7 +71,7 @@ module.exports = class PlaceHolderParser
 
     replace: (str, callback)->
         quoting = false
-        str.replace @reg, (match, quote, key, end, start, str)->
+        str.replace @reg, (match, quote, key, end)->
             if quoting
                 # placeholder match is ignored within a string
                 if quote is quoting

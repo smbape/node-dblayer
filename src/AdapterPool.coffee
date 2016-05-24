@@ -170,6 +170,21 @@ class SemaphorePool extends semLib.Semaphore
                 return
         return
 
+_delegateAdapterExec = (defaultOptions, script, options, done)->
+    if _.isPlainObject(script)
+        _script = options
+        options = script
+        script = _script
+
+    if 'function' is typeof options
+        done = options
+        options = {}
+
+    if not _.isPlainObject(options)
+        options = {}
+
+    @exec script, _.defaults({}, options, defaultOptions), done
+
 module.exports = class AdapterPool extends SemaphorePool
     constructor: (connectionUrl, options, next)->
         if arguments.length is 1
@@ -248,15 +263,17 @@ module.exports = class AdapterPool extends SemaphorePool
             @options[prop] = options[prop] if typeof options.hasOwnProperty prop
 
         for prop in ['minConnection', 'maxConnection', 'idleTimeout']
-            if isNumeric @options.maxConnection
+            if isNumeric @options[prop]
                 @options[prop] = parseInt @options[prop], 10
             else
                 @options[prop] = defaultOptions[prop]
 
-        @adapter = internal.getAdapter @options
+        adapter = @adapter = internal.getAdapter @options
         for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
-            if 'function' is typeof @adapter[method]
-                @[method] = @adapter[method].bind @adapter
+            if 'function' is typeof adapter[method]
+                @[method] = adapter[method].bind adapter
+
+        @exec = @execute = _delegateAdapterExec.bind adapter, @options
 
         self = @
         super

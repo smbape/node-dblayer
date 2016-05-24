@@ -76,6 +76,14 @@ PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialec
     else
         query
 
+PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue = (dialect, column)->
+    adapter = getAdapter(dialect)
+
+    if 'function' is typeof adapter.insertDefaultValue
+        adapter.insertDefaultValue column
+    else
+        ''
+
 PersistenceManager::insert = (model, options, callback, guess = true)->
     if guess
         options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert, PersistenceManager::defaults.insert)
@@ -411,6 +419,7 @@ PersistenceManager.InsertQuery = class InsertQuery
         @model = model
         @pMgr = pMgr
         @options = options
+        root = options.root or @
 
         #  for mysql when lastInsertId is not available because there is no autoincrement
         fields = @fields = {}
@@ -429,18 +438,24 @@ PersistenceManager.InsertQuery = class InsertQuery
 
         # ids of mixins will be setted at execution
         if definition.mixins.length > 0
-            @toString = ->
-                return insert.toParam().text
+            @toString = -> insert.toParam().text
+
             @toParam = ->
-                params = insert.toParam()
-                for mixin, index in definition.mixins
-                    nested = options.nested or 0
-                    params.values[index] = new InsertQuery pMgr, model, _.defaults({
-                        className: mixin.className
-                        dialect: options.dialect
-                        nested: ++nested
-                    }, options) , false
-                return params
+                param = insert.toParam()
+                for value, index in values
+                    param.values[index] = values[index]
+                param
+
+            values = insert.toParam().values
+            for mixin, index in definition.mixins
+                nested = options.nested or 0
+                values[index] = new InsertQuery pMgr, model, _.defaults({
+                    className: mixin.className
+                    dialect: options.dialect
+                    nested: ++nested
+                    root
+                    allowEmpty: true
+                }, options) , false
 
             for mixin in definition.mixins
                 insert.set @options.escapeId(mixin.column), '$id'
@@ -505,6 +520,8 @@ PersistenceManager.InsertQuery = class InsertQuery
             if typeof value is 'undefined'
                 continue
 
+            root.hasData = @hasData = true
+
             insert.set @options.escapeId(column), value
 
         # check
@@ -551,6 +568,14 @@ PersistenceManager.InsertQuery = class InsertQuery
         model = @model
         fields = @fields
         options = @options
+
+        # empty objects are not inserted by default
+        if not @hasData and not options.allowEmpty
+            callback(new Error('no data to insert'))
+            return
+
+        if not @hasData
+            query += ' ' + pMgr.insertDefaultValue options.dialect, definition.id.column
 
         query = pMgr.decorateInsert options.dialect, query, definition.id.column
         connector.query query, (err, res)->
@@ -639,23 +664,6 @@ _toInsertLine = (level, withs)->
     #{indent}FROM #{tables.join(', ')}
     #{returning}
     """
-
-# _fnIds = {}
-
-# _serialize = (cacheId, key, value)->
-#     if 'function' is typeof value
-#         # TOFIX: if mutilple functions have the same string, we are screwed
-#         str = value.toString()
-#         _fnIds[cacheId] or (_fnIds[cacheId] = {})
-#         _fnIds[cacheId][str] = value
-#         return str
-
-#     value
-
-# _desirialize = (cacheId, key, value)->
-#     if value and typeof value is 'string' and /function\b/.test value.substr(0, 9)
-#         return _fnIds[cacheId][value]
-#     value
 
 _getCacheId = (options)->
     json = {}

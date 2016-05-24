@@ -55,19 +55,6 @@ domains.mdate = _.defaults {
         new Date()
 }, domains.datetime
 
-handlersDate = 
-    read: (value, options)->
-        moment.utc(value, 'YYYY-MM-DD HH:mm:ss.SSS').toDate()
-    write: (value, model, options)->
-        moment(value).utc().format 'YYYY-MM-DD HH:mm:ss.SSS'
-
-handlersCreation = _.extend
-    insert: (value, model, options)->
-        new Date()
-, handlersDate
-
-handlersModification = _.extend {update: handlersCreation.insert}, handlersCreation
-
 mapping['Data'] =
     table: 'BASIC_DATA'
     id:
@@ -370,3 +357,28 @@ mapping['ClassI'] =
     ctor: ModelI
     table: 'CLASS_I'
     id: className: 'ClassG'
+
+class ModelJ extends Model
+    className: 'ClassJ'
+
+mapping['ClassJ'] =
+    ctor: ModelJ
+    table: 'CLASS_J'
+    id:
+        className: 'ClassC'
+    properties:
+        propJ1:
+            column: 'PROP_J1'
+            domain: domains.short_label
+        propJ2:
+            column: 'PROP_J2'
+            domain: domains.short_label
+        propJ3:
+            column: 'PROP_J3'
+            domain: domains.short_label
+        propClassD:
+            column: 'PROP_J4'
+            className: 'ClassD'
+        propClassE:
+            column: 'PROP_J5'
+            className: 'ClassE'

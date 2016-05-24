@@ -35,7 +35,7 @@ _setModelValue = (model, prop, value, propDef)->
 _getModelValue = (model, prop)->
     model.get prop
 
-_createPlainObject = (className)->
+_createPlainObject = ->
     {}
 _setPlainObjectValue = (model, prop, value, propDef)->
     model[prop] = _handleRead value, model, propDef

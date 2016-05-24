@@ -71,4 +71,33 @@ describe 'insert', ->
         ], done
 
         return
+
+    it 'should insert even if mixin properties are not defined', (done)->
+        [pMgr, model, connector] = setUpMapping()
+        id = null
+
+        twaterfall connector, [
+            (next)-> pMgr.insertClassF {propF1: 'propF1', propF2: 'propF2', propF3: 'propF3'}, {connector}, next
+            (_id, next)->
+                id = _id
+                pMgr.listClassF {connector, type: 'json'}, next
+                return
+            (rows, next)->
+                assert.strictEqual rows.length, 1
+                assert.deepEqual rows[0], {
+                    idC: id
+                    propF1: 'propF1'
+                    propF2: 'propF2'
+                    propF3: 'propF3'
+                    propClassD: null
+                    propClassE: null
+                    propC1: null
+                    propC2: null
+                    propC3: null
+                }
+                next()
+                return
+        ], done
+        return
+
     return
