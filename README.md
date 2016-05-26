@@ -578,6 +578,24 @@ log4js.configure
 
 ```
 
+### Test
+
+on a unix like terminal
+
+```sh
+npm test
+```
+
+Test and coverage
+```sh
+npm run test-cover
+```
+
+Test a dialect
+```sh
+DIALECT=postgres node node_modules/mocha/bin/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite
+```
+
 For more examples, look in test/suite
 
 Server returns raw results and client puts data where it should be.
