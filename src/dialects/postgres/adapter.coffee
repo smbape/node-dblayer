@@ -1,9 +1,5 @@
-fs = require 'fs'
-sysPath = require 'path'
 _ = require 'lodash'
-anyspawn = require 'anyspawn'
 common = require '../../schema/adapter'
-{getTemp} = require '../../tools'
 adapter = module.exports
 _.extend adapter, common
 logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
@@ -154,14 +150,13 @@ _env = _.pick process.env, [
     'PGSYSCONFDIR'
     'PGLOCALEDIR'
 ]
+
+fs = require 'fs'
+sysPath = require 'path'
+anyspawn = require 'anyspawn'
+{getTemp} = require '../../tools'
 umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
 
-# string|object|function
-# string|function|object
-# function|string|object
-# function|object|string
-# object|string|function
-# object|function|string
 adapter.exec = adapter.execute = (script, options, done)->
     if _.isPlainObject(script)
         _script = options
@@ -189,33 +184,47 @@ adapter.exec = adapter.execute = (script, options, done)->
         keep
     } = options
 
-    database or (database = 'postgres')
-    schema or (schema = 'public')
-    host or (host = '127.0.0.1')
-    port or (port = 5432)
-    psql or (psql = 'psql')
     psql or (psql = 'psql')
     stdout or (stdout isnt null and stdout = process.stdout)
     stderr or (stderr isnt null and stderr = process.stderr)
     tmp = getTemp(tmp, options.keep isnt true)
 
-    sqlFile = sysPath.join(tmp, 'script.sql')
-    fs.writeFileSync sqlFile, "SET SCHEMA '#{schema}';\n#{script}", umask
+    if schema
+        script = "SET SCHEMA '#{schema}';\n#{script}"
+    file = sysPath.join(tmp, 'script.sql')
+    fs.writeFileSync file, script, umask
 
     env = _.clone _env
-    if user and password
+    if user and password?.length > 0
         pgpass = sysPath.join(tmp, 'pgpass.conf')
         fs.writeFileSync pgpass, "*:*:*:#{user}:#{password}", umask
         env.PGPASSFILE = pgpass
 
-    args = ['-h', host, '-p', port, '-d', database, '-f', sqlFile]
+    args = []
+
+    if user
+        args.push '-U'
+        args.push user
+
+    if host
+        args.push '-h'
+        args.push host
+
+    if port
+        args.push '-p'
+        args.push port
+
+    if database
+        args.push '-d'
+        args.push database
+
+    args.push '-f'
+    args.push file
+
     opts = _.defaults
         stdio: [process.stdin, stdout, stderr]
         env: env
     , options
-    if user
-        args.push '-U'
-        args.push user
 
     anyspawn.exec psql, args, opts, done
     return

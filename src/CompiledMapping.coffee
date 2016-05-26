@@ -36,7 +36,7 @@ class Model
     toJSON: ->
         @attributes
 
-specProperties = ['type', 'type_args', 'nullable', 'pk', 'fk']
+specProperties = ['type', 'type_args', 'nullable', 'pk', 'fk', 'fkindex', 'defaultValue']
 
 module.exports = class CompiledMapping
     constructor: (mapping)->
@@ -625,7 +625,7 @@ _addIndexes = (compiled, classDef, rawDefinition)->
                 err.code = ERR_CODE
                 throw err
 
-        properties = properties[0..].sort()
+        properties = properties[0..]
         key = properties.join(':')
 
         if constraints.unique.hasOwnProperty(key)
@@ -639,7 +639,7 @@ _addIndexes = (compiled, classDef, rawDefinition)->
     return
 
 _addUniqueConstraint = (name, properties, classDef, compiled)->
-    properties.sort()
+    properties
     key = properties.join(':')
     {constraints} = classDef
     if constraints.unique.hasOwnProperty(key)
@@ -681,7 +681,11 @@ _inheritType = (child, parent)->
                 type = 'integer'
 
     child.type = type if type
-    child.type_args = type_args if type_args
+    child.type_args = type_args or []
+
+    # unsigned int
+    child.type_args[1] = true
+
     child
 
 _addSpecProperties = (definition, rawDefinition)->
@@ -711,96 +715,3 @@ _setConstructor = (classDef, Ctor)->
 
     classDef.ctor = Ctor
     return
-
-CompiledMapping::getDatabaseModel = ->
-    dbmodel = {}
-
-    propToColumn = (prop)-> definition.properties[prop].column
-
-    for className, definition of @classes
-        tableName = definition.table
-        table = dbmodel[tableName] =
-            name: tableName
-            columns: {}
-            constraints:
-                'PRIMARY KEY': {}
-                'FOREIGN KEY': {}
-                'UNIQUE': {}
-            indexes: {}
-
-        if definition.id and definition.id.column
-            primaryKey = 'PK_' + (definition.id.pk or tableName)
-            table.constraints['PRIMARY KEY'][primaryKey] = [definition.id.column]
-            column = table.columns[definition.id.column] = _.pick definition.id, @specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for id"
-
-            column.nullable = false
-            # a primary key implies unique index and not null
-            # indexKey = tableName + '_PK'
-            # table.constraints.UNIQUE[indexKey] = [definition.id.column]
-
-            if definition.id.className
-                parentDef = @_getDefinition definition.id.className
-                _addOneNRelation 'EXT', table, definition.id, parentDef, {index: false}
-
-        if _.isEmpty table.constraints['PRIMARY KEY']
-            delete table.constraints['PRIMARY KEY']
-
-        for mixin, index in definition.mixins
-            if mixin.column is definition.id.column
-                continue
-
-            parentDef = @_getDefinition mixin.className
-
-            column = table.columns[mixin.column] = _.pick mixin, @specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for mixin #{mixin.className}"
-
-            column.nullable = false
-            [foreignKey, indexKey] = _addOneNRelation 'EXT', table, mixin, parentDef, {index: false}
-
-            # enforce unique key
-            table.constraints.UNIQUE[indexKey] = [mixin.column]
-
-        for prop, propDef of definition.properties
-            column = table.columns[propDef.column] = _.pick propDef, @specProperties
-            if not column.type
-                throw new Error "[#{className}] No type has been defined for property #{prop}"
-
-            if propDef.className
-                parentDef = @_getDefinition propDef.className
-                _addOneNRelation 'HAS', table, propDef, parentDef
-
-        if _.isEmpty table.constraints['FOREIGN KEY']
-            delete table.constraints['FOREIGN KEY']
-
-        {unique, names} = definition.constraints
-        for key, properties of unique
-            name = 'UK_' + names[key]
-            table.constraints.UNIQUE[name] = properties.map propToColumn
-
-        if _.isEmpty table.constraints.UNIQUE
-            delete table.constraints.UNIQUE
-
-        for name, properties in definition.indexes
-            table.indexes[name] = properties.map propToColumn
-
-    dbmodel
-
-_addOneNRelation = (name, table, propDef, parentDef, options = {})->
-    keyName = propDef.fk or "#{table.name}_#{propDef.column}_#{name}_#{parentDef.table}_#{parentDef.id.column}"
-
-    foreignKey = "FK_#{keyName}"
-    table.constraints['FOREIGN KEY'][foreignKey] =
-        column: propDef.column
-        references_table: parentDef.table
-        references_column: parentDef.id.column
-        update_rule: 'RESTRICT'
-        delete_rule: 'RESTRICT'
-
-    indexKey = "#{keyName}_FK"
-    if ! propDef.unique and options.index isnt false
-        table.indexes[indexKey] = [propDef.column]
-
-    [foreignKey, indexKey]

@@ -5,8 +5,9 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'join', ->
+
     it 'should generate select with join query', ->
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     entity: 'Translation'
@@ -18,7 +19,7 @@ describe 'join', ->
         }
         assert.include query.toString(), 'INNER JOIN'
 
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     type: 'default'
@@ -31,7 +32,7 @@ describe 'join', ->
         }
         assert.include query.toString(), 'INNER JOIN'
 
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     type: 'outer'
@@ -44,7 +45,7 @@ describe 'join', ->
         }
         assert.include query.toString(), 'OUTER JOIN'
 
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     type: 'left'
@@ -57,7 +58,7 @@ describe 'join', ->
         }
         assert.include query.toString(), 'LEFT JOIN'
 
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     type: 'right'
@@ -70,7 +71,7 @@ describe 'join', ->
         }
         assert.include query.toString(), 'RIGHT JOIN'
 
-        query = pMgr.getSelectQuery 'User', {
+        query = globals.pMgr.getSelectQuery 'User', {
             join:
                 translation:
                     type: 'CROSS JOIN'
@@ -84,7 +85,7 @@ describe 'join', ->
         assert.include query.toString(), 'CROSS JOIN'
 
         assertThrows ->
-            pMgr.getSelectQuery 'User', {
+            globals.pMgr.getSelectQuery 'User', {
                 join:
                     translation:
                         entity: 'Translation'
@@ -98,7 +99,7 @@ describe 'join', ->
         , 'TABLE_UNDEF'
 
         assertThrows ->
-            pMgr.getSelectQuery 'User', {
+            globals.pMgr.getSelectQuery 'User', {
                 join:
                     translation:
                         type: {}
@@ -115,7 +116,7 @@ describe 'join', ->
         return
 
     it 'should join', (done)->
-        connector = pools.reader.createConnector()
+        connector = globals.pools.reader.createConnector()
 
         countryCode = 'CAMEROUN'
 
@@ -148,7 +149,7 @@ describe 'join', ->
             limit: 5
 
         twaterfall connector, [
-            (next)-> pMgr.list 'User', options, next
+            (next)-> globals.pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
                 assert.ok models.length <= options.limit
@@ -160,7 +161,7 @@ describe 'join', ->
                 # Using LIMIT you will not limit the count or sum but only the returned rows
                 # http://stackoverflow.com/questions/17020842/mysql-count-with-limit#answers-header
                 options.count = true
-                pMgr.list 'User', options, next
+                globals.pMgr.list 'User', options, next
                 return
             (count, next)->
                 # There are supposed to be 25 users matching the where field
@@ -175,7 +176,7 @@ describe 'join', ->
         # Mixin parent causes inner join instead of left join for left join on child
         # Select a was select a:*
 
-        connector = pools.writer.createConnector()
+        connector = globals.pools.writer.createConnector()
 
         countryCode = 'CAMEROUN'
 
@@ -189,7 +190,7 @@ describe 'join', ->
 
         pModels = null
         twaterfall connector, [
-            (next)-> pMgr.list 'User', options, next
+            (next)-> globals.pMgr.list 'User', options, next
             (models, next)-> 
                 assert.ok models.length > 0
                 pModels = models
@@ -199,7 +200,7 @@ describe 'join', ->
                     'author:language:property:*'
                 ]
 
-                pMgr.list 'User', options, next
+                globals.pMgr.list 'User', options, next
                 return
             (models, next)->
                 for model, index in models
@@ -212,7 +213,7 @@ describe 'join', ->
         return
 
     it 'should fix issue: no field was considered as *', (done)->
-        connector = pools.writer.createConnector()
+        connector = globals.pools.writer.createConnector()
 
         countryCode = 'CAMEROUN'
 
@@ -243,7 +244,7 @@ describe 'join', ->
                     condition: '{LNG, id} = {ctry, language}'
 
         twaterfall connector, [
-            (next)-> pMgr.list 'User', options, next
+            (next)-> globals.pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
                 for model in models

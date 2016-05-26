@@ -5,6 +5,7 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'stream', ->
+
     it 'should stream plain mapping', (done)->
         [pMgr, model, connector, Model] = setUpMapping()
         model.className = 'ClassA'
@@ -159,7 +160,7 @@ describe 'stream', ->
         newF1Value = 'value2'
 
         # Every modification needs to be committed
-        listConnector = pools.reader.createConnector()
+        listConnector = globals.pools.reader.createConnector()
 
         options = listOptions = null
         async.waterfall [

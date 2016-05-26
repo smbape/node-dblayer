@@ -15,95 +15,112 @@ LOWERWORDS =
     set_default: 'set default'
     rename_constraint: 'rename constraint'
     inherits: 'inherits'
+    interval: 'interval'
 
 # http://www.postgresql.org/docs/9.4/static/datatype.html
 module.exports = class PgColumnCompiler extends ColumnCompiler
-    adapter: require './adapter'
-    smallincrements: -> @words.smallserial
-    increments: -> @words.serial
-    bigincrements: -> @words.bigserial
 
-    # smallint: -> @words.smallint
-    # integer: -> @words.integer
-    # bigint: -> @words.bigint
+PgColumnCompiler::adapter = require './adapter'
 
-    # numeric: (precision, scale)->
-    #     type = @words.numeric
-    #     type + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+# https://www.postgresql.org/docs/9.4/static/datatype-numeric.html
+PgColumnCompiler::smallincrements = -> @words.smallserial
+PgColumnCompiler::increments = -> @words.serial
+PgColumnCompiler::bigincrements = -> @words.bigserial
 
-    float: -> @words.real
-    # double: -> @words.double
+PgColumnCompiler::smallint = -> @words.smallint
+PgColumnCompiler::integer = -> @words.integer
+PgColumnCompiler::bigint = -> @words.bigint
 
-    # char: (length)->
-    #     type = @words.char
-    #     type + '(' + @_num(length, 255) + ')'
+PgColumnCompiler::numeric = (precision, scale)->
+    type = @words.numeric
+    type + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
-    # varchar: (length)->
-    #     type = @words.varchar
-    #     type + '(' + @_num(length, 255) + ')'
+PgColumnCompiler::float = -> @words.real
+PgColumnCompiler::double = -> @words.double
 
-    # date: -> @words.date
-    time: (tz, precision)->
-        if 'number' is typeof tz
-            precision = tz
-            tz = precision is true
+# https://www.postgresql.org/docs/9.4/static/datatype-character.html
+PgColumnCompiler::char = (length)->
+    type = @words.char
+    type + '(' + @_num(length, 255) + ')'
 
-        if tz
-            type = @words.timetz
+PgColumnCompiler::varchar = (length)->
+    type = @words.varchar
+    type + '(' + @_num(length, 255) + ')'
+
+# https://www.postgresql.org/docs/9.4/static/datatype-datetime.html
+PgColumnCompiler::date = -> @words.date
+PgColumnCompiler::time = (tz, precision)->
+    if 'number' is typeof tz
+        precision = tz
+        tz = precision is true
+
+    if tz
+        type = @words.timetz
+    else
+        type = @words.time
+
+    # 6 is the default precision
+    precision = @_num(precision, 6)
+    "#{type}(#{precision})"
+
+PgColumnCompiler::timestamp = (tz, precision)->
+    if 'number' is typeof tz
+        precision = tz
+        tz = precision is true
+
+    if tz
+        type = @words.timestamptz
+    else
+        type = @words.timestamp
+
+    precision = @_num(precision, 6)
+    "#{type}(#{precision})"
+
+PgColumnCompiler::interval = (precision)->
+    precision = @_num(precision, null)
+    type = @words.interval
+
+    if precision
+        return "#{type}(#{precision})"
+
+    switch precision
+        when 'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND', 'YEAR TO MONTH', 'DAY TO HOUR', 'DAY TO MINUTE', 'DAY TO SECOND', 'HOUR TO MINUTE', 'HOUR TO SECOND', 'MINUTE TO SECOND'
+            return "#{type}(#{precision})"
         else
-            type = @words.time
+            precision = 6
+            # 6 is the default precision
+            return "#{type}(#{precision})"
 
-        precision = @_num(precision, null)
-        if precision
-            "#{type}(#{precision})"
-        else
-            type
+PgColumnCompiler::binary = -> @words.bytea
 
-    timestamp: (tz, precision)->
-        if 'number' is typeof tz
-            precision = tz
-            tz = precision is true
+PgColumnCompiler::bool = -> @words.boolean
 
-        if tz
-            type = @words.timestamptz
-        else
-            type = @words.timestamp
+PgColumnCompiler::enum = (allowed) ->
+    # http://stackoverflow.com/questions/10923213/postgres-enum-data-type-or-check-constraint#10984951
+    @words.text_check + ' (' + @adapter.escapeId(@args.column) + ' ' + @words.in + ' (' + allowed.map(@adapter.escape) + '))'
 
-        precision = @_num(precision, null)
-        if precision
-            "#{type}(#{precision})"
-        else
-            type
+PgColumnCompiler::bit = (length) ->
+    length = @_num(length, null)
+    if length then @words.bit + '(' + length + ')' else @words.bit
 
-    binary: -> @words.bytea
+PgColumnCompiler::varbit = (length) ->
+    length = @_num(length, null)
+    if length then @words.bit + '(' + length + ')' else @words.bit
 
-    # exports.bool = -> @words.boolean
-
-    enu: (allowed) ->
-        # http://stackoverflow.com/questions/10923213/postgres-enum-data-type-or-check-constraint#10984951
-        @words.text_check + ' (' + @adapter.escapeId(@args.column) + ' ' + @words.in + ' (\'' + allowed.map(@adapter.escape) + '\'))'
-
-    bit: (length) ->
-        length = @_num(length, null)
-        if length then @words.bit + '(' + length + ')' else @words.bit
-
-    varbit: (length) ->
-        length = @_num(length, null)
-        if length then @words.bit + '(' + length + ')' else @words.bit
-
-    xml: -> @words.xml
-    json: -> @words.json
-    jsonb: -> @words.jsonb
-
-    pkString: (pkName, columns)->
-        @adapter.escapeId(pkName) + ' ' + @words.primary_key + ' (' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
-
-    ukString: (ukName, columns)->
-        @adapter.escapeId(ukName) + ' ' + @words.unique + ' (' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
-
-    indexString: (indexName, columns, tableNameId)->
-        @adapter.escapeId(indexName) + ' ' + @words.on + ' ' + tableNameId + '(' + columns.sort().map(@adapter.escapeId).join(', ') + ')'
+PgColumnCompiler::xml = -> @words.xml
+PgColumnCompiler::json = -> @words.json
+PgColumnCompiler::jsonb = -> @words.jsonb
 
 PgColumnCompiler::LOWERWORDS = _.defaults LOWERWORDS, ColumnCompiler::LOWERWORDS
 PgColumnCompiler::UPPERWORDS = _.defaults tools.toUpperWords(LOWERWORDS), ColumnCompiler::UPPERWORDS
 PgColumnCompiler::datetime = PgColumnCompiler::timestamp
+
+PgColumnCompiler::aliases = ->
+    instance = super
+
+    for method in ['time', 'timestamp']
+        alias = method + 'tz'
+        if 'function' isnt typeof instance[alias]
+            instance[alias] = instance[method].bind instance, true
+
+    instance

@@ -17,6 +17,8 @@ module.exports = class ColumnCompiler
             if 'function' is typeof @adapter[method]
                 @[method] = @adapter[method].bind @adapter
 
+        @aliases()
+
 LOWERWORDS = ColumnCompiler::LOWERWORDS = {
     add: 'add'
     add_column: 'add column'
@@ -39,6 +41,7 @@ LOWERWORDS = ColumnCompiler::LOWERWORDS = {
     drop_constraint: 'drop constraint'
     drop_index: 'drop index'
     drop_table: 'drop table'
+    enum: 'enum'
     foreign_key: 'foreign key'
     if_exists: 'if exists'
     if_not_exists: 'if not exists'
@@ -69,6 +72,7 @@ ColumnCompiler::increments = -> throw new Error 'increments type is not defined'
 ColumnCompiler::bigincrements = -> throw new Error 'bigincrements type is not defined'
 
 _.extend LOWERWORDS,
+    tinyint: 'tinyint'
     smallint: 'smallint'
     integer: 'integer'
     bigint: 'bigint'
@@ -97,6 +101,8 @@ ColumnCompiler::double = -> @words.double
 _.extend LOWERWORDS,
     char: 'char'
     varchar: 'varchar'
+    tinytext: 'tinytext'
+    mediumtext: 'mediumtext'
     text: 'text'
 
 ColumnCompiler::char = (length)->
@@ -105,6 +111,8 @@ ColumnCompiler::char = (length)->
 ColumnCompiler::varchar = (length)->
     @words.varchar + '(' + @_num(length, 255) + ')'
 
+ColumnCompiler::tinytext =
+ColumnCompiler::mediumtext =
 ColumnCompiler::text = -> @words.text
 
 # ================================================================
@@ -124,19 +132,27 @@ ColumnCompiler::time = -> @words.time
 ColumnCompiler::timestamp = -> @words.timestamp
 
 _.extend LOWERWORDS,
-    binary: 'binary'
     bool: 'bool'
+    enu: 'enu'
 
-ColumnCompiler::binary = -> @words.blob
 ColumnCompiler::bool = -> @words.boolean
 ColumnCompiler::enu = -> throw new Error 'enu type is not defined'
 
 _.extend LOWERWORDS,
+    binary: 'binary'
     bit: 'bit'
+    varbinary: 'varbinary'
     varbit: 'varbit'
 
-ColumnCompiler::bit = -> throw new Error 'bit type is not defined'
-ColumnCompiler::varbit = -> throw new Error 'varbit type is not defined'
+ColumnCompiler::binary =
+ColumnCompiler::bit = (length)->
+    length = @_num(length, null)
+    if length then @words.bit + '(' + length + ')' else @words.bit
+
+ColumnCompiler::varbinary =
+ColumnCompiler::varbit = (length)->
+    length = @_num(length, null)
+    if length then @words.bit + '(' + length + ')' else @words.bit
 
 _.extend LOWERWORDS,
     xml: 'xml'
@@ -162,8 +178,7 @@ ColumnCompiler::ALIASES =
     bigint: ['biginteger', 'int8']
     bool: ['boolean']
     double: ['float8']
-    enu: ['enum']
-    interger: ['int', 'int4', 'mediumint']
+    integer: ['int', 'int4', 'mediumint']
     decimal: ['numeric']
     float: ['real', 'float4']
     mediumint: ['mediuminteger']
@@ -173,19 +188,21 @@ ColumnCompiler::ALIASES =
 ColumnCompiler::aliases = ->
     instance = @
 
-    for type, aliases of ColumnCompiler::ALIASES
+    for type, aliases of @ALIASES
         for alias in aliases
             if 'function' isnt typeof instance[alias]
                 instance[alias] = instance[type]
 
-    for method in ['time', 'timestamp']
-        alias = method + 'tz'
-        if 'function' isnt typeof instance[alias]
-            instance[alias] = instance[method].bind instance, true
-
     instance
 
-ColumnCompiler::UPPERWORDS = tools.toUpperWords ColumnCompiler::LOWERWORDS
+ColumnCompiler::pkString = (pkName, columns)->
+    @adapter.escapeId(pkName) + ' ' + @words.primary_key + ' (' + columns.map(@adapter.escapeId).join(', ') + ')'
+
+ColumnCompiler::ukString = (ukName, columns)->
+    @adapter.escapeId(ukName) + ' ' + @words.unique + ' (' + columns.map(@adapter.escapeId).join(', ') + ')'
+
+ColumnCompiler::indexString = (indexName, columns, tableNameId)->
+    @adapter.escapeId(indexName) + ' ' + @words.on + ' ' + tableNameId + '(' + columns.map(@adapter.escapeId).join(', ') + ')'
 
 ColumnCompiler::getTypeString = (spec)->
     type = spec.type.toLowerCase()
@@ -193,8 +210,8 @@ ColumnCompiler::getTypeString = (spec)->
     if 'function' is typeof @[type]
         type = @[type].apply @, type_args
     else
-        err = new Error 'Unknown type'
-        err.code = 'UNKNOWN TYPE'
+        err = new Error "Unknown type '#{type}'"
+        err.code = 'UNKNOWN_TYPE'
         throw err
         # type_args.unshift type
         # type = type_args.join(' ')
@@ -202,9 +219,11 @@ ColumnCompiler::getTypeString = (spec)->
     type
 
 ColumnCompiler::getColumnModifier = (spec)->
-    if spec.nullable is false
-        return @words.not_null
-    else if spec.defaultValue isnt undefined and spec.defaultValue isnt null
+    if spec.defaultValue isnt undefined and spec.defaultValue isnt null
         return @words.default + ' ' + spec.defaultValue
+    else if spec.nullable is false
+        return @words.not_null
     else
         return @words.null
+
+ColumnCompiler::UPPERWORDS = tools.toUpperWords ColumnCompiler::LOWERWORDS

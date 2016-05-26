@@ -22,34 +22,38 @@ module.exports =
 
             tc.constraint_name AS "CONSTRAINT_NAME",
             tc.constraint_type AS "CONSTRAINT_TYPE",
-            tc.on_update AS "UPDATE_RULE",
-            tc.on_delete AS "DELETE_RULE",
+            CASE tc.ordinal_position
+                WHEN NULL THEN NULL
+                ELSE tc.ordinal_position - 1
+            END AS "CONSTRAINT_INDEX_NUM",
+            tc.update_rule AS "UPDATE_RULE",
+            tc.delete_rule AS "DELETE_RULE",
             tc.referenced_table AS "REFERENCED_TABLE",
             tc.referenced_column AS "REFERENCED_COLUMN",
 
-            i.relname AS "INDEX_NAME"
+            i.relname AS "INDEX_NAME",
+            i.s AS "INDEX_NUM"
 
         FROM information_schema.columns inf
-            INNER JOIN pg_class c ON c.relname = inf.table_name
-            INNER JOIN pg_attribute a
-                ON a.attrelid = c.oid
-                AND a.attname = inf.column_name
-            INNER JOIN pg_type t ON a.atttypid = t.oid
+            INNER JOIN pg_namespace ns ON ns.nspname = inf.table_schema
+            INNER JOIN pg_class c ON c.relname = inf.table_name AND c.relnamespace = ns.oid
+            INNER JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = inf.column_name
 
             LEFT JOIN (
                 SELECT
                     tc.table_catalog,
                     tc.table_schema,
-                    tc.constraint_name,
-                    tc.constraint_type,
                     tc.table_name,
                     kcu.column_name,
+                    tc.constraint_name,
+                    tc.constraint_type,
+                    kcu.ordinal_position,
                     tc.is_deferrable,
                     tc.initially_deferred,
-                    rc.match_option AS match_type,
+                    rc.match_option,
 
-                    rc.update_rule AS on_update,
-                    rc.delete_rule AS on_delete,
+                    rc.update_rule,
+                    rc.delete_rule,
                     ccu.table_name AS referenced_table,
                     ccu.column_name AS referenced_column
 
@@ -79,21 +83,18 @@ module.exports =
 
             LEFT JOIN (
                 SELECT
-                    i.indrelid,
+                    i.*,
                     c.relname,
                     am.amname,
-                    i.indkey,
-                    i.indpred
+                    generate_subscripts(i.indkey, 1) AS s
                 FROM pg_index i
                 INNER JOIN pg_class c ON c.oid = i.indexrelid
                 INNER JOIN pg_am am ON am.oid = c.relam
                 WHERE i.indisunique = FALSE AND i.indisprimary = FALSE
-            ) AS i ON i.indrelid  = c.oid AND a.attnum = ANY(i.indkey)
+            ) AS i ON i.indrelid  = c.oid AND a.attnum = i.indkey[i.s]
 
-        WHERE
-            inf.table_catalog = '#{options.database}'
-            AND inf.table_schema = '#{options.schema}'
-        ORDER BY inf.table_catalog, inf.table_schema, "TABLE_NAME", "ORDINAL_POSITION", "COLUMN_NAME" DESC
+        WHERE inf.table_catalog = '#{options.database}' AND inf.table_schema = '#{options.schema}'
+        ORDER BY inf.table_catalog, inf.table_schema, inf.table_name, inf.ordinal_position
         """
 
         connector.query query, (err, result)->
@@ -109,15 +110,20 @@ module.exports =
                     NUMERIC_PRECISION
                     NUMERIC_SCALE
                     CHARACTER_MAXIMUM_LENGTH
+                    DATE_TIME_PRECISION
+                    INTERVAL_PRECISION
+                    INTERVAL_TYPE
                     IS_NULLABLE
                     COLUMN_DEFAULT
                     CONSTRAINT_NAME
                     CONSTRAINT_TYPE
+                    CONSTRAINT_INDEX_NUM
                     REFERENCED_TABLE
                     REFERENCED_COLUMN
                     UPDATE_RULE
                     DELETE_RULE
                     INDEX_NAME
+                    INDEX_NUM
                 } = row
 
                 table = model[TABLE_NAME] or (model[TABLE_NAME] = {name: TABLE_NAME})
@@ -163,6 +169,9 @@ module.exports =
                         when 'bit', 'varbit', 'varchar'
                             column.type = DATA_TYPE
                             column.type_args = [CHARACTER_MAXIMUM_LENGTH]
+                        when 'timestamp', 'timestampz', 'time', 'timez', 'interval'
+                            column.type = DATA_TYPE
+                            column.type_args = [INTERVAL_TYPE or DATE_TIME_PRECISION]
                         else
                             column.type = DATA_TYPE
 
@@ -172,21 +181,19 @@ module.exports =
                     switch CONSTRAINT_TYPE
                         when 'PRIMARY KEY', 'UNIQUE'
                             constraint = table.constraints[CONSTRAINT_TYPE][CONSTRAINT_NAME] or (table.constraints[CONSTRAINT_TYPE][CONSTRAINT_NAME] = [])
-                            if -1 is constraint.indexOf COLUMN_NAME
-                                constraint.push COLUMN_NAME
+                            constraint[CONSTRAINT_INDEX_NUM] = COLUMN_NAME
                         when 'FOREIGN KEY'
                             constraint = table.constraints[CONSTRAINT_TYPE][CONSTRAINT_NAME] or (table.constraints[CONSTRAINT_TYPE][CONSTRAINT_NAME] = {})
                             constraint.column = COLUMN_NAME
-                            constraint.references_table = REFERENCED_TABLE
-                            constraint.references_column = REFERENCED_COLUMN
+                            constraint.referenced_table = REFERENCED_TABLE
+                            constraint.referenced_column = REFERENCED_COLUMN
                             constraint.update_rule = UPDATE_RULE
                             constraint.delete_rule = DELETE_RULE
 
                 if INDEX_NAME
                     table.indexes or (table.indexes = {})
                     index = table.indexes[INDEX_NAME] or (table.indexes[INDEX_NAME] = [])
-                    if -1 is index.indexOf COLUMN_NAME
-                        index.push COLUMN_NAME
+                    index[INDEX_NUM] = COLUMN_NAME
 
             callback err, model
             return

@@ -5,19 +5,20 @@ _ = require 'lodash'
 {AdapterPool, Connector} = require '../../'
 {STATES} = Connector::
 
-describe 'test connector', ->
+knex = require('knex') { dialect: globals.config.dialect }
 
+describe 'test connector', ->
     before (done)->
-        query = knex.schema.withSchema(config.schema).createTable '_users', (table)->
+        query = knex.schema.withSchema(globals.config.schema).createTable '_users', (table)->
             table.increments()
             table.string('name')
             return
-        connectors.admin.query query.toString(), done
+        globals.connectors.admin.query query.toString(), done
         return
 
     after (done)->
-        query = knex.schema.withSchema(config.schema).dropTableIfExists('_users')
-        connectors.admin.query query.toString(), done
+        query = knex.schema.withSchema(globals.config.schema).dropTableIfExists('_users')
+        globals.connectors.admin.query query.toString(), done
         return
 
     it 'should instantiate AdapterPool', (done)->
@@ -46,17 +47,17 @@ describe 'test connector', ->
             return
         , 'BAD_ADAPTER'
 
-        user = encodeURIComponent config.users.reader.name
-        password = encodeURIComponent config.users.reader.password
-        url = "#{config.dialect}://#{user}:#{password}@#{config.host}:#{config.port}/#{config.database}"
+        user = encodeURIComponent globals.config.users.reader.name
+        password = encodeURIComponent globals.config.users.reader.password
+        url = "#{globals.config.dialect}://#{user}:#{password}@#{globals.config.host}:#{globals.config.port}/#{globals.config.database}"
         pool = new AdapterPool "#{url}?schema=schema&minConnection=0&maxConnection=1&idleTimeout=1800"
 
         options = ['adapter', 'user', 'password', 'host', 'port', 'database', 'schema', 'minConnection', 'maxConnection', 'idleTimeout']
-        expected = _.pick(config, options)
-        expected.adapter = config.dialect
-        expected.user = config.users.reader.name
-        expected.password = config.users.reader.password
-        expected.adapter = config.dialect
+        expected = _.pick(globals.config, options)
+        expected.adapter = globals.config.dialect
+        expected.user = globals.config.users.reader.name
+        expected.password = globals.config.users.reader.password
+        expected.adapter = globals.config.dialect
         expected.schema = 'schema'
         expected.minConnection = 0
         expected.maxConnection = 1
@@ -68,7 +69,7 @@ describe 'test connector', ->
             ((pool)->
                 tasks.push (next)-> pool.check next
                 return
-            )(pools[type])
+            )(globals.pools[type])
 
         async.series tasks, done
         return
@@ -78,13 +79,13 @@ describe 'test connector', ->
             new Connector()
             return
 
-        connector = new Connector pools.reader
+        connector = new Connector globals.pools.reader
         assert.ok connector
         connector.query 'select 1', done
         return
 
     it 'should acquire', (done)->
-        connector = pools.reader.createConnector()
+        connector = globals.pools.reader.createConnector()
         async.waterfall [
             (next)->
                 assert.strictEqual 0, connector.getSavepointsSize()
@@ -119,7 +120,7 @@ describe 'test connector', ->
 
     it 'should timeout acquire', (done)->
         timeout = Math.pow 2, 6
-        connector = pools.reader.createConnector timeout: timeout / 2
+        connector = globals.pools.reader.createConnector timeout: timeout / 2
         async.series async.reflectAll([
             (next)-> connector.acquire next
             (next)-> setTimeout next, timeout
@@ -168,7 +169,7 @@ describe 'test connector', ->
         return
 
     it 'should handle transactions', (done)->
-        connector = pools.writer.createConnector()
+        connector = globals.pools.writer.createConnector()
         name = 'name'
         async.waterfall [
             (next)->
@@ -239,7 +240,7 @@ describe 'test connector', ->
         return
 
     it 'should stream', (done)->
-        connector = pools.writer.createConnector()
+        connector = globals.pools.writer.createConnector()
         rowCount = 0
         num = Math.pow 2, 8
         offset = 1000
@@ -285,10 +286,8 @@ describe 'test connector', ->
                 return
         ], done
 
-        return
-
         it 'should escape', ->
-            connector = pools.reader.createConnector()
+            connector = globals.pools.reader.createConnector()
             connector.escape 'toto'
             connector.escapeId 'toto'
             connector.escapeSearch 'toto'

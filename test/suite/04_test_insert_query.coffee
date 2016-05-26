@@ -5,6 +5,7 @@ _ = require 'lodash'
 {PersistenceManager, squel} = require '../../'
 
 describe 'insert query', ->
+    {adapter, squelOptions} = globals
 
     mapping = {}
     Model = undefined

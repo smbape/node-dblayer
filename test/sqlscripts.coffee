@@ -2,7 +2,9 @@ async = require 'async'
 _ = require 'lodash'
 {squel} = require('../')
 
-module.exports = (done)->
+module.exports = (config, connectors, done)->
+    pMgr = globals.pMgr
+
     scripts = []
 
     languages = []

@@ -12,26 +12,27 @@ logger = log4js.getLogger __filename.replace /^(?:.+[\\\/])?([^.\\\/]+)(?:.[^.]+
 
 global.assert = chai.assert
 global.expect = chai.expect
+global.globals = {}
 
 {AdapterPool, PersistenceManager, tools} = require('../')
 
 resources = sysPath.resolve __dirname, 'resources'
 {getTemp} = require './tools'
 
+allConfigs = require('./config')
 dialect = process.env.DIALECT or 'postgres'
-config = global.config = require('./config')[dialect]
+config = globals.config = allConfigs[dialect]
+newConfig = allConfigs['new_' + dialect]
 config.dialect = dialect
 config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 
-global.knex = require('knex') { dialect }
-
 make = require sysPath.resolve resources, dialect, 'make'
 mapping = require('./mapping')
-global.pMgr = new PersistenceManager mapping
-global.adapter = tools.adapter(dialect)
-global.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
+pMgr = globals.pMgr = new PersistenceManager mapping
+adapter = globals.adapter = tools.adapter(dialect)
+squelOptions = globals.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
-initPools = ->
+initPools = (dialect, config, newConfig)->
     pools =
         owner: new AdapterPool {
             name: 'owner'
@@ -62,6 +63,21 @@ initPools = ->
             timeout: 3600 * 1000
         }
 
+    for name, user of newConfig.users
+        pools['new_' + name] = new AdapterPool {
+            name: user.name
+            adapter: dialect
+            host: newConfig.host
+            port: newConfig.port
+            database: newConfig.database
+            schema: newConfig.schema
+            user: user.name
+            password: user.password
+            minConnectio: 0
+            maxConnection: 1
+            timeout: 3600 * 1000
+        }
+
     connectors = {}
     for name, pool of pools
         connectors[name] = pool.createConnector()
@@ -69,8 +85,8 @@ initPools = ->
     return {pools, connectors}
 
 destroyPools = (done)->
-    count = Object.keys(global.pools).length
-    for name, pool of global.pools
+    count = Object.keys(globals.pools).length
+    for name, pool of globals.pools
         do (name, pool)->
             pool.destroyAll true, (err)->
                 console.error(err) if err
@@ -94,11 +110,26 @@ before (done)->
             logger.debug 'install'
             make.install config, (err)->
                 logger.warn(err) if err
-                {pools: global.pools, connectors: global.connectors} = initPools()
+                next()
+                return
+            return
+        (next)->
+            logger.debug 'uninstall'
+            make.uninstall newConfig, (err)->
+                logger.warn(err) if err
+                next()
+                return
+            return
+        (next)->
+            logger.debug 'install'
+            make.install newConfig, (err)->
+                logger.warn(err) if err
+                {pools, connectors} = initPools(dialect, config, newConfig)
+                globals.pools = pools
+                globals.connectors = connectors
                 PersistenceManager::defaults.insert = PersistenceManager::defaults.update = PersistenceManager::defaults.delete = {connector: connectors.writer}
                 PersistenceManager::defaults.list = {connector: connectors.reader}
-
-                require('./sqlscripts') next
+                next()
                 return
             return
     ], done
@@ -113,9 +144,46 @@ after (done)->
         logger.debug 'uninstall'
         make.uninstall config, (err)->
             logger.warn(err) if err
-            done()
+            make.uninstall newConfig, (err)->
+                logger.warn(err) if err
+                done()
+                return
             return
         return
+    return
+
+describe 'prepare', ->
+    @timeout 15 * 1000
+    concatQueries = ({drop_constraints, drops, creates, alters})->
+        drop_constraints.concat(drops).concat(creates).concat(alters).join(';\n')
+
+    it 'should create model when not existing', (done)->
+        [pMgr, model, connector, Model] = setUpMapping()
+        opts = _.defaults {
+            cascade: false
+            if_exists: false
+            prompt: false
+        }, _.pick(globals.config, ['tmp', 'keep', 'stdout', 'stderr'])
+
+        async.waterfall [
+            (next)->
+                pMgr.sync globals.connectors.admin, _.defaults({purge: true, exec: true}, opts), next
+                return
+            (queries, oldModel, newModel, next)->
+                assert.ok concatQueries(queries).length
+                assert.strictEqual _.isEmpty(oldModel), true, 'expecting oldModel to be empty'
+                pMgr.sync globals.connectors.admin, _.defaults({purge: true, exec: false}, opts), next
+                return
+            (queries, oldModel, newModel, next)->
+                # console.log require('util').inspect oldModel.BASIC_DATA, {depth: null}
+                # console.log require('util').inspect newModel.BASIC_DATA, {depth: null}
+                assert.lengthOf concatQueries(queries), 0
+                require('./sqlscripts') config, globals.connectors, next
+                return
+        ], done
+
+        return
+
     return
 
 global.twaterfall = (connector, tasks, done)->
@@ -221,7 +289,7 @@ global.setUpMapping = ->
         for i in [1..3] by 1
             model.set "prop#{letter}#{i}", "prop#{letter}#{i}Value"
 
-    connector = pools.writer.createConnector()
+    connector = globals.pools.writer.createConnector()
 
     return [pMgr, model, connector, Model, _mapping]
 

@@ -45,7 +45,7 @@ exports.generateScripts = (options = {})->
     if create.database isnt false
         sql.push """
         CREATE DATABASE IF NOT EXISTS `#{database}` DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-        REVOKE ALL ON `#{database}`.* FROM #{users.admin.name}, #{users.writer.name}, #{users.reader.name};
+        -- REVOKE ALL ON `#{database}`.* FROM #{users.admin.name}, #{users.writer.name}, #{users.reader.name};
         GRANT ALL ON `#{database}`.* TO #{users.admin.name};
         GRANT CREATE TEMPORARY TABLES, EXECUTE, SELECT ON `#{database}`.* TO #{users.reader.name};
         GRANT CREATE TEMPORARY TABLES, EXECUTE, SELECT, INSERT, UPDATE, DELETE ON `#{database}`.* TO #{users.writer.name};
@@ -98,17 +98,17 @@ exports.install = (options = {}, done)->
     if password.length > 0
         my = sysPath.join tmp, 'my.conf'
         fs.writeFileSync my, "[client]\npassword=#{password}\n", umask
-        mysql = "#{mysql} --defaults-extra-file=#{my} --user=#{root}"
+        mysql = "#{mysql} --defaults-extra-file=#{my} -h #{host} -P #{port} --user=#{root}"
     else
-        mysql = "#{mysql} --user=#{root}"
+        mysql = "#{mysql} -h #{host} -P #{port} --user=#{root}"
 
     script = []
 
     if databaseSQL
-        script.push "#{mysql} -f < \"#{databaseSQL}\""
+        script.push "#{mysql} < \"#{databaseSQL}\""
 
     if modelSQL
-        script.push "#{mysql} -f < \"#{modelSQL}\""
+        script.push "#{mysql} < \"#{modelSQL}\""
 
     join = if process.platform is 'win32' then ' &\n' else ' &&\n'
     script = createScript sysPath.join(tmp, 'install'), env, script.join(join)
@@ -161,9 +161,9 @@ exports.uninstall = (options = {}, done)->
     if password.length > 0
         my = sysPath.join tmp, 'my.conf'
         fs.writeFileSync my, "[client]\npassword=#{password}\n", umask
-        mysql = "#{mysql} --defaults-extra-file=#{my} --user=#{root}"
+        mysql = "#{mysql} --defaults-extra-file=#{my} -h #{host} -P #{port} --user=#{root}"
     else
-        mysql = "#{mysql} --user=#{root}"
+        mysql = "#{mysql} -h #{host} -P #{port} --user=#{root}"
 
     script = []
     if sql.length

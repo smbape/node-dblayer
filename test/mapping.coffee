@@ -4,7 +4,7 @@ mapping = exports
 
 domains = {
     serial:
-        type: 'bigincrements'
+        type: 'increments'
     short_label:
         type: 'varchar'
         type_args: [31]
@@ -66,12 +66,15 @@ mapping['Data'] =
         author:
             column: 'AOR_ID'
             className: 'User'
+            fk: 'AUTHOR'
         delegator: 
             column: 'DOR_ID'
             className: 'User'
+            fk: 'DELEGATOR'
         operator: 
             column: 'OOR_ID'
             className: 'User'
+            fk: 'OPERATOR'
         cdate:
             column: 'DAT_CDATE'
             domain: domains.datetime
@@ -107,9 +110,6 @@ mapping['User'] =
             column: 'USE_OCCUPATION'
             domain: domains.long_label
         language: className: 'Language'
-        ip:
-            column: 'USE_IP'
-            domain: domains.medium_label
     constraints: [
         {type: 'unique', name: 'LOGIN', properties: ['login']}
         {type: 'unique', name: 'EMAIL', properties: ['email']}
@@ -148,6 +148,10 @@ mapping['Language'] =
 
 mapping['Translation'] =
     table: 'TRANSLATIONS'
+    id:
+        name: 'id'
+        column: 'TRL_ID'
+        domain: domains.serial
     properties:
         value:
             column: 'TRL_VALUE'
@@ -155,6 +159,11 @@ mapping['Translation'] =
         language:
             className: 'Language'
             nullable: false
+
+            # since the unique index starts with this property
+            # there is no need for a separate index to make joinction on foreign key faster
+            # this is the default behaviour on mysql
+            fkindex: false
         property:
             className: 'Property'
             nullable: false
@@ -376,9 +385,13 @@ mapping['ClassJ'] =
         propJ3:
             column: 'PROP_J3'
             domain: domains.short_label
-        propClassD:
+        propJ4:
             column: 'PROP_J4'
+            domain: domains.short_label
+            defaultValue: 'default value'
+        propClassD:
+            column: 'PROP_J5'
             className: 'ClassD'
         propClassE:
-            column: 'PROP_J5'
+            column: 'PROP_J6'
             className: 'ClassE'

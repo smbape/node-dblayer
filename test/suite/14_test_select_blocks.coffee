@@ -6,7 +6,7 @@ _ = require 'lodash'
 
 describe 'select blocks', ->
     it 'should order, group, having, limit, offset', (done)->
-        connector = pools.writer.createConnector()
+        connector = globals.pools.writer.createConnector()
 
         countryCode = 'CAMEROUN'
 
@@ -54,7 +54,7 @@ describe 'select blocks', ->
                 en: connector.escape 'EN'
 
         twaterfall connector, [
-            (next)-> pMgr.list 'User', options, next
+            (next)-> globals.pMgr.list 'User', options, next
             (models, next)->
                 assert.ok models.length > 0
                 for model in models

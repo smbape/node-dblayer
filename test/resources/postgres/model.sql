@@ -4,8 +4,6 @@
 /*==============================================================*/
 
 
-drop index if exists "ACTIONS_PK" cascade;
-
 drop table if exists "ACTIONS" cascade;
 
 drop index if exists "OPERATOR_FK" cascade;
@@ -14,31 +12,19 @@ drop index if exists "DELEGATOR_FK" cascade;
 
 drop index if exists "AUTHOR_FK" cascade;
 
-drop index if exists "BASIC_DATA_PK" cascade;
-
 drop table if exists "BASIC_DATA" cascade;
-
-drop index if exists "CLASS_A_PK" cascade;
 
 drop table if exists "CLASS_A" cascade;
 
-drop index if exists "CLASS_B_PK" cascade;
-
 drop table if exists "CLASS_B" cascade;
-
-drop index if exists "CLASS_C_PK" cascade;
 
 drop table if exists "CLASS_C" cascade;
 
 drop index if exists "RELATIONSHIP_1_FK" cascade;
 
-drop index if exists "CLASS_D_PK" cascade;
-
 drop table if exists "CLASS_D" cascade;
 
 drop index if exists "RELATIONSHIP_2_FK" cascade;
-
-drop index if exists "CLASS_E_PK" cascade;
 
 drop table if exists "CLASS_E" cascade;
 
@@ -46,11 +32,7 @@ drop index if exists "RELATIONSHIP_4_FK" cascade;
 
 drop index if exists "RELATIONSHIP_3_FK" cascade;
 
-drop index if exists "CLASS_F_PK" cascade;
-
 drop table if exists "CLASS_F" cascade;
-
-drop index if exists "CLASS_G_PK" cascade;
 
 drop table if exists "CLASS_G" cascade;
 
@@ -60,13 +42,9 @@ drop index if exists "RELATIONSHIP_5_FK" cascade;
 
 drop table if exists "CLASS_H" cascade;
 
-drop index if exists "CLASS_I_PK" cascade;
-
 drop table if exists "CLASS_I" cascade;
 
 drop index if exists "CRY_LPR_FK" cascade;
-
-drop index if exists "COUNTRIES_PK" cascade;
 
 drop table if exists "COUNTRIES" cascade;
 
@@ -74,25 +52,17 @@ drop index if exists "ACT_DFT_PRV_FK" cascade;
 
 drop index if exists "FOL_DFT_PRV_FK" cascade;
 
-drop index if exists "DEFAULT_PRIVILEDGES_PK" cascade;
-
 drop table if exists "DEFAULT_PRIVILEDGES" cascade;
 
 drop index if exists "DELEGATES_FK" cascade;
 
 drop index if exists "ISDELEGATE_FK" cascade;
 
-drop index if exists "DELEGATES_PK" cascade;
-
 drop table if exists "DELEGATES" cascade;
-
-drop index if exists "FOLDER_PK" cascade;
 
 drop table if exists "FOLDER" cascade;
 
 drop index if exists "LNG_LPR_FK" cascade;
-
-drop index if exists "LANGUAGES_PK" cascade;
 
 drop table if exists "LANGUAGES" cascade;
 
@@ -100,15 +70,9 @@ drop index if exists "ACT_PRV_FK" cascade;
 
 drop index if exists "RSC_PRV_FK" cascade;
 
-drop index if exists "PRIVILEDGES_PK" cascade;
-
 drop table if exists "PRIVILEDGES" cascade;
 
-drop index if exists "PROPERTIES_PK" cascade;
-
 drop table if exists "PROPERTIES" cascade;
-
-drop index if exists "RESOURCE_PK" cascade;
 
 drop table if exists "RESOURCE" cascade;
 
@@ -116,19 +80,13 @@ drop index if exists "LNG_TRL_FK" cascade;
 
 drop index if exists "LPR_TRL_FK" cascade;
 
-drop index if exists "TRANSLATIONS_PK" cascade;
-
 drop table if exists "TRANSLATIONS" cascade;
 
 drop index if exists "USR_CRY_FK" cascade;
 
 drop index if exists "USR_LNG_FK" cascade;
 
-drop index if exists "USERS_PK" cascade;
-
 drop table if exists "USERS" cascade;
-
-drop index if exists "WORKSPACE_PK" cascade;
 
 drop table if exists "WORKSPACE" cascade;
 
@@ -213,37 +171,23 @@ create domain "VERSION" as VARCHAR(10);
 /* Table: ACTIONS                                               */
 /*==============================================================*/
 create table "ACTIONS" (
-   "ACT_ID"               BIGSERIAL            not null,
+   "ACT_ID"               SERIAL            not null,
    "ACT_CODE"             "CODE"                 not null,
    constraint "PK_ACTIONS" primary key ("ACT_ID")
-);
-
-/*==============================================================*/
-/* Index: ACTIONS_PK                                            */
-/*==============================================================*/
-create unique index "ACTIONS_PK" on "ACTIONS" (
-"ACT_ID"
 );
 
 /*==============================================================*/
 /* Table: BASIC_DATA                                            */
 /*==============================================================*/
 create table "BASIC_DATA" (
-   "DAT_ID"               BIGSERIAL            not null,
-   "AOR_ID"               INT8                 null,
-   "DOR_ID"               INT8                 null,
-   "OOR_ID"               INT8                 null,
+   "DAT_ID"               SERIAL            not null,
+   "AOR_ID"               INT4                 null,
+   "DOR_ID"               INT4                 null,
+   "OOR_ID"               INT4                 null,
    "DAT_CDATE"            "UTCTIME"              not null,
    "DAT_MDATE"            "UTCTIME"              null,
    "DAT_VERSION"          "VERSION"              not null,
    constraint "PK_BASIC_DATA" primary key ("DAT_ID")
-);
-
-/*==============================================================*/
-/* Index: BASIC_DATA_PK                                         */
-/*==============================================================*/
-create unique index "BASIC_DATA_PK" on "BASIC_DATA" (
-"DAT_ID"
 );
 
 /*==============================================================*/
@@ -271,7 +215,7 @@ create  index "OPERATOR_FK" on "BASIC_DATA" (
 /* Table: CLASS_A                                               */
 /*==============================================================*/
 create table "CLASS_A" (
-   "A_ID"                 BIGSERIAL            not null,
+   "A_ID"                 SERIAL            not null,
    "PROP_A1"              "LIBELLE_COURT"        null,
    "PROP_A2"              "LIBELLE_COURT"        null,
    "PROP_A3"              "LIBELLE_COURT"        null,
@@ -282,17 +226,10 @@ create table "CLASS_A" (
 );
 
 /*==============================================================*/
-/* Index: CLASS_A_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_A_PK" on "CLASS_A" (
-"A_ID"
-);
-
-/*==============================================================*/
 /* Table: CLASS_B                                               */
 /*==============================================================*/
 create table "CLASS_B" (
-   "A_ID"                 INT8                 not null,
+   "A_ID"                 INT4                 not null,
    "PROP_B1"              "LIBELLE_COURT"        null,
    "PROP_B2"              "LIBELLE_COURT"        null,
    "PROP_B3"              "LIBELLE_COURT"        null,
@@ -300,17 +237,10 @@ create table "CLASS_B" (
 );
 
 /*==============================================================*/
-/* Index: CLASS_B_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_B_PK" on "CLASS_B" (
-"A_ID"
-);
-
-/*==============================================================*/
 /* Table: CLASS_C                                               */
 /*==============================================================*/
 create table "CLASS_C" (
-   "C_ID"                 BIGSERIAL            not null,
+   "C_ID"                 SERIAL            not null,
    "PROP_C1"              "LIBELLE_COURT"        null,
    "PROP_C2"              "LIBELLE_COURT"        null,
    "PROP_C3"              "LIBELLE_COURT"        null,
@@ -318,29 +248,15 @@ create table "CLASS_C" (
 );
 
 /*==============================================================*/
-/* Index: CLASS_C_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_C_PK" on "CLASS_C" (
-"C_ID"
-);
-
-/*==============================================================*/
 /* Table: CLASS_D                                               */
 /*==============================================================*/
 create table "CLASS_D" (
-   "A_ID"                 INT8                 not null,
-   "C_ID"                 INT8                 not null,
+   "A_ID"                 INT4                 not null,
+   "C_ID"                 INT4                 not null,
    "PROP_D1"              "LIBELLE_COURT"        null,
    "PROP_D2"              "LIBELLE_COURT"        null,
    "PROP_D3"              "LIBELLE_COURT"        null,
    constraint "PK_CLASS_D" primary key ("A_ID")
-);
-
-/*==============================================================*/
-/* Index: CLASS_D_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_D_PK" on "CLASS_D" (
-"A_ID"
 );
 
 /*==============================================================*/
@@ -354,19 +270,12 @@ create  index "RELATIONSHIP_1_FK" on "CLASS_D" (
 /* Table: CLASS_E                                               */
 /*==============================================================*/
 create table "CLASS_E" (
-   "A_ID"                 INT8                 not null,
-   "C_ID"                 INT8                 not null,
+   "A_ID"                 INT4                 not null,
+   "C_ID"                 INT4                 not null,
    "PROP_E1"              "LIBELLE_COURT"        null,
    "PROP_E2"              "LIBELLE_COURT"        null,
    "PROP_E3"              "LIBELLE_COURT"        null,
    constraint "PK_CLASS_E" primary key ("A_ID")
-);
-
-/*==============================================================*/
-/* Index: CLASS_E_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_E_PK" on "CLASS_E" (
-"A_ID"
 );
 
 /*==============================================================*/
@@ -380,20 +289,13 @@ create  index "RELATIONSHIP_2_FK" on "CLASS_E" (
 /* Table: CLASS_F                                               */
 /*==============================================================*/
 create table "CLASS_F" (
-   "C_ID"                 INT8                 not null,
-   "A_ID"                 INT8                 null,
-   "CLA_A_ID"             INT8                 null,
+   "C_ID"                 INT4                 not null,
+   "A_ID"                 INT4                 null,
+   "CLA_A_ID"             INT4                 null,
    "PROP_F1"              "LIBELLE_COURT"        null,
    "PROP_F2"              "LIBELLE_COURT"        null,
    "PROP_F3"              "LIBELLE_COURT"        null,
    constraint "PK_CLASS_F" primary key ("C_ID")
-);
-
-/*==============================================================*/
-/* Index: CLASS_F_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_F_PK" on "CLASS_F" (
-"C_ID"
 );
 
 /*==============================================================*/
@@ -414,7 +316,7 @@ create  index "RELATIONSHIP_4_FK" on "CLASS_F" (
 /* Table: CLASS_G                                               */
 /*==============================================================*/
 create table "CLASS_G" (
-   "G_ID"                 BIGSERIAL            not null,
+   "G_ID"                 SERIAL            not null,
    "PROP_G1"              "LIBELLE_COURT"        null,
    "PROP_G2"              "LIBELLE_COURT"        null,
    "PROP_G3"              "LIBELLE_COURT"        null,
@@ -423,18 +325,11 @@ create table "CLASS_G" (
 );
 
 /*==============================================================*/
-/* Index: CLASS_G_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_G_PK" on "CLASS_G" (
-"G_ID"
-);
-
-/*==============================================================*/
 /* Table: CLASS_H                                               */
 /*==============================================================*/
 create table "CLASS_H" (
-   "G_ID"                 INT8                 not null,
-   "A_ID"                 INT8                 not null,
+   "G_ID"                 INT4                 not null,
+   "A_ID"                 INT4                 not null,
    "PROP_H1"              "LIBELLE_COURT"        null,
    "PROP_H2"              "LIBELLE_COURT"        null,
    "PROP_H3"              "LIBELLE_COURT"        null
@@ -458,33 +353,19 @@ create  index "RELATIONSHIP_6_FK" on "CLASS_H" (
 /* Table: CLASS_I                                               */
 /*==============================================================*/
 create table "CLASS_I" (
-   "G_ID"                 INT8                 not null,
+   "G_ID"                 INT4                 not null,
    constraint "PK_CLASS_I" primary key ("G_ID")
-);
-
-/*==============================================================*/
-/* Index: CLASS_I_PK                                            */
-/*==============================================================*/
-create unique index "CLASS_I_PK" on "CLASS_I" (
-"G_ID"
 );
 
 /*==============================================================*/
 /* Table: COUNTRIES                                             */
 /*==============================================================*/
 create table "COUNTRIES" (
-   "CRY_ID"               BIGSERIAL            not null,
-   "LPR_ID"               INT8                 null,
+   "CRY_ID"               SERIAL            not null,
+   "LPR_ID"               INT4                 null,
    "CRY_CODE"             "CODE"                 not null,
    constraint "PK_COUNTRIES" primary key ("CRY_ID"),
    constraint "UK_CRY_CODE" unique ("CRY_CODE")
-);
-
-/*==============================================================*/
-/* Index: COUNTRIES_PK                                          */
-/*==============================================================*/
-create unique index "COUNTRIES_PK" on "COUNTRIES" (
-"CRY_ID"
 );
 
 /*==============================================================*/
@@ -498,18 +379,11 @@ create  index "CRY_LPR_FK" on "COUNTRIES" (
 /* Table: DEFAULT_PRIVILEDGES                                   */
 /*==============================================================*/
 create table "DEFAULT_PRIVILEDGES" (
-   "DAT_ID"               INT8                 not null,
-   "ACT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
+   "ACT_ID"               INT4                 not null,
    constraint "PK_DEFAULT_PRIVILEDGES" primary key ("DAT_ID", "ACT_ID")
 );
 
-/*==============================================================*/
-/* Index: DEFAULT_PRIVILEDGES_PK                                */
-/*==============================================================*/
-create unique index "DEFAULT_PRIVILEDGES_PK" on "DEFAULT_PRIVILEDGES" (
-"DAT_ID",
-"ACT_ID"
-);
 
 /*==============================================================*/
 /* Index: FOL_DFT_PRV_FK                                        */
@@ -529,18 +403,11 @@ create  index "ACT_DFT_PRV_FK" on "DEFAULT_PRIVILEDGES" (
 /* Table: DELEGATES                                             */
 /*==============================================================*/
 create table "DELEGATES" (
-   "DAT_ID"               INT8                 not null,
-   "DGT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
+   "DGT_ID"               INT4                 not null,
    constraint "PK_DELEGATES" primary key ("DAT_ID", "DGT_ID")
 );
 
-/*==============================================================*/
-/* Index: DELEGATES_PK                                          */
-/*==============================================================*/
-create unique index "DELEGATES_PK" on "DELEGATES" (
-"DAT_ID",
-"DGT_ID"
-);
 
 /*==============================================================*/
 /* Index: ISDELEGATE_FK                                         */
@@ -560,35 +427,21 @@ create  index "DELEGATES_FK" on "DELEGATES" (
 /* Table: FOLDER                                                */
 /*==============================================================*/
 create table "FOLDER" (
-   "DAT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
    constraint "PK_FOLDER" primary key ("DAT_ID")
-);
-
-/*==============================================================*/
-/* Index: FOLDER_PK                                             */
-/*==============================================================*/
-create unique index "FOLDER_PK" on "FOLDER" (
-"DAT_ID"
 );
 
 /*==============================================================*/
 /* Table: LANGUAGES                                             */
 /*==============================================================*/
 create table "LANGUAGES" (
-   "LNG_ID"               BIGSERIAL            not null,
-   "LPR_ID"               INT8                 null,
+   "LNG_ID"               SERIAL            not null,
+   "LPR_ID"               INT4                 null,
    "LNG_CODE"             "SHORT_LABEL"          not null,
    "LNG_KEY"              "SHORT_LABEL"          null,
    "LNG_LABEL"            "MEDIUM_LABEL"         null,
    constraint "PK_LANGUAGES" primary key ("LNG_ID"),
    constraint "UK_LNG_CODE" unique ("LNG_CODE")
-);
-
-/*==============================================================*/
-/* Index: LANGUAGES_PK                                          */
-/*==============================================================*/
-create unique index "LANGUAGES_PK" on "LANGUAGES" (
-"LNG_ID"
 );
 
 /*==============================================================*/
@@ -602,18 +455,11 @@ create  index "LNG_LPR_FK" on "LANGUAGES" (
 /* Table: PRIVILEDGES                                           */
 /*==============================================================*/
 create table "PRIVILEDGES" (
-   "DAT_ID"               INT8                 not null,
-   "ACT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
+   "ACT_ID"               INT4                 not null,
    constraint "PK_PRIVILEDGES" primary key ("DAT_ID", "ACT_ID")
 );
 
-/*==============================================================*/
-/* Index: PRIVILEDGES_PK                                        */
-/*==============================================================*/
-create unique index "PRIVILEDGES_PK" on "PRIVILEDGES" (
-"DAT_ID",
-"ACT_ID"
-);
 
 /*==============================================================*/
 /* Index: RSC_PRV_FK                                            */
@@ -633,24 +479,17 @@ create  index "ACT_PRV_FK" on "PRIVILEDGES" (
 /* Table: PROPERTIES                                            */
 /*==============================================================*/
 create table "PROPERTIES" (
-   "LPR_ID"               BIGSERIAL            not null,
+   "LPR_ID"               SERIAL            not null,
    "LPR_CODE"             "CODE"                 not null,
    constraint "PK_PROPERTIES" primary key ("LPR_ID"),
    constraint "UK_LPR_CODE" unique ("LPR_CODE")
 );
 
 /*==============================================================*/
-/* Index: PROPERTIES_PK                                         */
-/*==============================================================*/
-create unique index "PROPERTIES_PK" on "PROPERTIES" (
-"LPR_ID"
-);
-
-/*==============================================================*/
 /* Table: RESOURCE                                              */
 /*==============================================================*/
 create table "RESOURCE" (
-   "DAT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
    "RSC_NAME"             "MEDIUM_LABEL"         not null,
    "RSC_PATH"             "LONG_LABEL"           not null,
    constraint "PK_RESOURCE" primary key ("DAT_ID"),
@@ -658,29 +497,17 @@ create table "RESOURCE" (
 );
 
 /*==============================================================*/
-/* Index: RESOURCE_PK                                           */
-/*==============================================================*/
-create unique index "RESOURCE_PK" on "RESOURCE" (
-"DAT_ID"
-);
-
-/*==============================================================*/
 /* Table: TRANSLATIONS                                          */
 /*==============================================================*/
 create table "TRANSLATIONS" (
-   "LPR_ID"               INT8                 not null,
-   "LNG_ID"               INT8                 not null,
+   "TRL_ID"               SERIAL                 not null,
+   "LPR_ID"               INT4                 not null,
+   "LNG_ID"               INT4                 not null,
    "TRL_VALUE"            "COMMENTAIRE"          null,
-   constraint "PK_TRANSLATIONS" primary key ("LPR_ID", "LNG_ID")
+   constraint "PK_TRANSLATIONS" primary key ("TRL_ID"),
+   constraint "UK_TRANSLATIONS" unique ("LNG_ID", "LPR_ID")
 );
 
-/*==============================================================*/
-/* Index: TRANSLATIONS_PK                                       */
-/*==============================================================*/
-create unique index "TRANSLATIONS_PK" on "TRANSLATIONS" (
-"LPR_ID",
-"LNG_ID"
-);
 
 /*==============================================================*/
 /* Index: LPR_TRL_FK                                            */
@@ -700,9 +527,9 @@ create  index "LNG_TRL_FK" on "TRANSLATIONS" (
 /* Table: USERS                                                 */
 /*==============================================================*/
 create table "USERS" (
-   "DAT_ID"               INT8                 not null,
-   "CRY_ID"               INT8                 null,
-   "LNG_ID"               INT8                 null,
+   "DAT_ID"               INT4                 not null,
+   "CRY_ID"               INT4                 null,
+   "LNG_ID"               INT4                 null,
    "USE_NAME"             "MEDIUM_LABEL"         not null,
    "USE_FIRST_NAME"       "LONG_LABEL"           null,
    "USE_EMAIL"            "EMAIL"                not null,
@@ -713,13 +540,6 @@ create table "USERS" (
    constraint "PK_USERS" primary key ("DAT_ID"),
    constraint "UK_USE_EMAIL" unique ("USE_EMAIL"),
    constraint "UK_USE_LOGIN" unique ("USE_LOGIN")
-);
-
-/*==============================================================*/
-/* Index: USERS_PK                                              */
-/*==============================================================*/
-create unique index "USERS_PK" on "USERS" (
-"DAT_ID"
 );
 
 /*==============================================================*/
@@ -740,17 +560,10 @@ create  index "USR_CRY_FK" on "USERS" (
 /* Table: WORKSPACE                                             */
 /*==============================================================*/
 create table "WORKSPACE" (
-   "DAT_ID"               INT8                 not null,
+   "DAT_ID"               INT4                 not null,
    "WKS_NAME"             "MEDIUM_LABEL"         not null,
    constraint "PK_WORKSPACE" primary key ("DAT_ID"),
    constraint "UK_WKS_NAME" unique ("WKS_NAME")
-);
-
-/*==============================================================*/
-/* Index: WORKSPACE_PK                                          */
-/*==============================================================*/
-create unique index "WORKSPACE_PK" on "WORKSPACE" (
-"DAT_ID"
 );
 
 alter table "BASIC_DATA"

@@ -25,7 +25,7 @@
     // //   "single" : require single quotes
     // //   "double" : require double quotes
     "undef": true, // true: Require all non-global variables to be declared (prevents global leaks)
-    "unused": true, // Unused variables:
+    // "unused": true, // Unused variables:
     // //   true     : all variables, last function parameter
     // //   "vars"   : all variables only
     // //   "strict" : all variables, all function parameters
@@ -61,7 +61,7 @@
     // "proto": false, // true: Tolerate using the `__proto__` property
     // "scripturl": false, // true: Tolerate script-targeted URLs
     // "shadow": false, // true: Allows re-define variables later in code e.g. `var x=1; x=2;`
-    // "sub": false, // true: Tolerate using `[]` notation when it can still be expressed in dot notation
+    "sub": true, // true: Tolerate using `[]` notation when it can still be expressed in dot notation
     // "supernew": false, // true: Tolerate `new function () { ... };` and `new Object;`
     // "validthis": false, // true: Tolerate using this in a non-constructor function
 
@@ -73,7 +73,7 @@
     // "dojo": false, // Dojo Toolkit
     // "jasmine": false, // Jasmine
     // "jquery": false, // jQuery
-    // "mocha": true, // Mocha
+    "mocha": true, // Mocha
     // "mootools": false, // MooTools
     "node": true, // Node.js
     // "nonstandard": false, // Widely adopted globals (escape, unescape, etc)
@@ -90,7 +90,24 @@
     // Custom Globals
     // additional predefined global variables
     "globals": {
-        "log4js": false
+        "log4js": false,
+        "assert": false,
+        "expect": false,
+        "globals": false,
+        "twaterfall": false,
+        "squelFields": false,
+        "assertThrows": false,
+        "assertPartialThrows": false,
+        "assertPartial": false,
+        "assertInsertQuery": false,
+        "assertInsertQueryThrows": false,
+        "assertPersist": false,
+        "setUpMapping": false,
+        "assertList": false,
+        "assertProperties": false,
+        "assertListUnique": false,
+        "assertPropSubClass": false,
+        "assertCount": false
     },
 
     "-W002": false, // Value of '{a}' may be overwritten in IE8 and earlier

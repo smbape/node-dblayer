@@ -34,6 +34,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdA'
                 pk: 'ClassB'
+                type_args: [undefined, true]
 
         # Check consitency
         assertPartial mapping, 'ClassB',
@@ -46,6 +47,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdB'
                 pk: 'ClassB'
+                type_args: [undefined, true]
 
         # Deep child, inherits it ancestor first setted properties
         mapping['ClassB'] =
@@ -60,6 +62,7 @@ describe 'inheritance', ->
                 className: 'ClassB'
                 column: 'colIdA'
                 pk: 'ClassC'
+                type_args: [undefined, true]
 
         # Deep child, inherits it ancestor first setted properties
         mapping['ClassB'] =
@@ -75,6 +78,7 @@ describe 'inheritance', ->
                 className: 'ClassB'
                 column: 'colIdB'
                 pk: 'ClassC'
+                type_args: [undefined, true]
         delete mapping['ClassC']
 
         # Parent is considered as a mixin. Cannot appear as a mixin
@@ -94,6 +98,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdA'
                 fk: "ClassB_colIdA_EXT_ClassA_colIdA"
+                type_args: [undefined, true]
             ]
 
         # mixin as Array
@@ -106,6 +111,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdA'
                 fk: "ClassB_colIdA_EXT_ClassA_colIdA"
+                type_args: [undefined, true]
             ]
 
         # mixin as Array of object
@@ -120,6 +126,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdA'
                 fk: "ClassB_colIdA_EXT_ClassA_colIdA"
+                type_args: [undefined, true]
             ]
 
         # fk can only be a string
@@ -145,6 +152,7 @@ describe 'inheritance', ->
                 className: 'ClassA'
                 column: 'colIdA'
                 fk: "custom"
+                type_args: [undefined, true]
             ]
 
         # Duplicate table
@@ -170,6 +178,7 @@ describe 'inheritance', ->
                 className: 'ClassB'
                 column: 'colIdA'
                 fk: "ClassC_colIdA_EXT_ClassB_colIdA"
+                type_args: [undefined, true]
             ]
 
         # Check consistency
@@ -185,6 +194,7 @@ describe 'inheritance', ->
                 className: 'ClassB'
                 column: 'colMixB'
                 fk: "ClassC_colMixB_EXT_ClassB_colIdA"
+                type_args: [undefined, true]
             ]
 
         # prop className, if no column, use id column
@@ -200,6 +210,7 @@ describe 'inheritance', ->
                     column: 'colIdA'
                     className: 'ClassB'
                     fk: 'ClassC_colIdA_HAS_ClassB_colIdA'
+                    type_args: [undefined, true]
 
         # should keep prop class fk
         assertPartial mapping, 'ClassC',
@@ -218,10 +229,12 @@ describe 'inheritance', ->
                     column: 'colIdA'
                     className: 'ClassB'
                     fk: 'custom'
+                    type_args: [undefined, true]
                 propB2:
                     column: 'propB2'
                     className: 'ClassA'
                     fk: 'ClassC_propB2_HAS_ClassA_colIdA'
+                    type_args: [undefined, true]
 
         # should allow only distinct fk names
         assertPartialThrows mapping, 'ClassC',
@@ -296,6 +309,7 @@ describe 'inheritance', ->
                     column: 'colPropB1'
                     className: 'ClassA'
                     fk: 'ClassB_colPropB1_HAS_ClassA_colIdA'
+                    type_args: [undefined, true]
 
         # test that, if not only normalize class are given in the mixins, 
         # throws an error, telling what class depends on which one

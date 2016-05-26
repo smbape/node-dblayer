@@ -53,7 +53,7 @@ drop table if exists `WORKSPACE`;
 /*==============================================================*/
 create table `ACTIONS`
 (
-   `ACT_ID`               int(8) not null auto_increment,
+   `ACT_ID`               int unsigned not null auto_increment,
    `ACT_CODE`             varchar(63) not null,
    primary key (`ACT_ID`)
 );
@@ -63,10 +63,10 @@ create table `ACTIONS`
 /*==============================================================*/
 create table `BASIC_DATA`
 (
-   `DAT_ID`               int(8) not null auto_increment,
-   `AOR_ID`               int(8),
-   `DOR_ID`               int(8),
-   `OOR_ID`               int(8),
+   `DAT_ID`               int unsigned not null auto_increment,
+   `AOR_ID`               int unsigned,
+   `DOR_ID`               int unsigned,
+   `OOR_ID`               int unsigned,
    `DAT_CDATE`            datetime not null,
    `DAT_MDATE`            datetime,
    `DAT_VERSION`          varchar(10) not null,
@@ -78,7 +78,7 @@ create table `BASIC_DATA`
 /*==============================================================*/
 create table `CLASS_A`
 (
-   `A_ID`                 int(8) not null auto_increment,
+   `A_ID`                 int unsigned not null auto_increment,
    `PROP_A1`              varchar(32),
    `PROP_A2`              varchar(32),
    `PROP_A3`              varchar(32),
@@ -93,7 +93,7 @@ create table `CLASS_A`
 /*==============================================================*/
 create table `CLASS_B`
 (
-   `A_ID`                 int(8) not null,
+   `A_ID`                 int unsigned not null,
    `PROP_B1`              varchar(32),
    `PROP_B2`              varchar(32),
    `PROP_B3`              varchar(32),
@@ -105,7 +105,7 @@ create table `CLASS_B`
 /*==============================================================*/
 create table `CLASS_C`
 (
-   `C_ID`                 int(8) not null auto_increment,
+   `C_ID`                 int unsigned not null auto_increment,
    `PROP_C1`              varchar(32),
    `PROP_C2`              varchar(32),
    `PROP_C3`              varchar(32),
@@ -117,8 +117,8 @@ create table `CLASS_C`
 /*==============================================================*/
 create table `CLASS_D`
 (
-   `A_ID`                 int(8) not null,
-   `C_ID`                 int(8) not null,
+   `A_ID`                 int unsigned not null,
+   `C_ID`                 int unsigned not null,
    `PROP_D1`              varchar(32),
    `PROP_D2`              varchar(32),
    `PROP_D3`              varchar(32),
@@ -130,8 +130,8 @@ create table `CLASS_D`
 /*==============================================================*/
 create table `CLASS_E`
 (
-   `A_ID`                 int(8) not null,
-   `C_ID`                 int(8) not null,
+   `A_ID`                 int unsigned not null,
+   `C_ID`                 int unsigned not null,
    `PROP_E1`              varchar(32),
    `PROP_E2`              varchar(32),
    `PROP_E3`              varchar(32),
@@ -143,9 +143,9 @@ create table `CLASS_E`
 /*==============================================================*/
 create table `CLASS_F`
 (
-   `C_ID`                 int(8) not null,
-   `A_ID`                 int(8),
-   `CLA_A_ID`             int(8),
+   `C_ID`                 int unsigned not null,
+   `A_ID`                 int unsigned,
+   `CLA_A_ID`             int unsigned,
    `PROP_F1`              varchar(32),
    `PROP_F2`              varchar(32),
    `PROP_F3`              varchar(32),
@@ -157,7 +157,7 @@ create table `CLASS_F`
 /*==============================================================*/
 create table `CLASS_G`
 (
-   `G_ID`                 int(8) not null auto_increment,
+   `G_ID`                 int unsigned not null auto_increment,
    `PROP_G1`              varchar(32),
    `PROP_G2`              varchar(32),
    `PROP_G3`              varchar(32),
@@ -170,8 +170,8 @@ create table `CLASS_G`
 /*==============================================================*/
 create table `CLASS_H`
 (
-   `G_ID`                 int(8) not null,
-   `A_ID`                 int(8) not null,
+   `G_ID`                 int unsigned not null,
+   `A_ID`                 int unsigned not null,
    `PROP_H1`              varchar(32),
    `PROP_H2`              varchar(32),
    `PROP_H3`              varchar(32)
@@ -182,7 +182,7 @@ create table `CLASS_H`
 /*==============================================================*/
 create table `CLASS_I`
 (
-   `G_ID`                 int(8) not null,
+   `G_ID`                 int unsigned not null,
    primary key (`G_ID`)
 );
 
@@ -191,8 +191,8 @@ create table `CLASS_I`
 /*==============================================================*/
 create table `COUNTRIES`
 (
-   `CRY_ID`               int(8) not null auto_increment,
-   `LPR_ID`               int(8),
+   `CRY_ID`               int unsigned not null auto_increment,
+   `LPR_ID`               int unsigned,
    `CRY_CODE`             varchar(63) not null,
    primary key (`CRY_ID`),
    unique key `UK_CRY_CODE` (`CRY_CODE`)
@@ -203,8 +203,8 @@ create table `COUNTRIES`
 /*==============================================================*/
 create table `DEFAULT_PRIVILEDGES`
 (
-   `DAT_ID`               int(8) not null,
-   `ACT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
+   `ACT_ID`               int unsigned not null,
    primary key (`DAT_ID`, `ACT_ID`)
 );
 
@@ -213,8 +213,8 @@ create table `DEFAULT_PRIVILEDGES`
 /*==============================================================*/
 create table `DELEGATES`
 (
-   `DAT_ID`               int(8) not null,
-   `DGT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
+   `DGT_ID`               int unsigned not null,
    primary key (`DAT_ID`, `DGT_ID`)
 );
 
@@ -223,7 +223,7 @@ create table `DELEGATES`
 /*==============================================================*/
 create table `FOLDER`
 (
-   `DAT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
    primary key (`DAT_ID`)
 );
 
@@ -232,8 +232,8 @@ create table `FOLDER`
 /*==============================================================*/
 create table `LANGUAGES`
 (
-   `LNG_ID`               int(8) not null auto_increment,
-   `LPR_ID`               int(8),
+   `LNG_ID`               int unsigned not null auto_increment,
+   `LPR_ID`               int unsigned,
    `LNG_CODE`             varchar(31) not null,
    `LNG_KEY`              varchar(31),
    `LNG_LABEL`            varchar(63),
@@ -246,8 +246,8 @@ create table `LANGUAGES`
 /*==============================================================*/
 create table `PRIVILEDGES`
 (
-   `DAT_ID`               int(8) not null,
-   `ACT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
+   `ACT_ID`               int unsigned not null,
    primary key (`DAT_ID`, `ACT_ID`)
 );
 
@@ -256,7 +256,7 @@ create table `PRIVILEDGES`
 /*==============================================================*/
 create table `PROPERTIES`
 (
-   `LPR_ID`               int(8) not null auto_increment,
+   `LPR_ID`               int unsigned not null auto_increment,
    `LPR_CODE`             varchar(63) not null,
    primary key (`LPR_ID`),
    unique key `UK_LPR_CODE` (`LPR_CODE`)
@@ -267,7 +267,7 @@ create table `PROPERTIES`
 /*==============================================================*/
 create table `RESOURCE`
 (
-   `DAT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
    `RSC_NAME`             varchar(63) not null,
    `RSC_PATH`             varchar(255) not null,
    primary key (`DAT_ID`),
@@ -279,10 +279,12 @@ create table `RESOURCE`
 /*==============================================================*/
 create table `TRANSLATIONS`
 (
-   `LPR_ID`               int(8) not null,
-   `LNG_ID`               int(8) not null,
+   `TRL_ID`               int unsigned not null auto_increment,
+   `LPR_ID`               int unsigned not null,
+   `LNG_ID`               int unsigned not null,
    `TRL_VALUE`            varchar(1024),
-   primary key (`LPR_ID`, `LNG_ID`)
+   primary key (`TRL_ID`),
+   unique key `UK_TRANSLATION` (`LNG_ID`, `LPR_ID`)
 );
 
 /*==============================================================*/
@@ -290,9 +292,9 @@ create table `TRANSLATIONS`
 /*==============================================================*/
 create table `USERS`
 (
-   `DAT_ID`               int(8) not null,
-   `CRY_ID`               int(8),
-   `LNG_ID`               int(8),
+   `DAT_ID`               int unsigned not null,
+   `CRY_ID`               int unsigned,
+   `LNG_ID`               int unsigned,
    `USE_NAME`             varchar(63) not null,
    `USE_FIRST_NAME`       varchar(255),
    `USE_EMAIL`            varchar(63) not null,
@@ -310,7 +312,7 @@ create table `USERS`
 /*==============================================================*/
 create table `WORKSPACE`
 (
-   `DAT_ID`               int(8) not null,
+   `DAT_ID`               int unsigned not null,
    `WKS_NAME`             varchar(63) not null,
    primary key (`DAT_ID`),
    unique key `UK_WKS_NAME` (`WKS_NAME`)
@@ -334,11 +336,17 @@ alter table `CLASS_D` add constraint `FK_INHERITANCE_3` foreign key (`A_ID`)
 alter table `CLASS_D` add constraint `FK_RELATIONSHIP_1` foreign key (`C_ID`)
       references `CLASS_C` (`C_ID`) on delete restrict on update restrict;
 
+alter table `CLASS_D`
+   rename index `FK_RELATIONSHIP_1` to `RELATIONSHIP_1_FK`;
+
 alter table `CLASS_E` add constraint `FK_INHERITANCE_4` foreign key (`A_ID`)
       references `CLASS_B` (`A_ID`) on delete restrict on update restrict;
 
 alter table `CLASS_E` add constraint `FK_RELATIONSHIP_2` foreign key (`C_ID`)
       references `CLASS_C` (`C_ID`) on delete restrict on update restrict;
+
+alter table `CLASS_E`
+   rename index `FK_RELATIONSHIP_2` to `RELATIONSHIP_2_FK`;
 
 alter table `CLASS_F` add constraint `FK_INHERITANCE_5` foreign key (`C_ID`)
       references `CLASS_C` (`C_ID`) on delete restrict on update restrict;
@@ -346,14 +354,26 @@ alter table `CLASS_F` add constraint `FK_INHERITANCE_5` foreign key (`C_ID`)
 alter table `CLASS_F` add constraint `FK_RELATIONSHIP_3` foreign key (`A_ID`)
       references `CLASS_D` (`A_ID`) on delete restrict on update restrict;
 
+alter table `CLASS_F`
+   rename index `FK_RELATIONSHIP_3` to `RELATIONSHIP_3_FK`;
+
 alter table `CLASS_F` add constraint `FK_RELATIONSHIP_4` foreign key (`CLA_A_ID`)
       references `CLASS_E` (`A_ID`) on delete restrict on update restrict;
+
+alter table `CLASS_F`
+   rename index `FK_RELATIONSHIP_4` to `RELATIONSHIP_4_FK`;
 
 alter table `CLASS_H` add constraint `FK_RELATIONSHIP_5` foreign key (`G_ID`)
       references `CLASS_G` (`G_ID`) on delete restrict on update restrict;
 
+alter table `CLASS_H`
+   rename index `FK_RELATIONSHIP_5` to `RELATIONSHIP_5_FK`;
+
 alter table `CLASS_H` add constraint `FK_RELATIONSHIP_6` foreign key (`A_ID`)
       references `CLASS_D` (`A_ID`) on delete restrict on update restrict;
+
+alter table `CLASS_H`
+   rename index `FK_RELATIONSHIP_6` to `RELATIONSHIP_6_FK`;
 
 alter table `CLASS_I` add constraint `FK_INHERITANCE_6` foreign key (`G_ID`)
       references `CLASS_G` (`G_ID`) on delete restrict on update restrict;

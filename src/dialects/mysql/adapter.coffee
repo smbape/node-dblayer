@@ -127,34 +127,6 @@ _.extend adapter,
     insertDefaultValue: (column)->
         'VALUES ()'
 
-    # getModel: (callback)->
-    #     callback = (->) if typeof callback isnt 'function'
-    #     query = """
-    #         select 
-    #             tabs.TABLE_NAME,
-    #             cols.COLUMN_NAME,
-    #             cols.ORDINAL_POSITION,
-    #             cols.COLUMN_DEFAULT,
-    #             cols.IS_NULLABLE,
-    #             cols.DATA_TYPE,
-    #             cols.CHARACTER_MAXIMUM_LENGTH,
-    #             cols.NUMERIC_PRECISION,
-    #             cols.COLUMN_KEY,
-    #             cols.EXTRA
-    #         from
-    #             information_schema.tables as tabs
-    #                 inner join
-    #             information_schema.columns as cols ON cols.TABLE_SCHEMA = tabs.TABLE_SCHEMA
-    #                 and cols.TABLE_NAME = tabs.TABLE_NAME
-    #         where
-    #             tabs.TABLE_SCHEMA = '#{@options.database}'
-    #         order by tabs.TABLE_NAME
-    #     """
-    #     @query query, (err, result)->
-    #         return callback(err) if err
-    #         DbUtil = require '../DbUtil'
-    #         DbUtil.computeColumnRows result.rows, callback
-
 escapeOpts =
     id:
         quote: '`'
@@ -199,3 +171,88 @@ adapter.escapeId = common._escape.bind common, escapeOpts.id
 adapter.escapeSearch = common._escape.bind common, escapeOpts.search
 adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
 adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
+
+fs = require 'fs'
+sysPath = require 'path'
+anyspawn = require 'anyspawn'
+{getTemp} = require '../../tools'
+umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
+
+adapter.exec = adapter.execute = (script, options, done)->
+    if _.isPlainObject(script)
+        _script = options
+        options = script
+        script = _script
+
+    if 'function' is typeof options
+        done = options
+        options = {}
+
+    if not _.isPlainObject(options)
+        options = {}
+
+    {
+        user
+        password
+        database
+        cmd
+        host
+        port
+        stdout
+        stderr
+        tmp
+        keep
+        force
+    } = options
+
+    cmd or (cmd = 'mysql')
+    stdout or (stdout isnt null and stdout = process.stdout)
+    stderr or (stderr isnt null and stderr = process.stderr)
+    tmp = getTemp(tmp, options.keep isnt true)
+
+    if database
+        script = "USE `#{database}`;\n#{script}"
+    file = sysPath.join(tmp, 'script.sql')
+    fs.writeFileSync file, "#{script}", umask
+
+    if user and password?.length > 0
+        my = sysPath.join tmp, 'my.conf'
+        fs.writeFileSync my, "[client]\npassword=#{password}\n", umask
+        args = ["--defaults-extra-file=#{my}"]
+    else
+        pipe = true
+        args = ['-p']
+
+    if user
+        args.push '-u'
+        args.push user
+
+    if host
+        args.push '-h'
+        args.push host
+
+    if port
+        args.push '-P'
+        args.push port
+
+    if force
+        args.push '-f'
+
+    # args.push '-e'
+    # args.push "source #{anyspawn.quoteArg(file)}"
+
+    # console.log args.join(' ')
+
+    opts = _.defaults
+        stdio: ['pipe', stdout, stderr]
+        env: process.env
+    , options
+
+    child = anyspawn.exec cmd, args, opts, done
+    readable = fs.createReadStream(file)
+    readable.pipe child.stdin
+
+    if pipe
+        process.stdin.pipe(child.stdin)
+
+    return
