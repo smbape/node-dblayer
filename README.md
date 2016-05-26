@@ -2,8 +2,6 @@
 
 ORM, QueryBuilder, QueryTemplating.
 
-Paused.
-
 ## Usage
 
 ### Define a mapping
@@ -168,7 +166,7 @@ mapping['Country'] =
 
 
 # make sure database and schema exist
-# make sure users exists and have access to the database and schema
+# make sure users exist and have access to the database and the schema
 PersistenceManager = dblayer.PersistenceManager
 
 pMgr = new PersistenceManager mapping, {
@@ -278,7 +276,7 @@ pMgr.sync {purge: true, cascade: true, exec: true}, (err, queries, oldModel, new
 
 ```
 
-### Insert/List/Update/Delete/Save
+### Insert
 
 ```coffeescript
 
@@ -313,6 +311,12 @@ pMgr.insert user, {className: 'User'}, (err, id)->
     # to do only when exiting the process
     pMgr.destroyPools()
     return
+
+```
+
+### List
+
+```coffeescript
 
 # List all users
 # pMgr.listClassName[, options], callback
@@ -388,15 +392,13 @@ pMgr.list 'User', {
     group: [
         '{id}'
         '{country}'
-        '{country:property}'
         '{country:property:code}'
-        '{ctry, property}'
         '{ctry, property:code}'
         '{LNG, key}'
     ]
 
     # still following ...
-    having: [
+    where: [
         '{LNG, key} = __fr__'
         [
             '{LNG, key} IN ?', ['FR', 'EN']
