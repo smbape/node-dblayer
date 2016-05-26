@@ -60,6 +60,9 @@ SchemaCompiler::createTable = (tableModel, options)->
         type = columnCompiler.getTypeString(spec)
         colsql.push type
 
+        if not type
+            console.log spec
+
         length += type.length
         spaceLen = 42 - length
         if spaceLen <= 0

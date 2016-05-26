@@ -40,6 +40,9 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
         newModifier = columnCompiler.getColumnModifier(newSpec)
 
         if oldTypeString isnt newTypeString
+            if oldSpec.type is 'enum' and newSpec.type is 'enum'
+                # TODO: find a way to compare enum
+                return
             # CHANGE [COLUMN] old_col_name new_col_name column_definition
             tablesql.push.apply tablesql, [indent, words.change_column, ' ', columnId, ' ', columnId, ' ', newTypeString, ' ', newModifier]
         else if oldModifier isnt newModifier

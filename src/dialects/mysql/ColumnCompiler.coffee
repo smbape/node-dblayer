@@ -1,6 +1,7 @@
 _ = require 'lodash'
 ColumnCompiler = require '../../schema/ColumnCompiler'
 tools = require '../../tools'
+map = Array::map
 
 LOWERWORDS =
     auto_increment: 'auto_increment'
@@ -27,7 +28,7 @@ MySQLColumnCompiler::bigincrements = -> [@words.bigint, @words.unsigned, @words.
 # http://dev.mysql.com/doc/refman/5.7/en/numeric-type-overview.html
 MySQLColumnCompiler::bit = (length) ->
     length = @_num(length, null)
-    if length then @words.bit + '(' + length + ')' else @words.bit
+    if length and length isnt 1 then @words.bit + '(' + length + ')' else @words.bit
 
 MySQLColumnCompiler::tinyint = (m, unsigned, zerofill) ->
     if unsigned
@@ -205,12 +206,12 @@ MySQLColumnCompiler::longblob = -> @words.longblob
 LOWERWORDS.longtext = 'longtext'
 MySQLColumnCompiler::longtext = -> @words.longtext
 
-MySQLColumnCompiler::enum = (allowed)->
-    @words.enum + '(' + allowed.map(@adapter.escape) + ')'
+MySQLColumnCompiler::enum = ->
+    @words.enum + '(' + map.call(arguments, @adapter.escape).join(',') + ')'
 
 # MySQ
-MySQLColumnCompiler::set = (allowed)->
-    @words.set + '(' + allowed.map(@adapter.escape) + ')'
+MySQLColumnCompiler::set = ->
+    @words.set + '(' + map.call(arguments, @adapter.escape).join(',') + ')'
 
 MySQLColumnCompiler::json = -> @words.json
 

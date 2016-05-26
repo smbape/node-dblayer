@@ -1,3 +1,5 @@
+adapter = require './adapter'
+
 module.exports =
     getModel: (connector, callback)->
         options = connector.options
@@ -99,6 +101,7 @@ module.exports =
 
         connector.query query, (err, result)->
             return callback(err) if err
+            {escapeId, escape} = adapter
 
             model = {}
             for row in result.rows
@@ -131,9 +134,13 @@ module.exports =
                 column = model[TABLE_NAME].columns[COLUMN_NAME] or (model[TABLE_NAME].columns[COLUMN_NAME] = {})
 
                 if not column.type
+                    seq = "#{TABLE_NAME}_#{COLUMN_NAME}_seq"
+                    if /[A-Z]/.test seq
+                        seq = escapeId(seq)
+
                     sequences = [
-                        "nextval('\"#{TABLE_NAME}_#{COLUMN_NAME}_seq\"'::regclass)"
-                        "nextval('\"#{TABLE_SCHEMA}\".\"#{TABLE_NAME}_#{COLUMN_NAME}_seq\"'::regclass)"
+                        "nextval(#{escape(seq)}::regclass)"
+                        "nextval(#{escapeId(TABLE_SCHEMA)}.#{escape(seq)}::regclass)"
                     ]
                     column.defaultValue = COLUMN_DEFAULT
                     if COLUMN_DEFAULT in sequences
@@ -145,7 +152,10 @@ module.exports =
 
                     switch DATA_TYPE
                         when 'int2'
-                            column.type = 'smallint'
+                            if serial
+                                column.type = 'smallincrements'
+                            else
+                                column.type = 'smallint'
                         when 'int4'
                             if serial
                                 column.type = 'increments'

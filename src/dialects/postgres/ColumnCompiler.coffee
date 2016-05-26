@@ -1,6 +1,8 @@
 _ = require 'lodash'
 ColumnCompiler = require '../../schema/ColumnCompiler'
 tools = require '../../tools'
+slice = Array::slice
+map = Array::map
 
 LOWERWORDS =
     smallserial: 'smallserial'
@@ -16,6 +18,7 @@ LOWERWORDS =
     rename_constraint: 'rename constraint'
     inherits: 'inherits'
     interval: 'interval'
+    real: 'real'
 
 # http://www.postgresql.org/docs/9.4/static/datatype.html
 module.exports = class PgColumnCompiler extends ColumnCompiler
@@ -91,22 +94,25 @@ PgColumnCompiler::interval = (precision)->
             # 6 is the default precision
             return "#{type}(#{precision})"
 
-PgColumnCompiler::binary = -> @words.bytea
+PgColumnCompiler::binary =
+PgColumnCompiler::varbinary =
+PgColumnCompiler::bytea = -> @words.bytea
 
 PgColumnCompiler::bool = -> @words.boolean
 
-PgColumnCompiler::enum = (allowed) ->
+PgColumnCompiler::enum = ->
     # http://stackoverflow.com/questions/10923213/postgres-enum-data-type-or-check-constraint#10984951
-    @words.text_check + ' (' + @adapter.escapeId(@args.column) + ' ' + @words.in + ' (' + allowed.map(@adapter.escape) + '))'
+    @words.text_check + ' (' + @adapter.escapeId(@args.column) + ' ' + @words.in + ' (' + map.call(arguments, @adapter.escape).join(',') + '))'
 
 PgColumnCompiler::bit = (length) ->
     length = @_num(length, null)
-    if length then @words.bit + '(' + length + ')' else @words.bit
+    if length and length isnt 1 then @words.bit + '(' + length + ')' else @words.bit
 
 PgColumnCompiler::varbit = (length) ->
     length = @_num(length, null)
-    if length then @words.bit + '(' + length + ')' else @words.bit
+    if length then @words.varbit + '(' + length + ')' else @words.varbit
 
+PgColumnCompiler::uuid = -> @words.uuid
 PgColumnCompiler::xml = -> @words.xml
 PgColumnCompiler::json = -> @words.json
 PgColumnCompiler::jsonb = -> @words.jsonb

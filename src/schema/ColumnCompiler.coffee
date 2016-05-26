@@ -83,10 +83,12 @@ ColumnCompiler::integer = -> @words.integer
 ColumnCompiler::bigint = -> @words.bigint
 
 _.extend LOWERWORDS,
+    decimal: 'decimal'
     numeric: 'numeric'
     float: 'float'
     double: 'double precision'
 
+ColumnCompiler::decimal =
 ColumnCompiler::numeric = (precision, scale) ->
     @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
@@ -131,12 +133,16 @@ ColumnCompiler::datetime = -> @words.datetime
 ColumnCompiler::time = -> @words.time
 ColumnCompiler::timestamp = -> @words.timestamp
 
+# ================================================================
+# Other Types
+# ================================================================
 _.extend LOWERWORDS,
     bool: 'bool'
-    enu: 'enu'
+    boolean: 'boolean'
+    enum: 'enum'
 
 ColumnCompiler::bool = -> @words.boolean
-ColumnCompiler::enu = -> throw new Error 'enu type is not defined'
+ColumnCompiler::enum = -> throw new Error 'enum type is not defined'
 
 _.extend LOWERWORDS,
     binary: 'binary'
@@ -163,7 +169,7 @@ _.extend LOWERWORDS,
 ColumnCompiler::xml =
 ColumnCompiler::json =
 ColumnCompiler::jsonb = -> @words.text
-ColumnCompiler::uuid = -> @words.char
+ColumnCompiler::uuid = -> @words.char + '(63)'
 
 ColumnCompiler::_num = (val, fallback) ->
     if val is undefined or val is null

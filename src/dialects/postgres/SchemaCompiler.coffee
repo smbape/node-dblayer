@@ -59,6 +59,10 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
         newModifier = columnCompiler.getColumnModifier(newSpec)
 
         if oldTypeString isnt newTypeString
+            if oldSpec.type is 'text' and newSpec.type is 'enum'
+                # TODO: find a way to compare enum
+                return
+
             spec = newSpec
             # ALTER COLUMN column_name TYPE data_type
             altersql.push [indent, words.alter_column, ' ', columnId, ' ', words.type, ' ', newTypeString].join('')

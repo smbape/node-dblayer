@@ -395,3 +395,110 @@ mapping['ClassJ'] =
         propClassE:
             column: 'PROP_J6'
             className: 'ClassE'
+
+mapping.numeric_types =
+    id:
+        name: 'id'
+        type: 'smallincrements'
+    properties:
+        tinyint:
+            column: 'tinyint'
+            type: 'tinyint'
+        smallint:
+            column: 'smallint'
+            type: 'smallint'
+        integer:
+            column: 'integer'
+            type: 'integer'
+        bigint:
+            column: 'bigint'
+            type: 'bigint'
+        numeric:
+            column: 'numeric'
+            type: 'numeric'
+        'numeric(11,3)':
+            column: 'numeric(11,3)'
+            type: 'numeric'
+            type_args: [11, 3]
+        float:
+            column: 'float'
+            type: 'float'
+        double:
+            column: 'double'
+            type: 'double'
+
+mapping.character_types =
+    id:
+        name: 'id'
+        type: 'increments'
+    properties:
+        char:
+            column: 'char'
+            type: 'char'
+        varchar:
+            column: 'varchar'
+            type: 'varchar'
+        tinytext:
+            column: 'tinytext'
+            type: 'tinytext'
+        mediumtext:
+            column: 'mediumtext'
+            type: 'mediumtext'
+        text:
+            column: 'text'
+            type: 'text'
+
+mapping.date_time_types =
+    id:
+        name: 'id'
+        type: 'bigincrements'
+    properties:
+        date:
+            column: 'date'
+            type: 'date'
+        datetime:
+            column: 'datetime'
+            type: 'datetime'
+        timestamp:
+            column: 'timestamp'
+            type: 'timestamp'
+        time:
+            column: 'time'
+            type: 'time'
+
+mapping.other_types =
+    id:
+        name: 'id'
+        type: 'smallincrements'
+    properties:
+        bool:
+            column: 'bool'
+            type: 'bool'
+        enum:
+            column: 'enum'
+            type: 'enum'
+            type_args: ['a', 'b', 'c', 'd']
+        binary:
+            column: 'binary'
+            type: 'binary'
+        varbinary:
+            column: 'varbinary'
+            type: 'varbinary'
+        bit:
+            column: 'bit'
+            type: 'bit'
+        varbit:
+            column: 'varbit'
+            type: 'varbit'
+        xml:
+            column: 'xml'
+            type: 'xml'
+        json:
+            column: 'json'
+            type: 'json'
+        jsonb:
+            column: 'jsonb'
+            type: 'jsonb'
+        uuid:
+            column: 'uuid'
+            type: 'uuid'

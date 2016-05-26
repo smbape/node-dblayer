@@ -51,7 +51,7 @@ for dialect, config of exports
                 password: 'bcms_reader'
         stdout: null # 1, process.stdout
         stderr: null # 2, process.stderr
-        keep: false
+        keep: true
 
 for key in Object.keys(exports)
     newConfig = exports['new_' + key] = _.cloneDeep exports[key]
