@@ -283,7 +283,7 @@ describe 'insert query', ->
                 propB3: 'colPropB3'
 
         pMgr = new PersistenceManager mapping
-        query = pMgr.getInsertQuery model
+        query = pMgr.getInsertQuery model, {dialect: globals.config.dialect}
         query = query.toParam()
 
         assert.strictEqual(query.text, squel.insert(squelOptions)
@@ -341,7 +341,7 @@ describe 'insert query', ->
                 propC3: 'colPropC3'
         pMgr = new PersistenceManager mapping
         model.className = 'ClassC'
-        query = pMgr.getInsertQuery model
+        query = pMgr.getInsertQuery model, {dialect: globals.config.dialect}
         query = query.toParam()
         assert.strictEqual(query.text, squel.insert(squelOptions)
             .into adapter.escapeId mapping['ClassC'].table

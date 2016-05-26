@@ -1,8 +1,9 @@
+log4js = require './log4js'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
+
 _ = require 'lodash'
 path = require 'path'
 PlaceHolderParser = require './PlaceHolderParser'
-log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 squel = require 'squel'
 {guessEscapeOpts} = require './tools'
 
@@ -44,7 +45,6 @@ _getPlainObjectValue = (model, prop)->
 
 # Private Class, supposed to be used in conjunction with PersistenceManager Class
 module.exports = class RowMap
-    static: LIMIT: 500
 
     # Class that do the mapping between className, queries to execute and properties of className
     constructor: (@className, @manager, options, skip)->
@@ -201,8 +201,6 @@ module.exports = class RowMap
 
             if  /^(?:string|boolean|number)$/.test typeof option
                 option = [option]
-            else if block is 'limit'
-                option = [@static.LIMIT]
             else if _.isEmpty option
                 continue
 

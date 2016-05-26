@@ -3,7 +3,7 @@ _ = require 'lodash'
 sqlite3 = require 'sqlite3'
 EventEmitter = require('events').EventEmitter
 log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 MODES =
     READ: [Math.pow(2, 0), sqlite3.OPEN_READONLY]

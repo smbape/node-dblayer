@@ -2,7 +2,7 @@ _ = require 'lodash'
 common = require '../../schema/adapter'
 adapter = module.exports
 _.extend adapter, common
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 escapeOpts =
     id:

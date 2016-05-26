@@ -2,7 +2,7 @@ _ = require 'lodash'
 common = require '../../schema/adapter'
 adapter = module.exports
 _.extend adapter, common
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 mysql = require 'mysql'
 MySQLLibConnection = require 'mysql/lib/Connection'
@@ -11,7 +11,6 @@ prependListener = require 'prepend-listener'
 once = require 'once'
 path = require 'path'
 HWM = Math.pow 2, 7
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
 
 class MySQLConnection extends MySQLLibConnection
     adapter: adapter

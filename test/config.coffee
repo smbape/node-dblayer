@@ -41,17 +41,20 @@ for dialect, config of exports
     _.extend config,
         users:
             admin:
+                adapter: dialect
                 name: 'bcms_admin'
                 password: 'bcms_admin'
             writer:
+                adapter: dialect
                 name: 'bcms_writer'
                 password: 'bcms_writer'
             reader:
+                adapter: dialect
                 name: 'bcms_reader'
                 password: 'bcms_reader'
         stdout: null # 1, process.stdout
         stderr: null # 2, process.stderr
-        keep: true
+        keep: false
 
 for key in Object.keys(exports)
     newConfig = exports['new_' + key] = _.cloneDeep exports[key]
@@ -65,5 +68,9 @@ for key in Object.keys(exports)
         newConfig.schema = 'NEW_' + newConfig.schema
     else
         newConfig.database = 'NEW_' + newConfig.database
+
+for dialect, config of exports
+    for name, user of config.users
+        _.defaults user, {user: user.name}, _.pick config, ['host', 'port', 'database', 'schema']
 
 # console.log require('util').inspect exports, {colors: true, depth: null}

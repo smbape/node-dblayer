@@ -1,5 +1,5 @@
-log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+log4js = require './log4js'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 EventEmitter = require('events').EventEmitter
 semLib = require 'sem-lib'
@@ -173,7 +173,7 @@ module.exports = class Connector extends EventEmitter
         return
 
     _query: (query, callback, options = {})->
-        logger.trace @pool.options.name, '[query] - ' + query
+        logger.trace @pool.options.name, '[query] -', query
 
         @_connection.query query, (err, res)=>
             if err and options.autoRollback isnt false
@@ -207,7 +207,7 @@ module.exports = class Connector extends EventEmitter
          return
 
     _stream: (query, callback, done, options = {})->
-        logger.trace @pool.options.name, '[stream] - ' + query
+        logger.trace @pool.options.name, '[stream] -', query
 
         stream = @_connection.stream query, (row)->
             callback row, stream
@@ -227,9 +227,10 @@ module.exports = class Connector extends EventEmitter
             err.code = 'NO_CONNECTION'
             return callback err
 
-        logger.trace @pool.options.name, 'begin'
+        logger.debug @pool.options.name, 'begin'
         ret = =>
             @_giveResource()
+            logger.debug @pool.options.name, 'begun'
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.START_TRANSACTION, (err)=>
@@ -253,7 +254,7 @@ module.exports = class Connector extends EventEmitter
             # we are in a transaction, make a savepoint
             query = 'SAVEPOINT sp_' + (@_savepoints - 1)
 
-        logger.trace @pool.options.name, '[query] - ' + query
+        logger.trace @pool.options.name, '[query] -', query
 
         @_connection.query query, (err, res)=>
             return callback err if err
@@ -264,11 +265,11 @@ module.exports = class Connector extends EventEmitter
         return
 
     rollback: (callback, all = false)->
-        logger.trace @pool.options.name, 'rollback'
+        logger.debug @pool.options.name, 'rollback'
 
         ret = =>
             @_giveResource()
-            logger.trace @pool.options.name, 'rollbacked'
+            logger.debug @pool.options.name, 'rollbacked'
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.ROLLBACK, (err)=>
@@ -289,7 +290,7 @@ module.exports = class Connector extends EventEmitter
 
         @_removeSavepoint()
 
-        logger.trace @pool.options.name, '[query] - ' + query
+        logger.trace @pool.options.name, '[query] -', query
 
         @_connection.query query, (err)=>
             if err
@@ -318,10 +319,10 @@ module.exports = class Connector extends EventEmitter
         callback = _callback
         all = _all
 
-        logger.trace @pool.options.name, 'commit'
+        logger.debug @pool.options.name, 'commit'
         ret = =>
             @_giveResource()
-            logger.trace @pool.options.name, 'comitted'
+            logger.debug @pool.options.name, 'comitted'
             callback.apply null, arguments if typeof callback is 'function'
             return
         @_takeResource STATES.COMMIT, (err)=>
@@ -340,7 +341,7 @@ module.exports = class Connector extends EventEmitter
         else
             query = 'RELEASE SAVEPOINT sp_' + (@_savepoints - 2)
 
-        logger.trace @pool.options.name, '[query] - ' + query
+        logger.trace @pool.options.name, '[query] -', query
 
         @_connection.query query, (err)=>
             if err
@@ -358,7 +359,7 @@ module.exports = class Connector extends EventEmitter
             callback null
 
     release: (callback)->
-        logger.trace @pool.options.name, 'release'
+        logger.debug @pool.options.name, 'release'
         ret = =>
             @_giveResource()
             callback.apply null, arguments if typeof callback is 'function'
@@ -366,7 +367,7 @@ module.exports = class Connector extends EventEmitter
         @_takeResource STATES.RELEASE, (err)=>
             return ret err if err
             if @_savepoints is 0
-                logger.trace @pool.options.name, 'already released'
+                logger.debug @pool.options.name, 'already released'
                 return ret null
             if @_savepoints isnt 1
                 err = new Error 'There is a begining transaction. End it before release'
@@ -378,7 +379,7 @@ module.exports = class Connector extends EventEmitter
     _release: (callback, errors)->
         clearTimeout @acquireTimeout
         @pool.release @_connection
-        logger.trace @pool.options.name, 'released'
+        logger.debug @pool.options.name, 'released'
         @_removeSavepoint()
         callback(errors)
         return

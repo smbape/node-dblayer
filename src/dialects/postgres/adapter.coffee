@@ -2,7 +2,7 @@ _ = require 'lodash'
 common = require '../../schema/adapter'
 adapter = module.exports
 _.extend adapter, common
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 escapeOpts =
     id:
@@ -96,7 +96,7 @@ _.extend adapter,
         client.connect (err)->
             return callback(err, null) if err
             query = "SET SCHEMA '#{options.schema}'"
-            logger.trace '[query] - ' + query
+            logger.trace '[query] -', query
             client.query query, (err)->
                 callback err, client
                 return

@@ -13,18 +13,22 @@ describe 'sync', ->
     it 'should update existing model', (done)->
         [pMgr, model, connector, Model] = setUpMapping()
         connector = globals.connectors.new_writer
+        syncConnector = globals.connectors.new_admin
+
         opts = _.defaults {
             cascade: false
             if_exists: false
             prompt: false
+            connector: syncConnector
         }, _.pick(globals.config, ['tmp', 'keep', 'stdout', 'stderr'])
+
         id = undefined
         step = 0
 
         twaterfall connector, [
             (next)->
                 # logger.fatal 'step', ++step
-                pMgr.sync globals.connectors.new_admin, _.defaults({purge: false, exec: true}, opts), next
+                pMgr.sync _.defaults({purge: false, exec: true}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 # logger.fatal 'step', ++step
@@ -52,7 +56,7 @@ describe 'sync', ->
                 assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_5_FK'
                 assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_6_FK'
 
-                pMgr.sync globals.connectors.new_admin, _.defaults({purge: true, exec: false}, opts), next
+                pMgr.sync _.defaults({purge: true, exec: false}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 # logger.fatal 'step', ++step
@@ -103,11 +107,11 @@ describe 'sync', ->
                     propC2: null
                     propC3: null
                 }
-                pMgr.sync globals.connectors.new_admin, _.defaults({purge: true, exec: true}, opts), next
+                pMgr.sync _.defaults({purge: true, exec: true}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 # logger.fatal 'step', ++step
-                pMgr.sync globals.connectors.new_admin, _.defaults({purge: true, exec: false}, opts), next
+                pMgr.sync _.defaults({purge: true, exec: false}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 # logger.fatal 'step', ++step

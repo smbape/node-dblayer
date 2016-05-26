@@ -28,7 +28,7 @@ config.tmp = getTemp sysPath.resolve(__dirname, 'tmp'), config.keep isnt true
 
 make = require sysPath.resolve resources, dialect, 'make'
 mapping = require('./mapping')
-pMgr = globals.pMgr = new PersistenceManager mapping
+globals.pMgr = new PersistenceManager mapping, config
 adapter = globals.adapter = tools.adapter(dialect)
 squelOptions = globals.squelOptions = PersistenceManager.getSquelOptions(config.dialect)
 
@@ -85,15 +85,22 @@ initPools = (dialect, config, newConfig)->
     return {pools, connectors}
 
 destroyPools = (done)->
-    count = Object.keys(globals.pools).length
+    count = Object.keys(globals.pools).length + 1
+
     for name, pool of globals.pools
         do (name, pool)->
-            pool.destroyAll true, (err)->
+            pool.destroyAll false, (err)->
                 console.error(err) if err
                 if --count is 0
                     done()
                 return
             return
+
+    globals.pMgr.destroyPools false, ->
+        if --count is 0
+            done()
+        return
+
     return
 
 before (done)->
@@ -127,8 +134,6 @@ before (done)->
                 {pools, connectors} = initPools(dialect, config, newConfig)
                 globals.pools = pools
                 globals.connectors = connectors
-                PersistenceManager::defaults.insert = PersistenceManager::defaults.update = PersistenceManager::defaults.delete = {connector: connectors.writer}
-                PersistenceManager::defaults.list = {connector: connectors.reader}
                 next()
                 return
             return
@@ -160,6 +165,7 @@ describe 'prepare', ->
     it 'should create model when not existing', (done)->
         [pMgr, model, connector, Model] = setUpMapping()
         opts = _.defaults {
+            connector: globals.connectors.admin
             cascade: false
             if_exists: false
             prompt: false
@@ -167,12 +173,12 @@ describe 'prepare', ->
 
         async.waterfall [
             (next)->
-                pMgr.sync globals.connectors.admin, _.defaults({purge: true, exec: true}, opts), next
+                globals.pMgr.sync _.defaults({purge: true, exec: true}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 assert.ok concatQueries(queries).length
                 assert.strictEqual _.isEmpty(oldModel), true, 'expecting oldModel to be empty'
-                pMgr.sync globals.connectors.admin, _.defaults({purge: true, exec: false}, opts), next
+                globals.pMgr.sync _.defaults({purge: true, exec: false}, opts), next
                 return
             (queries, oldModel, newModel, next)->
                 # console.log require('util').inspect oldModel.BASIC_DATA, {depth: null}
@@ -244,8 +250,8 @@ global.assertPartial = (mapping, className, given, expected)->
 
 global.assertInsertQuery = (mapping, model, className, expected)->
     model.className = className
-    pMgr = new PersistenceManager mapping, {dialect: config.dialect}
-    query = pMgr.getInsertQuery model
+    pMgr = new PersistenceManager mapping
+    query = pMgr.getInsertQuery model, {dialect: config.dialect}
     assert.strictEqual query.toString(), expected
     return
 

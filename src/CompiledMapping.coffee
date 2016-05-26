@@ -1,5 +1,5 @@
-log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+log4js = require './log4js'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 _ = require 'lodash'
 LRU = require 'lru-cache'
 

@@ -1,5 +1,5 @@
-log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+log4js = require './log4js'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 _ = require 'lodash'
 url = require 'url'
@@ -41,7 +41,7 @@ levelMap =
     info: 'debug'
     verbose: 'trace'
 
-clientId = 0
+client_seq_id = 0
 class SemaphorePool extends semLib.Semaphore
     constructor: (options = {})->
         @_factory = {}
@@ -57,9 +57,10 @@ class SemaphorePool extends semLib.Semaphore
                 @_factory[opt] = 0
 
         super @_max, true, @_priority
-        @_created = []
-        @_timers = {}
+        @_created = {}
+        @_acquired = {}
         @_avalaible = []
+        @_timers = {}
         @_ensureMinimum()
 
     getName: ->
@@ -73,25 +74,30 @@ class SemaphorePool extends semLib.Semaphore
             timeOut: opts.timeOut
             onTimeOut: opts.onTimeOut
             onTake: ->
-                logger.trace "[#{self._factory.name}] [#{self.id}] acquire", self._avalaible.length
                 if self._avalaible.length is 0
                     self._factory.create (err, client)->
                         return callback err if err
-                        self._created.push client
+                        logger.debug '[', self._factory.name, '] [', self.id, '] acquire', self._avalaible.length
+                        self._created[client.id] = client
+                        self._acquired[client.id] = client
                         self._removeIdle client
                         callback null, client
                         return
                     return
-                client = self._avalaible.shift()
+
+                logger.debug '[', self._factory.name, '] [', self.id, '] reused', self._avalaible.length
+                clientId = self._avalaible.shift()
+                client = self._created[clientId]
+                self._acquired[clientId] = client
                 self._removeIdle client
                 callback null, client
                 return
 
     release: (client)->
-        index = @_created.indexOf client
-        if ~index
-            logger.trace "[#{this._factory.name}] [#{this.id}] release '#{client.id}'. Avalaible #{this._avalaible.length}"
-            @_avalaible.push client
+        if @_acquired.hasOwnProperty client.id
+            logger.debug "[", this._factory.name, "] [", this.id, "] release '", client.id, "'. Avalaible", this._avalaible.length
+            @_avalaible.push client.id
+            delete @_acquired[client.id]
             @_idle client
             return @semGive()
         return false
@@ -111,58 +117,55 @@ class SemaphorePool extends semLib.Semaphore
         delete @_timers[client.id]
         return
 
-    # destroy: (client, force)->
-    #     index = @_created.indexOf client
+    destroy: (client, force)->
+        # ensure minimum
+        if @_created.hasOwnProperty client.id
+            if force or @_factory.min < @_created.length
+                logger.debug "[", this._factory.name, "] [", this.id, "] destroying '", client.id, "'. ", this._avalaible.length, "/", this._created.length, ""
+                delete @_created[client.id]
 
-    #     # ensure minimum
-    #     if ~index
-    #         if force or @_factory.min < @_created.length
-    #             logger.debug "[#{this._factory.name}] [#{this.id}] destroying '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
-    #             @_created.splice index, 1
+                # remove it from available since it will be destroyed
+                index = @_avalaible.indexOf client.id
+                @_avalaible.splice index, 1 if ~index
 
-    #             # remove it from available since it will be destroyed
-    #             index = @_avalaible.indexOf client
-    #             @_avalaible.splice index, 1 if ~index
+                @_factory.destroy client
+                logger.debug "[", this._factory.name, "] [", this.id, "] destroyed '", client.id, "'. ", this._avalaible.length, "/", this._created.length, ""
 
-    #             @_factory.destroy client
-    #             logger.debug "[#{this._factory.name}] [#{this.id}] destroyed '#{client.id}'. #{this._avalaible.length}/#{this._created.length}"
-
-    #             @_ensureMinimum() if force
-    #             return true
-    #         else
-    #             @_idle client
-    #     return false
+                @_ensureMinimum() if force
+                return true
+            else
+                @_idle client
+        return false
 
     _superDestroy: (safe, _onDestroy)->
         SemaphorePool.__super__.destroy.call @, safe, _onDestroy
 
     destroyAll: (safe, _onDestroy)->
         self = @
-        if safe isnt false
-            self._superDestroy true, ->
-                self._onDestroy()
-                _onDestroy() if 'function' is typeof _onDestroy
-                return
-        else
-            self._superDestroy false, ->
-                self._onDestroy()
-                _onDestroy() if 'function' is typeof _onDestroy
-                return
+        self._superDestroy safe, ->
+            self._onDestroy(safe)
+            _onDestroy() if 'function' is typeof _onDestroy
+            return
         return
-    _onDestroy: ->
-        for client in @_created
+
+    _onDestroy: (safe)->
+        @_avalaible.splice 0, @_avalaible.length
+
+        for clientId, client of @_created
+            delete @_created[clientId]
+            if not safe
+                @_removeIdle client
+                @release client
             @_factory.destroy client
 
-        for index, timer of @_timers
+        for clientId, timer of @_timers
             clearTimeout timer if timer
 
-        @_created.splice 0, @_created.length
-        @_avalaible.splice 0, @_avalaible.length
         return
     _ensureMinimum: ->
         self = @
         if self._factory.min > self._created.length
-            logger.debug "[#{self._factory.name}] [#{self.id}] _ensureMinimum. #{self._created.length}/#{self._factory.min}"
+            logger.debug "[", self._factory.name, "] [", self.id, "] _ensureMinimum.", self._created.length, "/", self._factory.min, ""
             self.acquire (err, client)->
                 return self.emit 'error', err if err
                 self.release client
@@ -280,10 +283,10 @@ module.exports = class AdapterPool extends SemaphorePool
             name: self.options.name
 
             create: (callback)->
-                logger.debug "[#{self._factory.name}] [#{self.id}] create"
                 self.adapter.createConnection self.options, (err, client)->
                     return callback(err, null) if err
-                    client.id = ++clientId
+                    logger.debug '[', self._factory.name, '] [', self.id, '] create'
+                    client.id = ++client_seq_id
 
                     client.on 'error', (err)->
                         # TODO: write why destruction should not be done on error
@@ -304,7 +307,7 @@ module.exports = class AdapterPool extends SemaphorePool
 
             destroy: (client)->
                 return if client._destroying
-                logger.debug "[#{self._factory.name}] [#{self.id}] destroy"
+                logger.debug "[", self._factory.name, "] [", self.id, "] destroy"
                 client._destroying = true
                 client.end()
                 return

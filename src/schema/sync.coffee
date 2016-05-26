@@ -1,9 +1,15 @@
 _ = require 'lodash'
-# tools = require '../tools'
+{guessEscapeOpts} = require '../tools'
 
 # PersistenceManager sync method
-exports.sync = (connector, options, callback)->
-    dialect = connector.getDialect()
+exports.sync = (options, callback)->
+    if 'function' is typeof options
+        callback = options
+        options = null
+
+    options = guessEscapeOpts(options, @defaults.sync)
+    {connector, dialect} = options
+
     sync = require('../dialects/' + dialect + '/sync')
     SchemaCompiler = require('../dialects/' + dialect + '/SchemaCompiler')
     schema = new SchemaCompiler options

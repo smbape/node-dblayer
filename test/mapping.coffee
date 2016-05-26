@@ -1,5 +1,6 @@
 _ = require 'lodash'
 moment = require 'moment'
+Backbone = require 'backbone'
 mapping = exports
 
 domains = {
@@ -57,6 +58,7 @@ domains.mdate = _.defaults {
 
 mapping['Data'] =
     table: 'BASIC_DATA'
+    ctor: Backbone.Model.extend {className: 'Data'}
     id:
         name: 'id'
         column: 'DAT_ID'
@@ -125,6 +127,7 @@ mapping['Property'] =
         code:
             column: 'LPR_CODE'
             domain: domains.code
+            nullable: false
     constraints: {type: 'unique', properties: ['code']}
 
 mapping['Language'] =
@@ -179,6 +182,7 @@ mapping['Country'] =
         code:
             column: 'CRY_CODE'
             domain: domains.code
+            nullable: false
         property: className: 'Property'
 
 {PersistenceManager} = require('../')

@@ -3,5 +3,6 @@ module.exports = {
     Connector: require('./lib/Connector'),
     PersistenceManager: require('./lib/PersistenceManager'),
     tools: require('./lib/tools'),
+    log4js: require('./lib/log4js'),
     squel: require('squel')
 };

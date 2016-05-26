@@ -156,6 +156,7 @@ module.exports = (config, connectors, done)->
             pMgr.listData {
                 type: 'json'
                 fields: ['id']
+                limit: 18446744073709552
                 offset: 1
             }, next
             return

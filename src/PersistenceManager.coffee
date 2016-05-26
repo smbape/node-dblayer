@@ -1,10 +1,11 @@
-log4js = global.log4js or (global.log4js = require 'log4js')
-logger = log4js.getLogger __filename.replace /^(?:.+[\/])?([^.\/]+)(?:.[^.]+)?$/, '$1'
+log4js = require './log4js'
+logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 _ = require 'lodash'
 squel = require 'squel'
 RowMap = require './RowMap'
 CompiledMapping = require './CompiledMapping'
+AdapterPool = require './AdapterPool'
 async = require 'async'
 semLib = require 'sem-lib'
 tools = require './tools'
@@ -35,9 +36,12 @@ module.exports = class PersistenceManager extends CompiledMapping
         update: {}
         save: {}
         delete: {}
+        sync: {}
 
-    constructor: ->
+    constructor: (mapping, options)->
         super
+        @defaults = _.cloneDeep @defaults
+
         for className of @classes
             for method in ['insert', 'update', 'save', 'delete']
                 delegateMethod @, className, method
@@ -45,6 +49,42 @@ module.exports = class PersistenceManager extends CompiledMapping
             delegateMethod @, className, 'new'
             @['list' + className] = @list.bind @, className
             @['remove' + className] = @['delete' + className]
+
+        pools = @pools = {}
+        connectors = @connectors = {}
+
+        if options and _.isObject(users = options.users)
+            for name in ['admin', 'writer', 'reader']
+                if users.hasOwnProperty name
+                    pool = pools[name] = new AdapterPool(users[name])
+                    connectors[name] = pool.createConnector()
+
+            @defaults.sync = _.defaults {connector: connectors.admin}, @defaults.sync
+            @defaults.insert = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.insert
+            @defaults.update = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.update
+            @defaults.delete = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.delete
+            @defaults.save = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.save
+            @defaults.list = _.defaults {connector: connectors.reader or connectors.writer or connectors.admin}, @defaults.list
+
+    destroyPools: (safe = true, done)->
+        if 'function' is typeof safe
+            done = safe
+            safe = true
+
+        count = Object.keys(@pools).length
+        if count is 0
+            done() if 'function' is typeof done
+            return
+
+        for name, pool of @pools
+            do (name, pool)->
+                pool.destroyAll safe, (err)->
+                    console.error(err) if err
+                    if --count is 0
+                        done() if 'function' is typeof done
+                    return
+                return
+        return
 
 isValidModelInstance = (model)->
     if not model or 'object' isnt typeof model
@@ -86,7 +126,7 @@ PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue =
 
 PersistenceManager::insert = (model, options, callback, guess = true)->
     if guess
-        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert, PersistenceManager::defaults.insert)
+        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert)
     try
         query = @getInsertQuery model, options, false
     catch err
@@ -132,7 +172,7 @@ PersistenceManager::insert = (model, options, callback, guess = true)->
 
 PersistenceManager::getInsertQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.insert, PersistenceManager::defaults.insert)
+        options = guessEscapeOpts(options, @defaults.insert)
     new InsertQuery @, model, options, false
 
 PersistenceManager::list = (className, options, callback, guess = true)->
@@ -141,7 +181,7 @@ PersistenceManager::list = (className, options, callback, guess = true)->
         options = {}
 
     if guess
-        options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
+        options = guessEscapeOpts(options, @defaults.list)
     try
         query = @getSelectQuery className, options, false
     catch err
@@ -151,7 +191,7 @@ PersistenceManager::list = (className, options, callback, guess = true)->
     query.list connector, callback
 
 PersistenceManager::stream = (className, options, callback, done)->
-    options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
+    options = guessEscapeOpts(options, @defaults.list)
     try
         query = @getSelectQuery className, options, false
     catch err
@@ -163,7 +203,7 @@ PersistenceManager::stream = (className, options, callback, done)->
 
 PersistenceManager::getSelectQuery = (className, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.list, PersistenceManager::defaults.list)
+        options = guessEscapeOpts(options, @defaults.list)
 
     if _.isPlainObject options.where
         options.attributes = options.where
@@ -578,6 +618,7 @@ PersistenceManager.InsertQuery = class InsertQuery
             query += ' ' + pMgr.insertDefaultValue options.dialect, definition.id.column
 
         query = pMgr.decorateInsert options.dialect, query, definition.id.column
+
         connector.query query, (err, res)->
             return callback(err) if err
 
@@ -591,7 +632,7 @@ PersistenceManager.InsertQuery = class InsertQuery
                 else
                     id = Array.isArray(res.rows) and res.rows.length > 0 and res.rows[0][definition.id.column]
 
-            logger.trace '[' + definition.className + '] - INSERT ' + id
+            logger.debug '[', definition.className, '] - INSERT', id
 
             if options.reflect
                 if definition.id.hasOwnProperty 'column'
@@ -687,7 +728,7 @@ _getCacheId = (options)->
 PersistenceManager::addCachedRowMap = (cacheId, className, rowMap)->
     # keeping references of complex object makes the hole process slow
     # don't know why
-    logger.trace 'add cache', '"' + className + '"', cacheId
+    logger.trace 'add cache"', className, '"', cacheId
     # serialize = (key, value)->
     #     _serialize cacheId, key, value
     json = _.pick rowMap, ['_infos', '_tableAliases', '_tabId', '_columnAliases', '_colId', '_tables', '_mixins', '_joining']
@@ -728,7 +769,7 @@ PersistenceManager.SelectQuery = class SelectQuery
                 throw new Error 'Given parameter do not resolve to a RowMap'
 
         if guess
-            options = guessEscapeOpts(options, pMgr.defaults.list, PersistenceManager::defaults.list)
+            options = guessEscapeOpts(options, pMgr.defaults.list)
 
         useCache = options.cache isnt false
         cacheId = _getCacheId options if useCache
@@ -1071,7 +1112,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     if Array.isArray(result) and result.length > 0
                         [id, msg] = result
                         if msg is 'update'
-                            logger.trace '[' + definition.className + '] - UPDATE: has update ' + id
+                            logger.debug '[', definition.className, '] - UPDATE: has update', id
                             hasUpdate = true
                             break
                 if Array.isArray results[results.length - 1]
@@ -1083,7 +1124,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
             # If parent mixin has been update, child must be considered as being updated
             if not hasUpdate
-                logger.trace '[' + definition.className + '] - UPDATE: has no update ' + id
+                logger.debug '[', definition.className, '] - UPDATE: has no update', id
                 @setChangeCondition()
 
             @_execute connector, (err, id, msg)->
@@ -1138,7 +1179,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
             options = _.defaults({connector, fields, where}, options)
 
-            logger.debug '[' + definition.className + '] - UPDATE initializing ' + id
+            logger.debug '[', definition.className, '] - UPDATE initializing', where
             pMgr.initialize model, options, (err, models)->
                 return callback err if err
                 id = model.get definition.id.name
@@ -1147,11 +1188,11 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     if models.length is 0
                         err = new Error 'id or lock condition'
                         err.code = 'NO_UPDATE'
-                        logger.debug '[' + definition.className + '] - NO UPDATE ' + id
+                        logger.debug '[', definition.className, '] - NO UPDATE', id
                 else
-                    logger.debug '[' + definition.className + '] - UPDATE ' + id
+                    logger.debug '[', definition.className, '] - UPDATE', id
 
-                logger.debug '[' + definition.className + '] - UPDATE initialized ' + id
+                logger.debug '[', definition.className, '] - UPDATE initialized', id
                 callback err, id, msg
                 return
             , false
