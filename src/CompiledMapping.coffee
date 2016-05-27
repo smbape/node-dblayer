@@ -354,7 +354,7 @@ _resolve = (className, mapping, compiled)->
 
     if typeof classDef.id.className is 'string'
 
-        # single parent inheritence => name = parent name
+        # single parent inheritance => name = parent name
         idClassDef = compiled.classes[classDef.id.className]
         classDef.id.name = idClassDef.id.name
 

@@ -57,16 +57,20 @@ class SemaphorePool extends semLib.Semaphore
                 @_factory[opt] = 0
 
         super @_max, true, @_priority
-        @_created = {}
+        @_created = {length: 0}
         @_acquired = {}
         @_avalaible = []
         @_timers = {}
+        @_listeners = {}
         @_ensureMinimum()
 
     getName: ->
         @_factory.name
 
     acquire: (callback, opts = {})->
+        if @destroyed
+            callback new Error 'pool is destroyed'
+            return
         self = @
         self.semTake
             priority: opts.priority
@@ -77,11 +81,8 @@ class SemaphorePool extends semLib.Semaphore
                 if self._avalaible.length is 0
                     self._factory.create (err, client)->
                         return callback err if err
-                        logger.debug '[', self._factory.name, '] [', self.id, '] acquire', self._avalaible.length
-                        self._created[client.id] = client
-                        self._acquired[client.id] = client
-                        self._removeIdle client
-                        callback null, client
+                        err = self._onClientCreate client
+                        callback err, client
                         return
                     return
 
@@ -93,9 +94,23 @@ class SemaphorePool extends semLib.Semaphore
                 callback null, client
                 return
 
+    _onClientCreate: (client)->
+        if @_destroying or @destroyed
+            @_factory.destroy client
+            return new Error 'pool is destroyed'
+
+        logger.debug '[', @_factory.name, '] [', @id, '] acquire', @_avalaible.length
+        @_created.length++
+        @_created[client.id] = client
+        @_acquired[client.id] = client
+        @_removeIdle client
+        listener = @_listeners[client.id] = @_removeClient.bind(@, client)
+        client.on 'end', listener
+        return
+
     release: (client)->
         if @_acquired.hasOwnProperty client.id
-            logger.debug "[", this._factory.name, "] [", this.id, "] release '", client.id, "'. Avalaible", this._avalaible.length
+            logger.debug "[", @_factory.name, "] [", @id, "] release '", client.id, "'. Avalaible", @_avalaible.length
             @_avalaible.push client.id
             delete @_acquired[client.id]
             @_idle client
@@ -118,20 +133,10 @@ class SemaphorePool extends semLib.Semaphore
         return
 
     destroy: (client, force)->
-        # ensure minimum
         if @_created.hasOwnProperty client.id
             if force or @_factory.min < @_created.length
-                logger.debug "[", this._factory.name, "] [", this.id, "] destroying '", client.id, "'. ", this._avalaible.length, "/", this._created.length, ""
-                delete @_created[client.id]
-
-                # remove it from available since it will be destroyed
-                index = @_avalaible.indexOf client.id
-                @_avalaible.splice index, 1 if ~index
-
+                @_removeClient client
                 @_factory.destroy client
-                logger.debug "[", this._factory.name, "] [", this.id, "] destroyed '", client.id, "'. ", this._avalaible.length, "/", this._created.length, ""
-
-                @_ensureMinimum() if force
                 return true
             else
                 @_idle client
@@ -143,20 +148,37 @@ class SemaphorePool extends semLib.Semaphore
     destroyAll: (safe, _onDestroy)->
         self = @
         self._superDestroy safe, ->
-            self._onDestroy(safe)
+            self._onDestroy()
             _onDestroy() if 'function' is typeof _onDestroy
             return
+        return
+
+    _removeClient: (client)->
+        if @_created.hasOwnProperty client.id
+            @_created.length--
+            listener = @_listeners[client.id]
+            client.removeListener 'end', listener
+            @_removeIdle client
+            @release client
+            index = @_avalaible.indexOf client.id
+            @_avalaible.splice index, 1 if ~index
+
+            delete @_listeners[client.id]
+            delete @_created[client.id]
+            delete @_acquired[client.id]
+
+            logger.debug "[", @_factory.name, "] [", @id, "] removed '", client.id, "'. ", @_avalaible.length, "/", @_created.length
+
+            @_ensureMinimum() if not @_destroying
         return
 
     _onDestroy: (safe)->
         @_avalaible.splice 0, @_avalaible.length
 
         for clientId, client of @_created
-            delete @_created[clientId]
-            if not safe
-                @_removeIdle client
-                @release client
-            @_factory.destroy client
+            if clientId isnt 'length'
+                @_removeClient client
+                @_factory.destroy client
 
         for clientId, timer of @_timers
             clearTimeout timer if timer
@@ -285,29 +307,15 @@ module.exports = class AdapterPool extends SemaphorePool
             create: (callback)->
                 self.adapter.createConnection self.options, (err, client)->
                     return callback(err, null) if err
-                    logger.debug '[', self._factory.name, '] [', self.id, '] create'
+                    logger.info '[', self._factory.name, '] [', self.id, '] create'
                     client.id = ++client_seq_id
-
-                    client.on 'error', (err)->
-                        # TODO: write why destruction should not be done on error
-                        # self.destroy client
-                        self.emit 'error', err
-                        return
-
-                    # Remove connection from pool on disconnect because it is no more usable
-                    client.on 'end', ->
-                        return if client._destroying
-                        self.destroy client, true
-                        return
-
                     callback null, client
-
                     return
                 return
 
             destroy: (client)->
-                return if client._destroying
-                logger.debug "[", self._factory.name, "] [", self.id, "] destroy"
+                return if client._destroying or not client.end
+                logger.info "[", self._factory.name, "] [", self.id, "] destroy"
                 client._destroying = true
                 client.end()
                 return
