@@ -657,21 +657,21 @@ With nodejs and the appropriate librairies, reading those json files was 10 time
 There are ORMs that I could have used: [bookshelfjs](http://bookshelfjs.org/), [node-orm2](https://github.com/dresende/node-orm2) or [sequelize](http://docs.sequelizejs.com/en/latest/docs/querying/).
 
 However, no matter what librairy I would have choosen, there were limitations
-    - Mapping an existing model was not straight forward (existing tables, columns, constraints), especially for inheritance
-    - There was no way to take advantage of SQL query skill without writting raw queries.  
+  - Mapping an existing model was not straight forward (existing tables, columns, constraints), especially for inheritance
+  - There was no way to take advantage of SQL query skill without writting raw queries.  
     Example: joinctions, aliased columns, filter/group/order on nested properties.  
     Therefore, there is no need for an ORM
-    - I didn't see a way to stream results
+  - I didn't see a way to stream results
 
 My problem was specific and there was no ready to use solutions.  
 The specific problem was solved as a part of the application, using java, because it was easier to interact with the existing model like that.  
 It was also freaking slow.  
 I get pissed off and I decided to create my own ORM in nodejs which has what I wanted:
-    - Be close as possible to SQL language
-    - Should support multiple inheritance (mixins, properties inherited or only ids)
-    - Should support stream
-    - Should support transactions.
-    - Server returns raw results and client puts data where it should be.
+  - Be close as possible to SQL language
+  - Should support multiple inheritance (mixins, properties inherited or only ids)
+  - Should support stream
+  - Should support transactions.
+  - Server returns raw results and client puts data where it should be.
 
 # License
 
