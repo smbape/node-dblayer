@@ -1,28 +1,31 @@
 _escape = exports._escape = (opts, str)->
-    type = typeof str
-    if type is 'number'
-        return str
-    if type is 'boolean'
-        return if type then '1' else '0'
-    if Array.isArray str
-        ret = []
-        for iStr in str
-            ret[ret.length] = _escape opts, iStr
-        return '(' + ret.join(', ') + ')'
+    switch typeof str
+        when 'number'
+            return str
+        when 'boolean'
+            str = if str then '1' else '0'
+            return (opts.quoteStart or opts.quote) + str + (opts.quoteEnd or opts.quote)
+        when 'string'
+            # do nothing
+        else
+            if Array.isArray str
+                ret = new Array(str.length)
+                for iStr, i in str
+                    ret[i] = _escape opts, iStr
+                return '(' + ret.join(', ') + ')'
+            str = '' + str
 
-    str = '' + str if 'string' isnt type
-    str = str.replace opts.matcher, (match, _char)->
-        opts.replace[_char]
+    str = str.replace opts.matcher, (match, _char)-> opts.replace[_char]
     return (opts.quoteStart or opts.quote) + str + (opts.quoteEnd or opts.quote)
 
-exports.exprNotEqual = (value, escapeColumn)->
+exports.exprNotEqual = (value, columnId)->
     if value is null
-        escapeColumn + ' IS NOT NULL'
+        columnId + ' IS NOT NULL'
     else
-        escapeColumn + ' IS NULL OR ' + escapeColumn + ' <> ' + @escape value
+        columnId + ' IS NULL OR ' + columnId + ' <> ' + @escape(value)
 
-exports.exprEqual = (value, escapeColumn)->
+exports.exprEqual = (value, columnId)->
     if value is null
-        escapeColumn + ' IS NULL'
+        columnId + ' IS NULL'
     else
-        escapeColumn + ' = ' + @escape value
+        columnId + ' = ' + @escape(value)

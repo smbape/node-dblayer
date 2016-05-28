@@ -79,7 +79,7 @@ module.exports = class CompiledMapping
             for key, properties of unique
                 classDef.hasUniqueConstraints = true
                 if not names[key]
-                    name = properties.map(propToColumn).join('_')
+                    name = classDef.table + '_' + properties.map(propToColumn).join('_')
                     _addIndexName name, 'uk', @
                     names[key] = name
 

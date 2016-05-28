@@ -286,16 +286,16 @@ describe 'test connector', ->
                 return
         ], done
 
-        it 'should escape', ->
-            connector = globals.pools.reader.createConnector()
-            connector.escape 'toto'
-            connector.escapeId 'toto'
-            connector.escapeSearch 'toto'
-            connector.escapeBeginWith 'toto'
-            connector.escapeEndWith 'toto'
-            connector.exprEqual 'toto'
-            connector.exprNotEqual 'toto'
-            return
+        # it 'should escape', ->
+        #     connector = globals.pools.reader.createConnector()
+        #     connector.escape 'toto'
+        #     connector.escapeId 'toto'
+        #     connector.escapeSearch 'toto'
+        #     connector.escapeBeginWith 'toto'
+        #     connector.escapeEndWith 'toto'
+        #     connector.exprEqual 'toto'
+        #     connector.exprNotEqual 'toto'
+        #     return
 
     return
 
