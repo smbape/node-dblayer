@@ -1,3 +1,4 @@
+// require('coffee-script').register();
 module.exports = {
     AdapterPool: require('./lib/AdapterPool'),
     Connector: require('./lib/Connector'),

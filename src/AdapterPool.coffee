@@ -86,7 +86,7 @@ class SemaphorePool extends semLib.Semaphore
                         return
                     return
 
-                logger.debug '[', self._factory.name, '] [', self.id, '] reused', self._avalaible.length
+                logger.debug '[', self._factory.name, '] [', self.id, '] reused from availables', self._avalaible.length
                 clientId = self._avalaible.shift()
                 client = self._created[clientId]
                 self._acquired[clientId] = client
@@ -103,7 +103,6 @@ class SemaphorePool extends semLib.Semaphore
         @_created.length++
         @_created[client.id] = client
         @_acquired[client.id] = client
-        @_removeIdle client
         listener = @_listeners[client.id] = @_removeClient.bind(@, client)
         client.on 'end', listener
         return
@@ -118,18 +117,17 @@ class SemaphorePool extends semLib.Semaphore
         return false
 
     _idle: (client)->
-        self = @
         if @_factory.idle > 0
-            self._removeIdle client
-            self._timers[client.id] = setTimeout ->
-                self.destroy client
-                return
-            , self._factory.idle
+            @_removeIdle client
+            @_timers[client.id] = setTimeout @destroy.bind(@, client), @_factory.idle
+            logger.debug "[", @_factory.name, "] [", @id, "] idle [", client.id, "]"
         return
 
     _removeIdle: (client)->
-        clearTimeout @_timers[client.id]
-        delete @_timers[client.id]
+        if @_timers.hasOwnProperty client.id
+            logger.debug "[", @_factory.name, "] [", @id, "] remove idle [", client.id, "]"
+            clearTimeout @_timers[client.id]
+            delete @_timers[client.id]
         return
 
     destroy: (client, force)->
@@ -187,7 +185,7 @@ class SemaphorePool extends semLib.Semaphore
     _ensureMinimum: ->
         self = @
         if self._factory.min > self._created.length
-            logger.debug "[", self._factory.name, "] [", self.id, "] _ensureMinimum.", self._created.length, "/", self._factory.min, ""
+            logger.debug "[", self._factory.name, "] [", self.id, "] _ensureMinimum.", self._created.length, "/", self._factory.min
             self.acquire (err, client)->
                 return self.emit 'error', err if err
                 self.release client
@@ -307,17 +305,17 @@ module.exports = class AdapterPool extends SemaphorePool
             create: (callback)->
                 self.adapter.createConnection self.options, (err, client)->
                     return callback(err, null) if err
-                    logger.info '[', self._factory.name, '] [', self.id, '] create'
                     client.id = ++client_seq_id
+                    logger.info "[", self._factory.name, "] [", self.id, "] create [", client_seq_id, "]"
                     callback null, client
                     return
                 return
 
             destroy: (client)->
-                return if client._destroying or not client.end
-                logger.info "[", self._factory.name, "] [", self.id, "] destroy"
+                return if client._destroying
                 client._destroying = true
                 client.end()
+                logger.info "[", self._factory.name, "] [", self.id, "] destroy [", client.id, "]"
                 return
 
             max: self.options.maxConnection

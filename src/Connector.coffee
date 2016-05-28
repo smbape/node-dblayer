@@ -72,7 +72,7 @@ module.exports = class Connector extends EventEmitter
             if @_savepoints is 0
                 return @_giveResource()
             @state = STATES.INVALID
-            logger.error 'Force rollback and release cause acquire last longer than acceptable'
+            logger.warn 'Force rollback and release cause acquire last longer than acceptable'
             @_rollback @_giveResource, true
             return
         , true
@@ -80,7 +80,7 @@ module.exports = class Connector extends EventEmitter
 
     _checkSafeEnd: =>
         if @_savepoints isnt 0
-            logger.error 'client ends in the middle of a transaction'
+            logger.warn 'client ends in the middle of a transaction'
             @state = STATES.INVALID
             @_release(->)
         return
@@ -181,7 +181,7 @@ module.exports = class Connector extends EventEmitter
 
         @_client.query query, (err, res)=>
             if err and options.autoRollback isnt false
-                logger.error @pool.options.name, 'automatic rollback on query error', err
+                logger.warn @pool.options.name, 'automatic rollback on query error', err
                 return @_rollback callback, false, err
             callback err, res
 
@@ -217,7 +217,7 @@ module.exports = class Connector extends EventEmitter
             callback row, stream
         , (err)=>
             if err and options.autoRollback isnt false
-                logger.error @pool.options.name, 'automatic rollback on stream error', err
+                logger.warn @pool.options.name, 'automatic rollback on stream error', err
                 return @_rollback done, false, err
             done.apply null, arguments
         return
