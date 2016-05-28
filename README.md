@@ -637,12 +637,12 @@ npm test
 
 ### Test and coverage
 ```sh
-npm run test-cover
+npm test -- --cover
 ```
 
 ### Test a dialect
 ```sh
-DIALECT=postgres node node_modules/mocha/bin/_mocha --full-trace --compilers coffee:coffee-script/register test/prepare.coffee test/suite
+npm test -- --dialect=mysql
 ```
 
 # More examples

@@ -35,20 +35,17 @@ PgColumnCompiler::integer = -> @words.integer
 PgColumnCompiler::bigint = -> @words.bigint
 
 PgColumnCompiler::numeric = (precision, scale)->
-    type = @words.numeric
-    type + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+    @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
 PgColumnCompiler::float = -> @words.real
 PgColumnCompiler::double = -> @words.double
 
 # https://www.postgresql.org/docs/9.4/static/datatype-character.html
 PgColumnCompiler::char = (length)->
-    type = @words.char
-    type + '(' + @_num(length, 255) + ')'
+    @words.char + '(' + @_num(length, 255) + ')'
 
 PgColumnCompiler::varchar = (length)->
-    type = @words.varchar
-    type + '(' + @_num(length, 255) + ')'
+    @words.varchar + '(' + @_num(length, 255) + ')'
 
 # https://www.postgresql.org/docs/9.4/static/datatype-datetime.html
 PgColumnCompiler::date = -> @words.date

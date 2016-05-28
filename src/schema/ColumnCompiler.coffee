@@ -67,9 +67,9 @@ LOWERWORDS = ColumnCompiler::LOWERWORDS = {
 # ================================================================
 # Numeric Types
 # ================================================================
-ColumnCompiler::smallincrements = -> throw new Error 'smallincrements type is not defined'
-ColumnCompiler::increments = -> throw new Error 'increments type is not defined'
-ColumnCompiler::bigincrements = -> throw new Error 'bigincrements type is not defined'
+# ColumnCompiler::smallincrements = -> throw new Error 'smallincrements type is not defined'
+# ColumnCompiler::increments = -> throw new Error 'increments type is not defined'
+# ColumnCompiler::bigincrements = -> throw new Error 'bigincrements type is not defined'
 
 _.extend LOWERWORDS,
     tinyint: 'tinyint'
@@ -79,8 +79,8 @@ _.extend LOWERWORDS,
 
 ColumnCompiler::tinyint =
 ColumnCompiler::smallint = -> @words.smallint
-ColumnCompiler::integer = -> @words.integer
-ColumnCompiler::bigint = -> @words.bigint
+# ColumnCompiler::integer = -> @words.integer
+# ColumnCompiler::bigint = -> @words.bigint
 
 _.extend LOWERWORDS,
     decimal: 'decimal'
@@ -88,14 +88,14 @@ _.extend LOWERWORDS,
     float: 'float'
     double: 'double precision'
 
-ColumnCompiler::decimal =
-ColumnCompiler::numeric = (precision, scale) ->
-    @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+# ColumnCompiler::decimal =
+# ColumnCompiler::numeric = (precision, scale) ->
+#     @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
-ColumnCompiler::float = (precision, scale) ->
-    @words.float + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+# ColumnCompiler::float = (precision, scale) ->
+#     @words.float + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
 
-ColumnCompiler::double = -> @words.double
+# ColumnCompiler::double = -> @words.double
 
 # ================================================================
 # Character Types
@@ -107,11 +107,11 @@ _.extend LOWERWORDS,
     mediumtext: 'mediumtext'
     text: 'text'
 
-ColumnCompiler::char = (length)->
-    @words.char + '(' + @_num(length, 255) + ')'
+# ColumnCompiler::char = (length)->
+#     @words.char + '(' + @_num(length, 255) + ')'
 
-ColumnCompiler::varchar = (length)->
-    @words.varchar + '(' + @_num(length, 255) + ')'
+# ColumnCompiler::varchar = (length)->
+#     @words.varchar + '(' + @_num(length, 255) + ')'
 
 ColumnCompiler::tinytext =
 ColumnCompiler::mediumtext =
@@ -128,10 +128,10 @@ _.extend LOWERWORDS,
     timetz: 'timetz'
     timestamptz: 'timestamptz'
 
-ColumnCompiler::date = -> @words.date
-ColumnCompiler::datetime = -> @words.datetime
-ColumnCompiler::time = -> @words.time
-ColumnCompiler::timestamp = -> @words.timestamp
+# ColumnCompiler::date = -> @words.date
+# ColumnCompiler::datetime = -> @words.datetime
+# ColumnCompiler::time = -> @words.time
+# ColumnCompiler::timestamp = -> @words.timestamp
 
 # ================================================================
 # Other Types
@@ -141,8 +141,8 @@ _.extend LOWERWORDS,
     boolean: 'boolean'
     enum: 'enum'
 
-ColumnCompiler::bool = -> @words.boolean
-ColumnCompiler::enum = -> throw new Error 'enum type is not defined'
+# ColumnCompiler::bool = -> @words.boolean
+# ColumnCompiler::enum = -> throw new Error 'enum type is not defined'
 
 _.extend LOWERWORDS,
     binary: 'binary'
@@ -150,10 +150,10 @@ _.extend LOWERWORDS,
     varbinary: 'varbinary'
     varbit: 'varbit'
 
-ColumnCompiler::binary =
-ColumnCompiler::bit = (length)->
-    length = @_num(length, null)
-    if length then @words.bit + '(' + length + ')' else @words.bit
+# ColumnCompiler::binary =
+# ColumnCompiler::bit = (length)->
+#     length = @_num(length, null)
+#     if length then @words.bit + '(' + length + ')' else @words.bit
 
 ColumnCompiler::varbinary =
 ColumnCompiler::varbit = (length)->

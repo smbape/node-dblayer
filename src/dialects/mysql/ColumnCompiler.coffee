@@ -154,20 +154,16 @@ MySQLColumnCompiler::year = -> @words.year
 
 # http://dev.mysql.com/doc/refman/5.7/en/string-type-overview.html
 MySQLColumnCompiler::char = (m)->
-    type = @words.char
-    type + '(' + @_num(m, 255) + ')'
+    @words.char + '(' + @_num(m, 255) + ')'
 
 MySQLColumnCompiler::varchar = (m)->
-    type = @words.varchar
-    type + '(' + @_num(m, 255) + ')'
+    @words.varchar + '(' + @_num(m, 255) + ')'
 
 MySQLColumnCompiler::binary = (m)->
-    type = @words.binary
-    type + '(' + @_num(m, 255) + ')'
+    @words.binary + '(' + @_num(m, 255) + ')'
 
 MySQLColumnCompiler::varbinary = (m)->
-    type = @words.varbinary
-    type + '(' + @_num(m, 255) + ')'
+    @words.varbinary + '(' + @_num(m, 255) + ')'
 
 LOWERWORDS.tinyblob = 'tinyblob'
 MySQLColumnCompiler::tinyblob = -> @words.tinyblob
