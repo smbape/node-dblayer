@@ -40,7 +40,18 @@ _.extend adapter, common,
         if not mode
             mode = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
 
-        new SQLite3Connection filename, mode, callback
+        new SQLite3Connection filename, mode, (err, client)->
+            return callback(err) if err
+            # https://www.sqlite.org/faq.html#q22
+            # Does SQLite support foreign keys?
+            # As of version 3.6.19, SQLite supports foreign key constraints.
+            # But enforcement of foreign key constraints is turned off by default (for backwards compatibility).
+            # To enable foreign key constraint enforcement, run PRAGMA foreign_keys=ON or compile with -DSQLITE_DEFAULT_FOREIGN_KEYS=1.
+            client.query 'PRAGMA foreign_keys = ON', (err)->
+                return callback(err) if err
+                callback err, client
+                return
+            return
 
     squelOptions:
         replaceSingleQuotes: true
@@ -103,6 +114,7 @@ class SQLite3Connection extends EventEmitter
         logger.debug 'SQLite3Connection', filename
         @db = new sqlite3.Database filename, mode
 
+        # always perform series write
         # parallel read write may lead to errors if not well controlled
         @db.serialize()
 
@@ -262,3 +274,69 @@ class SQLite3Stream extends ArrayStream
         return
 
 # Stream: error, fields, data, end
+
+fs = require 'fs'
+sysPath = require 'path'
+anyspawn = require 'anyspawn'
+{getTemp} = require '../../tools'
+umask = if process.platform is 'win32' then {encoding: 'utf-8', mode: 700} else {encoding: 'utf-8', mode: 600}
+
+adapter.exec = adapter.execute = (script, options, done)->
+    if _.isPlainObject(script)
+        _script = options
+        options = script
+        script = _script
+
+    if 'function' is typeof options
+        done = options
+        options = {}
+
+    if not _.isPlainObject(options)
+        options = {}
+
+    {
+        database
+        cmd
+        stdout
+        stderr
+        tmp
+        keep
+    } = options
+
+    cmd or (cmd = 'sqlite3')
+
+    if cmd and 'object' is typeof cmd
+        error = null
+        callback = (err, res)->
+            error = err
+            return
+
+        @split script, (query)->
+            if not error
+                cmd.query query, callback
+            return
+        , (err)->
+            done err or error
+            return
+        return
+
+    stdout or (stdout isnt null and stdout = process.stdout)
+    stderr or (stderr isnt null and stderr = process.stderr)
+    tmp = getTemp(tmp, options.keep isnt true)
+
+    file = sysPath.join(tmp, 'script.sql')
+    fs.writeFileSync file, script, umask
+
+    args = [database]
+
+    args.push '-f'
+    args.push file
+
+    opts = _.defaults
+        stdio: ['pipe', stdout, stderr]
+    , options
+
+    child = anyspawn.exec cmd, args, opts, done
+    readable = fs.createReadStream(file)
+    readable.pipe child.stdin
+    return

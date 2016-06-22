@@ -1,7 +1,6 @@
 _ = require 'lodash'
 ColumnCompiler = require '../../schema/ColumnCompiler'
 tools = require '../../tools'
-slice = Array::slice
 map = Array::map
 
 LOWERWORDS =

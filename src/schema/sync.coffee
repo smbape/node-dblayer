@@ -95,13 +95,13 @@ _tableDiff = (oldTableModel, newTableModel, options = {})->
     drops = []
     alters = []
 
-    for column, oldSpec of oldTableModel.columns
+    for column, oldColumnSpec of oldTableModel.columns
         if renames and renames.hasOwnProperty(column)
             newName = renames[column]
             if newName and newTableModel.columns.hasOwnProperty(newName)
-                newSpec = newTableModel.columns[newName]
+                newColumnSpec = newTableModel.columns[newName]
                 delete newTableModel.columns[newName]
-                alter = schema.diffType(tableName, column, oldSpec, newSpec, options)
+                alter = schema.diffType(tableName, column, oldColumnSpec, newColumnSpec, options)
                 if alter
                     alters.push alter
                 else
@@ -109,16 +109,16 @@ _tableDiff = (oldTableModel, newTableModel, options = {})->
             else if purge
                 drops.push schema.dropColumn tableName, column, options
         else if newTableModel.columns.hasOwnProperty column
-            newSpec = newTableModel.columns[column]
+            newColumnSpec = newTableModel.columns[column]
             delete newTableModel.columns[column]
-            alter = schema.diffType(tableName, column, oldSpec, newSpec, options)
+            alter = schema.diffType(tableName, column, oldColumnSpec, newColumnSpec, options)
             if alter
                 alters.push alter
         else if purge
             drops.push schema.dropColumn(tableName, column, options)
 
-    for column, newSpec of newTableModel.columns
-        alters.push schema.addColumn(tableName, column, newSpec, options)
+    for column, newColumnSpec of newTableModel.columns
+        alters.push schema.addColumn(tableName, column, newColumnSpec, options)
 
     # primary key
     if (pk = oldTableModel.constraints['PRIMARY KEY']) and not _.isEmpty(pk)

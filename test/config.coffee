@@ -18,6 +18,7 @@ _.extend exports,
             database: false
             schema: true
             users: true
+
     mysql:
         # If you are on Windows
         # add in "C:\ProgramData\MySQL\MySQL Server 5.7\my.ini"
@@ -28,6 +29,20 @@ _.extend exports,
         host: '127.0.0.1'
         port: 3306
         cmd: 'mysql'
+        database: 'DBLAYER_TEST'
+        create:
+            database: true
+            users: true
+            model: false
+        drop:
+            database: true
+            users: true
+
+    mssql:
+        root: 'sa'
+        password: 'dev.mssql'
+        host: '127.0.0.1'
+        port: 1433
         database: 'DBLAYER_TEST'
         create:
             database: true

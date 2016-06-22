@@ -87,6 +87,7 @@ _.extend LOWERWORDS,
     numeric: 'numeric'
     float: 'float'
     double: 'double precision'
+    real: 'real'
 
 # ColumnCompiler::decimal =
 # ColumnCompiler::numeric = (precision, scale) ->

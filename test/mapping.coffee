@@ -47,7 +47,7 @@ domains = {
         type_args: [63]
     code:
         type: 'varchar'
-        type_args: [63]
+        type_args: [31]
 }
 
 domains.mdate = _.defaults {

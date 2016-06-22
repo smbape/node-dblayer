@@ -35,7 +35,10 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
 
         altersql.join('')
 
-    diffType: (tableName, column, oldSpec, newSpec)->
+    # TODO : change column type with index
+    #     => need for oldTableSpec, newTableSpec
+    #     => drop all affected indexes. Diff on indexes will recreate it
+    diffType: (tableName, column, oldColumnSpec, newColumnSpec)->
         options = _.defaults {}, options, @options
         {words, escapeId, escape, columnCompiler, args, indent, LF} = @
 
@@ -52,18 +55,18 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
         tablesql.push.apply tablesql, [escapeId(tableName), LF]
 
         altersql = []
-        oldTypeString = columnCompiler.getTypeString(oldSpec)
-        newTypeString = columnCompiler.getTypeString(newSpec)
+        oldTypeString = columnCompiler.getTypeString(oldColumnSpec)
+        newTypeString = columnCompiler.getTypeString(newColumnSpec)
 
-        oldModifier = columnCompiler.getColumnModifier(oldSpec)
-        newModifier = columnCompiler.getColumnModifier(newSpec)
+        oldModifier = columnCompiler.getColumnModifier(oldColumnSpec)
+        newModifier = columnCompiler.getColumnModifier(newColumnSpec)
 
         if oldTypeString isnt newTypeString
-            if oldSpec.type is 'text' and newSpec.type is 'enum'
+            if oldColumnSpec.type is 'text' and newColumnSpec.type is 'enum'
                 # TODO: find a way to compare enum
                 return
 
-            spec = newSpec
+            spec = newColumnSpec
             # ALTER COLUMN column_name TYPE data_type
             altersql.push [indent, words.alter_column, ' ', columnId, ' ', words.type, ' ', newTypeString].join('')
 

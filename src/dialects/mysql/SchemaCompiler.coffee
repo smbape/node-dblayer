@@ -16,7 +16,7 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
         {words, escapeId, indent, LF} = @
         words.alter_table + ' ' + escapeId(tableName) + LF + indent + words.drop_column + ' ' + escapeId(column)
 
-    diffType: (tableName, column, oldSpec, newSpec)->
+    diffType: (tableName, column, oldColumnSpec, newColumnSpec)->
         options = _.defaults {}, options, @options
         {words, escapeId, columnCompiler, args, indent, LF} = @
 
@@ -33,14 +33,14 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
         tablesql.push.apply tablesql, [escapeId(tableName), LF]
 
         altersql = []
-        oldTypeString = columnCompiler.getTypeString(oldSpec)
-        newTypeString = columnCompiler.getTypeString(newSpec)
+        oldTypeString = columnCompiler.getTypeString(oldColumnSpec)
+        newTypeString = columnCompiler.getTypeString(newColumnSpec)
 
-        oldModifier = columnCompiler.getColumnModifier(oldSpec)
-        newModifier = columnCompiler.getColumnModifier(newSpec)
+        oldModifier = columnCompiler.getColumnModifier(oldColumnSpec)
+        newModifier = columnCompiler.getColumnModifier(newColumnSpec)
 
         if oldTypeString isnt newTypeString
-            if oldSpec.type is 'enum' and newSpec.type is 'enum'
+            if oldColumnSpec.type is 'enum' and newColumnSpec.type is 'enum'
                 # TODO: find a way to compare enum
                 return
             # CHANGE [COLUMN] old_col_name new_col_name column_definition

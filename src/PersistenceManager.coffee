@@ -11,6 +11,10 @@ semLib = require 'sem-lib'
 tools = require './tools'
 {adapter: getAdapter, guessEscapeOpts} = tools
 
+DefaultQueryBuilderOptions = _.defaults
+    replaceSingleQuotes: true
+, squel.cls.DefaultQueryBuilderOptions
+
 delegateMethod = (self, className, method, target = method)->
     if method is 'new'
         self[method + className] = self.newInstance.bind self, className
@@ -105,24 +109,30 @@ assertValidModelInstance = (model)->
     if err instanceof Error
         throw err
 
-PersistenceManager.getSquelOptions = PersistenceManager::getSquelOptions = (dialect)->
-    getAdapter(dialect).squelOptions
+PersistenceManager.getSquelQuery = PersistenceManager::getSquelQuery = (type, dialect)->
+    options = _.defaults getAdapter(dialect).squelOptions, DefaultQueryBuilderOptions
+    _squel = squel.useFlavour(dialect)
+    _squel.cls.Expression = squel.cls.Expression
+    return _squel[type](options)
 
-PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialect, query, column)->
+PersistenceManager.getSquelOptions = PersistenceManager::getSquelOptions = (dialect)->
+    return _.defaults getAdapter(dialect).squelOptions, DefaultQueryBuilderOptions
+
+PersistenceManager.decorateInsert = PersistenceManager::decorateInsert = (dialect, insert, column)->
     adapter = getAdapter(dialect)
 
     if 'function' is typeof adapter.decorateInsert
-        adapter.decorateInsert query, column
-    else
-        query
+        adapter.decorateInsert insert, column
 
-PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue = (dialect, column)->
+    insert
+
+PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue = (dialect, insert, column)->
     adapter = getAdapter(dialect)
 
     if 'function' is typeof adapter.insertDefaultValue
-        adapter.insertDefaultValue column
-    else
-        ''
+        adapter.insertDefaultValue insert, column
+
+    insert
 
 PersistenceManager::insert = (model, options, callback, guess = true)->
     if guess
@@ -474,7 +484,7 @@ PersistenceManager.InsertQuery = class InsertQuery
         @className = className = options.className or model.className
         definition = @definition = pMgr._getDefinition className
         table = definition.table
-        insert = squel.insert(pMgr.getSquelOptions(options.dialect)).into @options.escapeId(table)
+        insert = pMgr.getSquelQuery('insert', options.dialect).into @options.escapeId(table)
 
         # ids of mixins will be setted at execution
         if definition.mixins.length > 0
@@ -603,23 +613,30 @@ PersistenceManager.InsertQuery = class InsertQuery
 
     _execute: (connector, callback)->
         pMgr = @pMgr
-        query = @oriToString()
+        query = @toQuery()
         definition = @definition
         model = @model
         fields = @fields
         options = @options
 
         # empty objects are not inserted by default
-        if not @hasData and not options.allowEmpty
-            callback(new Error('no data to insert'))
-            return
+        if not @hasData 
+            if not options.allowEmpty
+                callback(new Error('no data to insert'))
+                return
 
-        if not @hasData
-            query += ' ' + pMgr.insertDefaultValue options.dialect, definition.id.column
+            if definition.id.column
+                pMgr.insertDefaultValue options.dialect, query, definition.id.column
+            else
+                for prop, propDef of definition.properties
+                    column = propDef.column
+                    pMgr.insertDefaultValue options.dialect, query, column
+                    break
 
-        query = pMgr.decorateInsert options.dialect, query, definition.id.column
+        if definition.id.column
+            pMgr.decorateInsert options.dialect, query, definition.id.column
 
-        connector.query query, (err, res)->
+        connector.query query.toString(), (err, res)->
             return callback(err) if err
 
             if definition.id.hasOwnProperty 'column'
@@ -775,7 +792,7 @@ PersistenceManager.SelectQuery = class SelectQuery
         cacheId = _getCacheId options if useCache
 
         if not useCache or not rowMap = pMgr.getCachedRowMap cacheId, className, options
-            select = squel.select pMgr.getSquelOptions options.dialect
+            select = pMgr.getSquelQuery('select', options.dialect)
             rowMap = new RowMap className, pMgr, _.extend {}, options, select: select
 
             # check
@@ -973,7 +990,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         className = options.className or model.className
         definition = @definition = pMgr._getDefinition className
         table = definition.table
-        update = squel.update(pMgr.getSquelOptions(options.dialect)).table options.escapeId(table)
+        update = pMgr.getSquelQuery('update', options.dialect).table options.escapeId(table)
 
         result = _addUpdateOrDeleteCondition update, 'update', pMgr, model, className, definition, options
 
@@ -1136,13 +1153,15 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
     _execute: (connector, callback)->
         pMgr = @pMgr
-        query = @oriToString()
+        query = @toQuery()
         definition = @definition
         model = @model
         options = @options
 
-        query = pMgr.decorateInsert options.dialect, query, definition.id.column
-        connector.query query, (err, res)->
+        if definition.id.column
+            query = pMgr.decorateInsert options.dialect, query, definition.id.column
+
+        connector.query query.toString(), (err, res)->
             return callback(err) if err
 
             if res.hasOwnProperty 'affectedRows'
@@ -1215,7 +1234,7 @@ PersistenceManager.DeleteQuery = class DeleteQuery
 
         className = options.className or model.className
         definition = @definition = pMgr._getDefinition className
-        remove = squel.delete(pMgr.getSquelOptions(options.dialect)).from options.escapeId definition.table
+        remove = pMgr.getSquelQuery('delete', options.dialect).from options.escapeId definition.table
 
         _addUpdateOrDeleteCondition remove, 'delete', pMgr, model, className, definition, options
 
@@ -1315,7 +1334,7 @@ PersistenceManager::getInsertQueryString = (className, entries, options)->
             row[column] = values[i]
         rows.push row
 
-    squel.insert(@getSquelOptions(query.options.dialect))
+    @getSquelQuery('insert', query.options.dialect)
         .into query.options.escapeId @getTable className
         .setFieldsRows rows
         .toString()

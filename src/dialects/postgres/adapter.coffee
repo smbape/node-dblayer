@@ -1,7 +1,6 @@
 _ = require 'lodash'
 common = require '../../schema/adapter'
-adapter = module.exports
-_.extend adapter, common
+adapter = _.extend module.exports, common
 logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
 escapeOpts =
@@ -50,7 +49,8 @@ adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
 pg = require('pg')
 QueryStream = require 'pg-query-stream'
 
-pg.Client::stream = (query, params, callback, done)->
+class PgClient extends pg.Client
+    stream: (query, params, callback, done)->
         if arguments.length is 3
             done = callback
             callback = params
@@ -58,8 +58,8 @@ pg.Client::stream = (query, params, callback, done)->
         params = [] if not (params instanceof Array)
         done = (->) if typeof done isnt 'function'
 
-        query = new PostgresQueryStream query
-        stream = pg.Client::query.call @, query, params
+        query = new PgQueryStream query
+        stream = @query query, params
         hasError = false
         result = rowCount: 0
         stream.once 'error', (err)->
@@ -78,7 +78,7 @@ pg.Client::stream = (query, params, callback, done)->
             return
         stream
 
-class PostgresQueryStream extends QueryStream
+class PgQueryStream extends QueryStream
     handleRowDescription: (message) ->
         QueryStream::handleRowDescription.call this, message
         @emit 'fields', message.fields
@@ -90,9 +90,22 @@ class PostgresQueryStream extends QueryStream
 _.extend adapter,
     name: 'postgres'
 
+    squelOptions:
+        nameQuoteCharacter: '"'
+        fieldAliasQuoteCharacter: '"'
+        tableAliasQuoteCharacter: '"'
+
+    decorateInsert: (insert, column)->
+        insert.returning @escapeId(column)
+        return insert
+
+    insertDefaultValue: (insert, column)->
+        insert.set @escapeId(column), 'DEFAULT', {dontQuote: true}
+        return insert
+
     createConnection: (options, callback) ->
         callback = (->) if typeof callback isnt 'function'
-        client = new pg.Client options
+        client = new PgClient options
         client.connect (err)->
             return callback(err, null) if err
             query = "SET SCHEMA '#{options.schema}'"
@@ -102,21 +115,6 @@ _.extend adapter,
                 return
             return
         client
-
-    squelOptions:
-        replaceSingleQuotes: true
-        nameQuoteCharacter: '"'
-        fieldAliasQuoteCharacter: '"'
-        tableAliasQuoteCharacter: '"'
-
-    decorateInsert: (query, column)->
-        if typeof column is 'string' and column.length > 0
-            query += ' RETURNING "' + column + '"'
-        else
-            query
-
-    insertDefaultValue: (column)->
-        "(#{@escapeId(column)}) VALUES (DEFAULT)"
 
 # http://www.postgresql.org/docs/9.4/static/libpq-envars.html
 _env = _.pick process.env, [

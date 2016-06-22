@@ -6,6 +6,7 @@ module.exports = class SchemaCompiler
 
         @indent = options.indent or '    '
         @LF = options.LF or '\n'
+        @delimiter = options.delimiter or ';'
 
         for prop in ['adapter', 'args', 'words']
             @[prop] = columnCompiler[prop]
@@ -20,7 +21,7 @@ module.exports = class SchemaCompiler
 # http://www.postgresql.org/docs/9.4/static/sql-createtable.html
 SchemaCompiler::createTable = (tableModel, options)->
     options = _.defaults {}, options, @options
-    {words, escapeId, columnCompiler, args, indent, LF} = @
+    {words, escapeId, columnCompiler, args, indent, LF, delimiter} = @
 
     tableName = tableModel.name
     tableNameId = escapeId tableName
@@ -92,14 +93,14 @@ SchemaCompiler::createTable = (tableModel, options)->
 
     # indexes
     if tableModel.indexes and not _.isEmpty(tableModel.indexes)
-        tablesql.push ';'
+        tablesql.push delimiter
         tablesql.push LF
         count = 0
         for indexName, columns of tableModel.indexes
             if count is 0
                 count = 1
             else
-                tablesql.push ';'
+                tablesql.push delimiter
                 tablesql.push LF
             tablesql.push LF
             spaceLen = ' '.repeat(66 - 10 - indexName.length - 2)
@@ -141,7 +142,7 @@ SchemaCompiler::createTable = (tableModel, options)->
                 err.code = 'UPDATE RULE'
                 throw err
 
-            altersql.push.apply altersql, [LF, indent, indent, words.on_delete, ' ', words[delete_rule], ' ', words.on_update, ' ', words[update_rule], ';', LF]
+            altersql.push.apply altersql, [LF, indent, indent, words.on_delete, ' ', words[delete_rule], ' ', words.on_update, ' ', words[update_rule], delimiter, LF]
 
     {create: tablesql.join(''), alter: altersql.slice(1).join('')}
 

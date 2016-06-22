@@ -1,130 +1,7 @@
 _ = require 'lodash'
 common = require '../../schema/adapter'
-adapter = module.exports
-_.extend adapter, common
+adapter = _.extend module.exports, common
 logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
-
-mysql = require 'mysql'
-MySQLLibConnection = require 'mysql/lib/Connection'
-ConnectionConfig = require 'mysql/lib/ConnectionConfig'
-prependListener = require 'prepend-listener'
-once = require 'once'
-path = require 'path'
-HWM = Math.pow 2, 7
-
-class MySQLConnection extends MySQLLibConnection
-    adapter: adapter
-    constructor: (options)->
-        @options = _.clone options
-        super config: new ConnectionConfig options
-    query: (query, params, callback)->
-        stream = _createQuery query, params, callback
-        super stream.query
-        stream
-    stream: (query, params, callback, done)->
-        if arguments.length is 3
-            done = callback
-            callback = params
-            params = []
-        params = [] if not (params instanceof Array)
-        done = (->) if typeof done isnt 'function'
-        stream = MySQLLibConnection::query.call(@, query, params).stream highWaterMark: HWM
-        hasError = false
-        result = rowCount: 0
-        stream.once 'error', (err)->
-            hasError = err
-            done err
-            return
-        stream.on 'fields', (fields) ->
-            result.fields = fields
-            return
-        stream.on 'data', (row)->
-            if row.constructor.name is 'OkPacket'
-                result.fieldCount = row.fieldCount
-                result.affectedRows = row.affectedRows
-                result.changedRows = row.changedRows
-                result.lastInsertId = row.insertId
-            else
-                ++result.rowCount
-                callback row
-            return
-        stream.once 'end', ->
-            done undefined, result unless hasError
-            return
-        stream
-
-_createQuery = (text, values, callback)->
-    if typeof callback is 'undefined' and typeof values is 'function'
-        callback = values
-        values = undefined
-
-    values = values or []
-    query = mysql.createQuery text, values
-
-    stream = query.stream highWaterMark: HWM
-    emitClose = once stream.emit.bind stream, 'close'
-    prependListener query, 'end', emitClose
-
-    stream.query = query
-    stream.text = text
-    stream.values = values
-    stream.callback = callback
-
-    if typeof callback is 'function'
-        result =
-            rows: []
-            rowCount: 0
-            lastInsertId: 0
-            fields: null
-            fieldCount: 0
-
-        hasError = false
-        stream.on 'error', (err)->
-            emitClose()
-            hasError = true
-            @callback err
-            return
-        stream.on 'fields', (fields) ->
-            result.fields = fields
-            return
-        stream.on 'data', (row) ->
-            if row.constructor.name is 'OkPacket'
-                result.fieldCount = row.fieldCount
-                result.affectedRows = row.affectedRows
-                result.changedRows = row.changedRows
-                result.lastInsertId = row.insertId
-            else
-                ++result.rowCount
-                result.rows.push(row)
-            return
-        stream.on 'end', ->
-            @callback null, result unless hasError
-            return
-
-    stream.once 'end', ->
-        delete @query
-        return
-
-    stream
-
-_.extend adapter,
-    name: 'mysql'
-
-    createConnection: (options, callback)->
-        callback = (->) if typeof callback isnt 'function'
-        client = new MySQLConnection options
-        client.connect (err)->
-            return callback(err) if err
-            callback err, client
-
-    squelOptions:
-        replaceSingleQuotes: true
-        nameQuoteCharacter: '`'
-        fieldAliasQuoteCharacter: '`'
-        tableAliasQuoteCharacter: '`'
-
-    insertDefaultValue: (column)->
-        'VALUES ()'
 
 escapeOpts =
     id:
@@ -170,6 +47,134 @@ adapter.escapeId = common._escape.bind common, escapeOpts.id
 adapter.escapeSearch = common._escape.bind common, escapeOpts.search
 adapter.escapeBeginWith = common._escape.bind common, escapeOpts.begin
 adapter.escapeEndWith = common._escape.bind common, escapeOpts.end
+
+mysql = require 'mysql'
+MySQLLibConnection = require 'mysql/lib/Connection'
+ConnectionConfig = require 'mysql/lib/ConnectionConfig'
+prependListener = require 'prepend-listener'
+once = require 'once'
+path = require 'path'
+HWM = Math.pow 2, 7
+
+class MySQLConnection extends MySQLLibConnection
+    adapter: adapter
+    constructor: (options)->
+        @options = _.clone options
+        super config: new ConnectionConfig options
+
+    query: (query, params, callback)->
+        stream = @_createQuery query, params, callback
+        super stream.query
+        stream
+
+    stream: (query, params, callback, done)->
+        if arguments.length is 3
+            done = callback
+            callback = params
+            params = []
+        params = [] if not (params instanceof Array)
+        done = (->) if typeof done isnt 'function'
+
+        stream = MySQLLibConnection::query.call(@, query, params).stream highWaterMark: HWM
+        hasError = false
+        result = rowCount: 0
+        stream.once 'error', (err)->
+            hasError = err
+            done err
+            return
+        stream.on 'fields', (fields) ->
+            result.fields = fields
+            return
+        stream.on 'data', (row)->
+            if row.constructor.name is 'OkPacket'
+                result.fieldCount = row.fieldCount
+                result.affectedRows = row.affectedRows
+                result.changedRows = row.changedRows
+                result.lastInsertId = row.insertId
+            else
+                ++result.rowCount
+                callback row
+            return
+        stream.once 'end', ->
+            done undefined, result unless hasError
+            return
+        stream
+
+    _createQuery: (text, values, callback)->
+        if typeof callback is 'undefined' and typeof values is 'function'
+            callback = values
+            values = undefined
+
+        values = values or []
+        query = mysql.createQuery text, values
+
+        stream = query.stream highWaterMark: HWM
+        emitClose = once stream.emit.bind stream, 'close'
+        prependListener query, 'end', emitClose
+
+        stream.query = query
+        stream.text = text
+        stream.values = values
+        stream.callback = callback
+
+        if typeof callback is 'function'
+            result =
+                rows: []
+                rowCount: 0
+                lastInsertId: 0
+                fields: null
+                fieldCount: 0
+
+            hasError = false
+            stream.on 'error', (err)->
+                emitClose()
+                hasError = true
+                @callback err
+                return
+            stream.on 'fields', (fields) ->
+                result.fields = fields
+                return
+            stream.on 'data', (row) ->
+                if row.constructor.name is 'OkPacket'
+                    result.fieldCount = row.fieldCount
+                    result.affectedRows = row.affectedRows
+                    result.changedRows = row.changedRows
+                    result.lastInsertId = row.insertId
+                else
+                    ++result.rowCount
+                    result.rows.push(row)
+                return
+            stream.on 'end', ->
+                @callback null, result unless hasError
+                return
+
+        stream.once 'end', ->
+            delete @query
+            return
+
+        stream
+
+_.extend adapter,
+    name: 'mysql'
+
+    squelOptions:
+        nameQuoteCharacter: '`'
+        fieldAliasQuoteCharacter: '`'
+        tableAliasQuoteCharacter: '`'
+
+    insertDefaultValue: (insert, column)->
+        _toString = insert.toString
+        insert.toString = ->
+            _toString.call(insert) + ' VALUES()'
+        # insert.set @escapeId(column), '', {dontQuote: true}
+        return insert
+
+    createConnection: (options, callback)->
+        callback = (->) if typeof callback isnt 'function'
+        client = new MySQLConnection options
+        client.connect (err)->
+            return callback(err) if err
+            callback err, client
 
 fs = require 'fs'
 sysPath = require 'path'

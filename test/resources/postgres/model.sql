@@ -172,7 +172,7 @@ create domain "VERSION" as VARCHAR(10);
 /*==============================================================*/
 create table "ACTIONS" (
    "ACT_ID"               SERIAL            not null,
-   "ACT_CODE"             "CODE"                 not null,
+   "ACT_CODE"             "CODE"            not null,
    constraint "PK_ACTIONS" primary key ("ACT_ID")
 );
 
@@ -480,7 +480,7 @@ create  index "ACT_PRV_FK" on "PRIVILEDGES" (
 /*==============================================================*/
 create table "PROPERTIES" (
    "LPR_ID"               SERIAL            not null,
-   "LPR_CODE"             "CODE"                 not null,
+   "LPR_CODE"             "CODE"            not null,
    constraint "PK_PROPERTIES" primary key ("LPR_ID"),
    constraint "UK_LPR_CODE" unique ("LPR_CODE")
 );
