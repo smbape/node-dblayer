@@ -1,9 +1,0 @@
-/node_modules
-/scripts
-/test/coverage
-/test/databases/buma_test.sqlite
-/test/resources/postgres/crebas.sql
-/test/tmp
-/project.sublime-project
-/project.sublime-workspace
-/test/reports

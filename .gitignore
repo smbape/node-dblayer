@@ -1,8 +1,8 @@
-/lib
 /node_modules
+/scripts
 /test/coverage
 /test/databases/buma_test.sqlite
 /test/resources/postgres/crebas.sql
 /test/reports
 /test/tmp
-/project.sublime-workspace
+/*.sublime-workspace
