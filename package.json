@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "prepublish": "rm -rf lib && coffee -bo lib/ src/",
+    "prepublish": "rm -rf lib && node node_modules/coffee-script/bin/coffee -bo lib/ src/",
     "test": "node ./test/test.js ./test/prepare.coffee ./test/suite",
     "lint": "npm run prepublish && node node_modules/jshint/bin/jshint ./lib"
   },
@@ -25,6 +25,7 @@
   "dependencies": {
     "anyspawn": "^1.0.8",
     "async": "^2.2.0",
+    "coffee-script": "^1.12.4",
     "duplex-arraystream": "^0.0.1",
     "lodash": "^4.12.0",
     "log4js": "^0.6.36",
