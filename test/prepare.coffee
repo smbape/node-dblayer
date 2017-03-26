@@ -104,7 +104,7 @@ destroyPools = (done)->
     return
 
 before (done)->
-    @timeout 15 * 1000
+    @timeout 60 * 1000
     async.waterfall [
         (next)->
             logger.debug 'uninstall'
@@ -140,7 +140,7 @@ before (done)->
     ], done
 
 after (done)->
-    @timeout 15 * 1000
+    @timeout 60 * 1000
     destroyPools (err)->
         logger.warn(err) if err
         if config.keep
@@ -158,7 +158,7 @@ after (done)->
     return
 
 describe 'prepare', ->
-    @timeout 15 * 1000
+    @timeout 60 * 1000
     concatQueries = ({drop_constraints, drops, creates, alters})->
         drop_constraints.concat(drops).concat(creates).concat(alters).join(';\n')
 

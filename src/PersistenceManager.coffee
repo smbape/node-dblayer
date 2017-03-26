@@ -11,6 +11,19 @@ semLib = require 'sem-lib'
 tools = require './tools'
 {adapter: getAdapter, guessEscapeOpts} = tools
 
+hasProp = Object::hasOwnProperty
+
+flavours = {}
+do ->
+    for dialect of squel.flavours
+        _squel = squel.useFlavour(dialect)
+        _squel.cls.Expression = squel.cls.Expression
+        flavours[dialect] = _squel
+    return flavours
+
+getSquel = (dialect)->
+    if hasProp.call(flavours, dialect) then flavours[dialect] else squel
+
 DefaultQueryBuilderOptions = _.defaults
     replaceSingleQuotes: true
 , squel.cls.DefaultQueryBuilderOptions
@@ -59,7 +72,7 @@ module.exports = class PersistenceManager extends CompiledMapping
 
         if options and _.isObject(users = options.users)
             for name in ['admin', 'writer', 'reader']
-                if users.hasOwnProperty name
+                if hasProp.call users, name
                     pool = pools[name] = new AdapterPool(users[name])
                     connectors[name] = pool.createConnector()
 
@@ -111,9 +124,7 @@ assertValidModelInstance = (model)->
 
 PersistenceManager.getSquelQuery = PersistenceManager::getSquelQuery = (type, dialect)->
     options = _.defaults getAdapter(dialect).squelOptions, DefaultQueryBuilderOptions
-    _squel = squel.useFlavour(dialect)
-    _squel.cls.Expression = squel.cls.Expression
-    return _squel[type](options)
+    return getSquel(dialect)[type](options)
 
 PersistenceManager.getSquelOptions = PersistenceManager::getSquelOptions = (dialect)->
     return _.defaults getAdapter(dialect).squelOptions, DefaultQueryBuilderOptions
@@ -130,7 +141,7 @@ PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue =
     adapter = getAdapter(dialect)
 
     if 'function' is typeof adapter.insertDefaultValue
-        adapter.insertDefaultValue insert, column
+        adapter.insertDefaultValue insert, column, getSquel(dialect)
 
     insert
 
@@ -432,12 +443,12 @@ _addWhereAttr = (pMgr, model, attr, value, definition, where, options)->
 
     if options.useDefinitionColumn
         # ignore not defined properties
-        if not definition.properties.hasOwnProperty attr
+        if not hasProp.call definition.properties, attr
             return
         column = options.escapeId definition.properties[attr].column
     else
         # ignore not defined properties
-        if not definition.availableProperties.hasOwnProperty attr
+        if not hasProp.call definition.availableProperties, attr
             return
 
         column = '{' + attr + '}'
@@ -512,12 +523,18 @@ PersistenceManager.InsertQuery = class InsertQuery
 
         idName = pMgr.getIdName className
         id = model.get idName if idName isnt null
-        insert.set @options.escapeId(definition.id.column), id if id
+        props = Object.keys(definition.properties)
 
-        for prop, propDef of definition.properties
+        if id
+            insert.set @options.escapeId(definition.id.column), id
+            @hasData = true if props.length is 0
+
+        for prop in props
+            propDef = definition.properties[prop]
+
             column = propDef.column
 
-            if propDef.hasOwnProperty 'className'
+            if hasProp.call propDef, 'className'
                 parentModel = model.get prop
                 if typeof parentModel is 'undefined'
                     continue
@@ -588,6 +605,9 @@ PersistenceManager.InsertQuery = class InsertQuery
         tasks = []
 
         _addTask = (query, connector, index)->
+            if query.hasData and not self.hasData
+                self.hasData = query.hasData
+
             tasks.push (next)->
                 query.execute connector, (err, id)->
                     return next(err) if err
@@ -639,12 +659,12 @@ PersistenceManager.InsertQuery = class InsertQuery
         connector.query query.toString(), (err, res)->
             return callback(err) if err
 
-            if definition.id.hasOwnProperty 'column'
+            if hasProp.call definition.id, 'column'
                 # On sqlite, lastInsertId is only valid on autoincremented id's
                 # Therefor, always take setted field when possible
                 if fields[definition.id.column]
                     id = fields[definition.id.column]
-                else if res.hasOwnProperty 'lastInsertId'
+                else if hasProp.call res, 'lastInsertId'
                     id = res.lastInsertId
                 else
                     id = Array.isArray(res.rows) and res.rows.length > 0 and res.rows[0][definition.id.column]
@@ -652,7 +672,7 @@ PersistenceManager.InsertQuery = class InsertQuery
             logger.debug '[', definition.className, '] - INSERT', id
 
             if options.reflect
-                if definition.id.hasOwnProperty 'column'
+                if hasProp.call definition.id, 'column'
                     where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
                 pMgr.initialize model, _.defaults({connector, where}, options), (err)->
                     callback err, id
@@ -726,7 +746,7 @@ _toInsertLine = (level, withs)->
 _getCacheId = (options)->
     json = {}
     for opt in ['dialect', 'type', 'count', 'attributes', 'fields', 'join', 'where', 'group', 'having', 'order', 'limit', 'offset']
-        if options.hasOwnProperty opt
+        if hasProp.call options, opt
             if Array.isArray options[opt]
                 json[opt] = []
                 for val in options[opt]
@@ -1006,7 +1026,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 if -1 isnt result.constraint.indexOf prop
                     continue
 
-            if propDef.hasOwnProperty('className') and typeof (parentModel = model.get prop) isnt 'undefined'
+            if hasProp.call(propDef, 'className') and typeof (parentModel = model.get prop) isnt 'undefined'
                 # Class property
                 if parentModel is null or typeof parentModel is 'number'
                     # assume it is the id
@@ -1164,11 +1184,11 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         connector.query query.toString(), (err, res)->
             return callback(err) if err
 
-            if res.hasOwnProperty 'affectedRows'
+            if hasProp.call res, 'affectedRows'
                 hasNoUpdate = res.affectedRows is 0
-            else if definition.id.hasOwnProperty('column') and res.rows
+            else if hasProp.call(definition.id, 'column') and res.rows
                 hasNoUpdate = res.rows.length is 0
-            else if res.hasOwnProperty 'rowCount'
+            else if hasProp.call res, 'rowCount'
                 hasNoUpdate = res.rowCount is 0
 
             id = model.get definition.id.name
@@ -1185,7 +1205,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 catch err
                     callback err
                     return
-            else if definition.id.hasOwnProperty 'column'
+            else if hasProp.call definition.id, 'column'
                 where = '{' + pMgr.getIdName(definition.className) + '} = ' + id
 
             # only initialize owned properties
@@ -1193,7 +1213,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
             fields = Object.keys definition.availableProperties
             for field, i in fields
                 propDef = definition.availableProperties[field]
-                if definition.id isnt propDef.definition and not propDef.mixin and propDef.definition.hasOwnProperty('className')
+                if definition.id isnt propDef.definition and not propDef.mixin and hasProp.call(propDef.definition, 'className')
                     fields[i] = field + ':*'
 
             options = _.defaults({connector, fields, where}, options)
@@ -1241,7 +1261,7 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         # optimistic lock
         for prop, propDef of definition.properties
 
-            if propDef.hasOwnProperty 'className'
+            if hasProp.call propDef, 'className'
                 # cascade delete is not yet defined
                 continue
 
@@ -1283,7 +1303,7 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         next = (err, res)->
             return callback(err) if err
 
-            if not res.affectedRows and res.hasOwnProperty 'rowCount'
+            if not res.affectedRows and hasProp.call res, 'rowCount'
                 res.affectedRows = res.rowCount
 
             callback err, res

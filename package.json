@@ -24,7 +24,7 @@
   "readmeFilename": "readme.md",
   "dependencies": {
     "anyspawn": "^1.0.8",
-    "async": "^2.0.0-rc.5",
+    "async": "^2.2.0",
     "duplex-arraystream": "^0.0.1",
     "lodash": "^4.12.0",
     "log4js": "^0.6.36",
