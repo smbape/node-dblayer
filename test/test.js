@@ -2,13 +2,14 @@ var fs = require('fs'),
     cluster = require('cluster'),
     rimraf = require('rimraf'),
     program = require('commander'),
-    _ = require('lodash'),
+    defaults = require('lodash/defaults'),
     dialects = ['mysql', 'postgres'],
     exec = './node_modules/mocha/bin/_mocha',
     reportDir = './test/reports/',
     args = [],
-    tasks = [],
-    last, dialect, arg;
+    tasks = [], last, dialect, arg;
+
+const {fork, spawn} = require('child_process');
 
 if (cluster.isMaster) {
     program
@@ -24,13 +25,13 @@ if (cluster.isMaster) {
     }
 
     for (var i = 0, len = dialects.length; i < len; i++) {
-        tasks.push(cover.bind(null, dialects[i]));
+        tasks.push(testSuite.bind(null, dialects[i]));
     }
 
     if (program.cover) {
         args = [
             'cover',
-            '--dir', './test/reports/coverage',
+            '--dir', reportDir + 'coverage',
             '--report', 'none',
             // '--print', 'none',
             '--include-pid',
@@ -40,7 +41,7 @@ if (cluster.isMaster) {
         exec = './node_modules/istanbul/lib/cli.js';
 
         tasks.push(function() {
-            require('child_process').spawn('node', [
+            spawn('node', [
                 exec, 'report',
                 '--dir', reportDir + 'coverage'
             ], {
@@ -62,29 +63,26 @@ if (cluster.isMaster) {
     last = args.length - 1;
 
     rimraf(reportDir, function() {
-        cluster.on('exit', iterate);
         iterate();
     });
 }
 
-function iterate(worker, code, signal) {
+function iterate(code) {
     var task = tasks.shift();
-    if ((code === 0 || code === undefined) && task) {
+    if (!code && task) {
         task();
     }
 }
 
-function cover(dialect) {
-    if (dialect) {
-        args[last] = 'reportDir=' + reportDir + dialect;
+function testSuite(dialect) {
+    args[last] = 'reportDir=' + reportDir + dialect;
 
-        cluster.setupMaster({
-            exec: exec,
-            args: args
-        });
-
-        cluster.fork(_.defaults({
+    const child = fork(exec, args, {
+        env: defaults({
             DIALECT: dialect
-        }, process.env));
-    }
+        }, process.env)
+    });
+
+    child.on("error", iterate);
+    child.on("exit", iterate);
 }
