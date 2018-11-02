@@ -615,16 +615,20 @@ async.waterfall [
 log4js = global.log4js = require 'log4js'
 
 log4js.configure
-    "appenders": [
-        "type": "console"
-        "layout":
-            "type": "colored"
-    ],
-    "levels":
-        # DEBUG will log connection creation/destruction, inserted/updated ids
-        # TRACE will log every queries done through connector
-        "[all]": "DEBUG"
-
+    "appenders": {
+        "console": {
+            "type": "console",
+            "layout": {
+                "type": "colored"
+            }
+        }
+    },
+    "categories": {
+        "default": {
+            "appenders": ["console"],
+            "level": "ERROR"
+        }
+    }
 ```
 
 ## Test

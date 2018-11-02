@@ -1,6 +1,6 @@
 sysPath = require 'path'
 _ = require 'lodash'
-async = require 'async'
+waterfall = require 'async/waterfall'
 fs = require 'fs'
 chai = require 'chai'
 moment = require 'moment'
@@ -105,7 +105,7 @@ destroyPools = (done)->
 
 before (done)->
     @timeout 60 * 1000
-    async.waterfall [
+    waterfall [
         (next)->
             logger.debug 'uninstall'
             make.uninstall config, (err)->
@@ -116,8 +116,8 @@ before (done)->
         (next)->
             logger.debug 'install'
             make.install config, (err)->
-                logger.warn(err) if err
-                next()
+                # logger.warn(err) if err
+                next(err)
                 return
             return
         (next)->
@@ -130,14 +130,15 @@ before (done)->
         (next)->
             logger.debug 'install'
             make.install newConfig, (err)->
-                logger.warn(err) if err
+                # logger.warn(err) if err
                 {pools, connectors} = initPools(dialect, config, newConfig)
                 globals.pools = pools
                 globals.connectors = connectors
-                next()
+                next(err)
                 return
             return
     ], done
+    return
 
 after (done)->
     @timeout 60 * 1000
@@ -171,7 +172,7 @@ describe 'prepare', ->
             prompt: false
         }, _.pick(globals.config, ['tmp', 'keep', 'stdout', 'stderr'])
 
-        async.waterfall [
+        waterfall [
             (next)->
                 globals.pMgr.sync _.defaults({purge: true, exec: true}, opts), next
                 return
@@ -195,7 +196,7 @@ describe 'prepare', ->
 global.twaterfall = (connector, tasks, done)->
     acquired = false
     transaction = false
-    async.waterfall [
+    waterfall [
         (next)-> connector.acquire next
         (performed, next)->
             acquired = performed

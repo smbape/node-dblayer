@@ -20,10 +20,6 @@ _.extend exports,
             users: true
 
     mysql:
-        # If you are on Windows
-        # add in "C:\ProgramData\MySQL\MySQL Server 5.7\my.ini"
-        # lower_case_table_names=2
-        # and restart the server
         root: 'root'
         password: 'dev.mysql'
         host: '127.0.0.1'

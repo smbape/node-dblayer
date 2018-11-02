@@ -1,10 +1,11 @@
 fs = require 'fs'
 sysPath = require 'path'
+{ spawn } = require 'child_process'
+{ Writable } = require('stream')
 mkdirp = require 'mkdirp'
-cp = require 'child_process'
-spawn = cp.spawn
-_ = require 'lodash'
-ext = if process.platform.substring(0, 3) is 'win' then '.bat' else '.sh'
+isPlainObject = require 'lodash/isPlainObject'
+ext = if process.platform is 'win32' then '.bat' else '.sh'
+LF = if process.platform is 'win32' then '\r\n' else '\n'
 
 # @params:
 #   filename: <String> filename without extension
@@ -33,7 +34,7 @@ exports.createScript = (filename, variables, content, done)->
         done = content if 'function' is typeof content
         content = variables if 'string' is typeof variables
 
-    variables = {} if not _.isPlainObject variables
+    variables = {} if not isPlainObject variables
     content = '' if 'string' isnt typeof content
 
     script = []
@@ -54,19 +55,57 @@ exports.createScript = (filename, variables, content, done)->
     filename = filename + ext
 
     if 'function' is typeof done
-        fs.writeFile filename, script.join('\n'), (err)->
+        fs.writeFile filename, script.join(LF) + LF, (err)->
             done err, filename
             return
         return
 
-    fs.writeFileSync filename, script.join('\n')
+    fs.writeFileSync filename, script.join(LF) + LF
     return filename
 
 execute = (filename, args, stdio, done)->
-    child = spawn filename, args, stdio: stdio
+    outread = 0
+    outbuffers = []
+    outwrite
+    errread = 0
+    errbuffers = []
+    errwrite
+
+    # Buffer.concat(buffers, nread)
+    [ stdin, stdout, stderr ] = if stdio is "inherit" then [0, 1, 2] else if Array.isArray(stdio) then stdio else []
+
+    if not stdout
+        stdout = "pipe"
+        outwrite = (chunck) ->
+            outread += chunck.length
+            outbuffers.push(chunck)
+            return
+
+    if not stderr
+        stderr = "pipe"
+        errwrite = (chunck, encoding, callback) ->
+            errread += chunck.length
+            errbuffers.push(chunck)
+            return
+
+    stdio = [stdin, stdout, stderr]
+
+    child = spawn(filename, args, {stdio})
+
+    child.stderr.on("data", errwrite) if errwrite
+    child.stdout.on("data", outwrite) if outwrite
+
     child.on 'error', done
-    child.on 'exit', ->
-        done null, filename
+    child.on 'exit', (code) ->
+        if code
+            if errread
+                msg = Buffer.concat(errbuffers, errread).toString()
+            else if outread
+                msg = Buffer.concat(outbuffers, outread).toString()
+            else
+                msg = "exited with code #{ code }"
+            err = new Error(msg)
+        done err, filename
         return
     return
 

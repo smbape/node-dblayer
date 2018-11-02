@@ -10,6 +10,9 @@ describe 'sync', ->
     concatQueries = ({drop_constraints, drops, creates, alters})->
         drop_constraints.concat(drops).concat(creates).concat(alters).join(';\n')
 
+    tableNameLowerCase = (name, lower_case_table_names)->
+        return if lower_case_table_names is 1 then name.toLowerCase() else name
+
     it 'should update existing model', (done)->
         [pMgr, model, connector, Model] = setUpMapping()
         connector = globals.connectors.new_writer
@@ -33,28 +36,29 @@ describe 'sync', ->
             (queries, oldModel, newModel, next)->
                 # logger.fatal 'step', ++step
                 assert.ok concatQueries(queries).length
+                { options: { lower_case_table_names } } = queries
 
-                assert.property oldModel, 'ACTIONS'
-                assert.property oldModel, 'DEFAULT_PRIVILEDGES'
-                assert.property oldModel, 'DELEGATES'
-                assert.property oldModel, 'FOLDER'
-                assert.property oldModel, 'PRIVILEDGES'
-                assert.property oldModel, 'RESOURCE'
-                assert.property oldModel, 'WORKSPACE'
-                assert.property oldModel, 'CLASS_D'
-                assert.property oldModel.CLASS_D, 'indexes'
-                assert.property oldModel.CLASS_D.indexes, 'RELATIONSHIP_1_FK'
-                assert.property oldModel, 'CLASS_E'
-                assert.property oldModel.CLASS_E, 'indexes'
-                assert.property oldModel.CLASS_E.indexes, 'RELATIONSHIP_2_FK'
-                assert.property oldModel, 'CLASS_F'
-                assert.property oldModel.CLASS_F, 'indexes'
-                assert.property oldModel.CLASS_F.indexes, 'RELATIONSHIP_3_FK'
-                assert.property oldModel.CLASS_F.indexes, 'RELATIONSHIP_4_FK'
-                assert.property oldModel, 'CLASS_H'
-                assert.property oldModel.CLASS_H, 'indexes'
-                assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_5_FK'
-                assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_6_FK'
+                assert.property oldModel, tableNameLowerCase('ACTIONS', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('DEFAULT_PRIVILEDGES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('DELEGATES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('FOLDER', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('PRIVILEDGES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('RESOURCE', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('WORKSPACE', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('CLASS_D', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)].indexes, 'RELATIONSHIP_1_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_E', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_E', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_E', lower_case_table_names)].indexes, 'RELATIONSHIP_2_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_F', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)].indexes, 'RELATIONSHIP_3_FK'
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)].indexes, 'RELATIONSHIP_4_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_H', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)].indexes, 'RELATIONSHIP_5_FK'
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)].indexes, 'RELATIONSHIP_6_FK'
 
                 pMgr.sync _.defaults({purge: true, exec: false}, opts), next
                 return
@@ -62,28 +66,29 @@ describe 'sync', ->
                 # logger.fatal 'step', ++step
                 # not purge should keep not mapped tables but rename indexes
                 assert.ok concatQueries(queries).length
+                { options: { lower_case_table_names } } = queries
 
-                assert.property oldModel, 'ACTIONS'
-                assert.property oldModel, 'DEFAULT_PRIVILEDGES'
-                assert.property oldModel, 'DELEGATES'
-                assert.property oldModel, 'FOLDER'
-                assert.property oldModel, 'PRIVILEDGES'
-                assert.property oldModel, 'RESOURCE'
-                assert.property oldModel, 'WORKSPACE'
-                assert.property oldModel, 'CLASS_D'
-                assert.property oldModel.CLASS_D, 'indexes'
-                assert.property oldModel.CLASS_D.indexes, 'RELATIONSHIP_1_FK'
-                assert.property oldModel, 'CLASS_E'
-                assert.property oldModel.CLASS_E, 'indexes'
-                assert.property oldModel.CLASS_E.indexes, 'RELATIONSHIP_2_FK'
-                assert.property oldModel, 'CLASS_F'
-                assert.property oldModel.CLASS_F, 'indexes'
-                assert.property oldModel.CLASS_F.indexes, 'CUSTOM_FK'
-                assert.property oldModel.CLASS_F.indexes, 'CLASS_F_CLA_A_ID_HAS_CLASS_E_A_ID_FK'
-                assert.property oldModel, 'CLASS_H'
-                assert.property oldModel.CLASS_H, 'indexes'
-                assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_5_FK'
-                assert.property oldModel.CLASS_H.indexes, 'RELATIONSHIP_6_FK'
+                assert.property oldModel, tableNameLowerCase('ACTIONS', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('DEFAULT_PRIVILEDGES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('DELEGATES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('FOLDER', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('PRIVILEDGES', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('RESOURCE', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('WORKSPACE', lower_case_table_names)
+                assert.property oldModel, tableNameLowerCase('CLASS_D', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)].indexes, 'RELATIONSHIP_1_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_E', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_E', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_E', lower_case_table_names)].indexes, 'RELATIONSHIP_2_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_F', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)].indexes, 'CUSTOM_FK'
+                assert.property oldModel[tableNameLowerCase('CLASS_F', lower_case_table_names)].indexes, 'CLASS_F_CLA_A_ID_HAS_CLASS_E_A_ID_FK'
+                assert.property oldModel, tableNameLowerCase('CLASS_H', lower_case_table_names)
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)], 'indexes'
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)].indexes, 'RELATIONSHIP_5_FK'
+                assert.property oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)].indexes, 'RELATIONSHIP_6_FK'
 
                 pMgr.insertClassJ {propJ1: 'propJ1', propJ2: 'propJ2', propJ3: 'propJ3'}, {connector}, next
                 return
@@ -117,19 +122,20 @@ describe 'sync', ->
                 # logger.fatal 'step', ++step
                 # purge should remove tables and indexes
                 assert.lengthOf concatQueries(queries), 0
+                { options: { lower_case_table_names } } = queries
 
-                # console.log require('util').inspect oldModel.CLASS_D, {colors: true, depth: null}
+                # console.log require('util').inspect oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)], {colors: true, depth: null}
 
-                assert.notProperty oldModel, 'ACTIONS'
-                assert.notProperty oldModel, 'DEFAULT_PRIVILEDGES'
-                assert.notProperty oldModel, 'DELEGATES'
-                assert.notProperty oldModel, 'FOLDER'
-                assert.notProperty oldModel, 'PRIVILEDGES'
-                assert.notProperty oldModel, 'RESOURCE'
-                assert.notProperty oldModel, 'WORKSPACE'
-                assert.notProperty oldModel.CLASS_D, 'indexes'
-                assert.notProperty oldModel.CLASS_E, 'indexes'
-                assert.notProperty oldModel.CLASS_H, 'indexes'
+                assert.notProperty oldModel, tableNameLowerCase('ACTIONS', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('DEFAULT_PRIVILEDGES', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('DELEGATES', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('FOLDER', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('PRIVILEDGES', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('RESOURCE', lower_case_table_names)
+                assert.notProperty oldModel, tableNameLowerCase('WORKSPACE', lower_case_table_names)
+                assert.notProperty oldModel[tableNameLowerCase('CLASS_D', lower_case_table_names)], 'indexes'
+                assert.notProperty oldModel[tableNameLowerCase('CLASS_E', lower_case_table_names)], 'indexes'
+                assert.notProperty oldModel[tableNameLowerCase('CLASS_H', lower_case_table_names)], 'indexes'
 
                 pMgr.listClassJ {connector, type: 'json'}, next
                 return

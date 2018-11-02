@@ -189,6 +189,16 @@ module.exports =
                     index = table.indexes[INDEX_NAME] or (table.indexes[INDEX_NAME] = [])
                     index[INDEX_NUM] = COLUMN_NAME
 
-            callback err, model
+            connector.query "SHOW VARIABLES LIKE 'lower_case_table_names'", (err, result) ->
+                return callback(err) if err
+                {
+                    Value: lower_case_table_names
+                    # Variable_name
+                } = result.rows[0]
+
+                callback err, model, {
+                    lower_case_table_names: parseInt(lower_case_table_names, 10)
+                }
+                return
             return
         query

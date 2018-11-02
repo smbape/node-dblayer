@@ -1,13 +1,16 @@
 {
-    "appenders": [
-        {
+    "appenders": {
+        "console": {
             "type": "console",
             "layout": {
                 "type": "colored"
             }
         }
-    ],
-    "levels": {
-        "[all]": "ERROR"
+    },
+    "categories": {
+        "default": {
+            "appenders": ["console"],
+            "level": "ERROR"
+        }
     }
 }

@@ -309,7 +309,11 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
 
     for className, definition of pMgr.classes
         tableName = definition.table
-        tableMdel = dbmodel[tableName] =
+
+        if options.lower_case_table_names is 1
+            tableName = tableName.toLowerCase()
+
+        tableModel = dbmodel[tableName] =
             name: tableName
             columns: {}
             constraints:
@@ -320,23 +324,23 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
 
         if definition.id and definition.id.column
             primaryKey = 'PK_' + (definition.id.pk or tableName)
-            tableMdel.constraints['PRIMARY KEY'][primaryKey] = [definition.id.column]
-            column = tableMdel.columns[definition.id.column] = @getSpec definition.id, pMgr
+            tableModel.constraints['PRIMARY KEY'][primaryKey] = [definition.id.column]
+            column = tableModel.columns[definition.id.column] = @getSpec definition.id, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for id"
 
             column.nullable = false
             # a primary key implies unique index and not null
             # indexKey = tableName + '_PK'
-            # tableMdel.constraints.UNIQUE[indexKey] = [definition.id.column]
+            # tableModel.constraints.UNIQUE[indexKey] = [definition.id.column]
 
             if definition.id.className
                 parentDef = pMgr._getDefinition definition.id.className
                 # a primary key implies unique index and not null, no need for another index
-                @addForeignKeyConstraint 'EXT', tableMdel, definition.id, parentDef, _.defaults({fkindex: false}, options)
+                @addForeignKeyConstraint 'EXT', tableModel, definition.id, parentDef, _.defaults({fkindex: false}, options)
 
-        if _.isEmpty tableMdel.constraints['PRIMARY KEY']
-            delete tableMdel.constraints['PRIMARY KEY']
+        if _.isEmpty tableModel.constraints['PRIMARY KEY']
+            delete tableModel.constraints['PRIMARY KEY']
 
         for mixin, index in definition.mixins
             if mixin.column is definition.id.column
@@ -344,39 +348,39 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
 
             parentDef = pMgr._getDefinition mixin.className
 
-            column = tableMdel.columns[mixin.column] = @getSpec mixin, pMgr
+            column = tableModel.columns[mixin.column] = @getSpec mixin, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for mixin #{mixin.className}"
 
             column.nullable = false
             # a unique index will be added
-            [foreignKey, indexKey] = @addForeignKeyConstraint 'EXT', tableMdel, mixin, parentDef, _.defaults({fkindex: false}, options)
+            [foreignKey, indexKey] = @addForeignKeyConstraint 'EXT', tableModel, mixin, parentDef, _.defaults({fkindex: false}, options)
 
             # enforce unique key
-            tableMdel.constraints.UNIQUE[indexKey] = [mixin.column]
+            tableModel.constraints.UNIQUE[indexKey] = [mixin.column]
 
         for prop, propDef of definition.properties
-            column = tableMdel.columns[propDef.column] = @getSpec propDef, pMgr
+            column = tableModel.columns[propDef.column] = @getSpec propDef, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for property #{prop}"
 
             if propDef.className
                 parentDef = pMgr._getDefinition propDef.className
-                @addForeignKeyConstraint 'HAS', tableMdel, propDef, parentDef, options
+                @addForeignKeyConstraint 'HAS', tableModel, propDef, parentDef, options
 
-        if _.isEmpty tableMdel.constraints['FOREIGN KEY']
-            delete tableMdel.constraints['FOREIGN KEY']
+        if _.isEmpty tableModel.constraints['FOREIGN KEY']
+            delete tableModel.constraints['FOREIGN KEY']
 
         {unique, names} = definition.constraints
         for key, properties of unique
             name = 'UK_' + names[key]
-            tableMdel.constraints.UNIQUE[name] = properties.map propToColumn
+            tableModel.constraints.UNIQUE[name] = properties.map propToColumn
 
-        if _.isEmpty tableMdel.constraints.UNIQUE
-            delete tableMdel.constraints.UNIQUE
+        if _.isEmpty tableModel.constraints.UNIQUE
+            delete tableModel.constraints.UNIQUE
 
         for name, properties in definition.indexes
-            tableMdel.indexes[name] = properties.map propToColumn
+            tableModel.indexes[name] = properties.map propToColumn
 
     dbmodel
 
@@ -386,11 +390,11 @@ SchemaCompiler::getSpec = (model, pMgr)->
         spec.defaultValue = @escape spec.defaultValue
     spec
 
-SchemaCompiler::addForeignKeyConstraint = (name, tableMdel, propDef, parentDef, options = {})->
-    keyName = propDef.fk or "#{tableMdel.name}_#{propDef.column}_#{name}_#{parentDef.table}_#{parentDef.id.column}"
+SchemaCompiler::addForeignKeyConstraint = (name, tableModel, propDef, parentDef, options = {})->
+    keyName = propDef.fk or "#{tableModel.name}_#{propDef.column}_#{name}_#{parentDef.table}_#{parentDef.id.column}"
 
     foreignKey = "FK_#{keyName}"
-    tableMdel.constraints['FOREIGN KEY'][foreignKey] =
+    tableModel.constraints['FOREIGN KEY'][foreignKey] =
         column: propDef.column
         referenced_table: parentDef.table
         referenced_column: parentDef.id.column
@@ -414,6 +418,6 @@ SchemaCompiler::addForeignKeyConstraint = (name, tableMdel, propDef, parentDef, 
     # index_name, if given, is used as described previously.
     indexKey = "#{keyName}_FK"
     if ! propDef.unique and propDef.fkindex isnt false and options.fkindex isnt false
-        tableMdel.indexes[indexKey] = [propDef.column]
+        tableModel.indexes[indexKey] = [propDef.column]
 
     [foreignKey, indexKey]
