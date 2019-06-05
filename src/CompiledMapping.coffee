@@ -1,7 +1,7 @@
 log4js = require './log4js'
 logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 _ = require 'lodash'
-LRU = require 'lru-cache'
+LRUCache = require 'lru-cache'
 
 isStringNotEmpty = (str)->
     typeof str is 'string' and str.length > 0
@@ -9,13 +9,13 @@ isStringNotEmpty = (str)->
 modelId = 0
 class Model
     constructor: (attributes)->
-        @cid = ++modelId
+        this.cid = ++modelId
         if _.isPlainObject attributes
-            @attributes = _.clone attributes
+            this.attributes = _.clone attributes
         else
-            @attributes = {}
+            this.attributes = {}
     clone: ->
-        _clone = new @constructor()
+        _clone = new this.constructor()
         for own prop of @
             if prop isnt 'cid'
                 _clone[prop] = _.clone @[prop]
@@ -23,18 +23,18 @@ class Model
     set: (prop, value)->
         if _.isPlainObject prop
             for attr of prop
-                @set attr, prop[attr]
+                this.set attr, prop[attr]
             return @
         if prop is 'id'
-            @id = value
-        @attributes[prop] = value
+            this.id = value
+        this.attributes[prop] = value
         return @
     get: (prop)->
-        @attributes[prop]
+        this.attributes[prop]
     unset: (prop)->
-        delete @attributes[prop]
+        delete this.attributes[prop]
     toJSON: ->
-        @attributes
+        this.attributes
 
 specProperties = ['type', 'type_args', 'nullable', 'pk', 'fk', 'fkindex', 'defaultValue']
 
@@ -43,7 +43,7 @@ module.exports = class CompiledMapping
         for prop in ['classes', 'resolved', 'unresolved', 'tables']
             @[prop] = {}
 
-        @indexNames =
+        this.indexNames =
             pk: {}
             uk: {}
             fk: {}
@@ -55,21 +55,21 @@ module.exports = class CompiledMapping
 
         propToColumn = (prop)-> classDef.properties[prop].column
 
-        for className, classDef of @classes
+        for className, classDef of this.classes
             # Set undefined column for className properties
             for prop, propDef of classDef.properties
                 if propDef.hasOwnProperty('className')
-                    parentDef = @_getDefinition propDef.className
+                    parentDef = this._getDefinition propDef.className
                     _inheritType propDef, parentDef.id
                     if not propDef.hasOwnProperty('column')
                         propDef.column = parentDef.id.column
-                @_addColumn className, propDef.column, prop
+                this._addColumn className, propDef.column, prop
 
             # Set undefined fk for className properties
             for prop, propDef of classDef.properties
                 if propDef.hasOwnProperty('className')
                     if not propDef.hasOwnProperty('fk')
-                        parentDef = @_getDefinition propDef.className
+                        parentDef = this._getDefinition propDef.className
                         fk = "#{classDef.table}_#{propDef.column}_HAS_#{parentDef.table}_#{parentDef.id.column}"
                         propDef.fk = fk
                     _addIndexName propDef.fk, 'fk', @
@@ -83,52 +83,52 @@ module.exports = class CompiledMapping
                     _addIndexName name, 'uk', @
                     names[key] = name
 
-        @resolved = true
+        this.resolved = true
 
     Model: Model
     specProperties: specProperties
 
     getConstructor: (className)->
-        @assertClassHasMapping className
-        @classes[className].ctor
+        this.assertClassHasMapping className
+        this.classes[className].ctor
 
     newInstance: (className, attributes)->
-        @assertClassHasMapping className
-        new @classes[className].ctor attributes
+        this.assertClassHasMapping className
+        new this.classes[className].ctor attributes
 
     getIdName: (className)->
-        @assertClassHasMapping className
-        @classes[className].id.name
+        this.assertClassHasMapping className
+        this.classes[className].id.name
 
     getDefinition: (className)->
-        _.cloneDeep @_getDefinition className
+        _.cloneDeep this._getDefinition className
 
     getMapping: ->
-        _.cloneDeep @classes
+        _.cloneDeep this.classes
 
     getTable: (className)->
-        @_getDefinition(className).table
+        this._getDefinition(className).table
 
     getColumn: (className, prop)->
-        definition = @_getDefinition className
+        definition = this._getDefinition className
         if definition.id.name is prop
             definition.id.column
         else if definition.properties.hasOwnProperty prop
             definition.properties[prop].column
 
     assertClassHasMapping: (className)->
-        if not @classes.hasOwnProperty className
+        if not this.classes.hasOwnProperty className
             err = new Error "No mapping were found for class '#{className}'"
             err.code = 'UNDEF_CLASS'
             throw err
         return
 
     _getDefinition: (className)->
-        @assertClassHasMapping className
-        @classes[className]
+        this.assertClassHasMapping className
+        this.classes[className]
 
     _startResolving: (className)->
-        @unresolved[className] = true
+        this.unresolved[className] = true
 
         classDef =
             className: className
@@ -142,57 +142,57 @@ module.exports = class CompiledMapping
                 unique: {}
                 names: {}
             indexes: {}
-            cache: LRU(10)
+            cache: new LRUCache(10)
 
-        @classes[className] = classDef
+        this.classes[className] = classDef
 
     _markResolved: (className)->
-        delete @unresolved[className]
-        @resolved[className] = true
+        delete this.unresolved[className]
+        this.resolved[className] = true
         return
 
     _hasResolved: (className)->
-        @resolved.hasOwnProperty className
+        this.resolved.hasOwnProperty className
 
     _isResolving: (className)->
-        @unresolved.hasOwnProperty className
+        this.unresolved.hasOwnProperty className
 
     _hasTable: (table)->
-        @tables.hasOwnProperty table
+        this.tables.hasOwnProperty table
 
     _hasColumn: (className, column)->
-        definition = @classes[className]
+        definition = this.classes[className]
         definition.columns.hasOwnProperty column
 
     _getResolvedDependencies: (className)->
-        definition = @classes[className]
+        definition = this.classes[className]
         definition.dependencies.resolved
 
     _setResolvedDependency: (className, dependency)->
-        definition = @classes[className]
+        definition = this.classes[className]
         definition.dependencies.resolved[dependency] = true
         return
 
     _hasResolvedDependency: (className, dependency)->
-        definition = @classes[className]
+        definition = this.classes[className]
         definition.dependencies.resolved[dependency]
 
     _addTable: (className)->
-        definition = @classes[className]
-        if @_hasTable definition.table
+        definition = this.classes[className]
+        if this._hasTable definition.table
             err = new Error "[#{definition.className}] table '#{definition.table}' already exists"
             err.code = 'DUP_TABLE'
             throw err
-        @tables[definition.table] = true
+        this.tables[definition.table] = true
         return
 
     _addColumn: (className, column, prop)->
-        if @_hasColumn className, column
+        if this._hasColumn className, column
             err = new Error "[#{className}.#{prop}] column '#{column}' already exists"
             err.code = 'DUP_COLUMN'
             throw err
 
-        definition = @classes[className]
+        definition = this.classes[className]
         if isStringNotEmpty column
             definition.columns[column] = prop
         else
@@ -203,7 +203,7 @@ module.exports = class CompiledMapping
 
     # Returns parents of added mixin if they exist in this mapping
     _addMixin: (className, mixin)->
-        definition = @classes[className]
+        definition = this.classes[className]
         mixins = definition.dependencies.mixins
         mixinClassName = mixin.className
         parents = []
@@ -213,12 +213,12 @@ module.exports = class CompiledMapping
                 # if mixinClassName already exists
                 return
 
-            if @_hasResolvedDependency dependencyClassName, mixinClassName
+            if this._hasResolvedDependency dependencyClassName, mixinClassName
                 # if mixinClassName is a parent of another mixins dependencyClassName, ignore it
                 # depending on child => depending on parent
                 return
 
-            if @_hasResolvedDependency mixinClassName, dependencyClassName
+            if this._hasResolvedDependency mixinClassName, dependencyClassName
                 # if mixinClassName is a child of another mixins dependencyClassName, mark it
                 # it is not allowed to depend on parent and child, you must depend on child => parent
                 parents.push dependencyClassName
@@ -227,7 +227,7 @@ module.exports = class CompiledMapping
         if isStringNotEmpty mixin.column
             obj.column = mixin.column
         else
-            obj.column = @classes[mixinClassName].id.column
+            obj.column = this.classes[mixinClassName].id.column
 
         mixins.push obj
         parents

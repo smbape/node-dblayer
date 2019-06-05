@@ -1,9 +1,9 @@
-var sysPath = require("path");
-var rimraf = require("rimraf");
-rimraf(sysPath.join(__dirname, "../lib"), function(err) {
+const sysPath = require("path");
+const rimraf = require("rimraf");
+rimraf(sysPath.join(__dirname, "../lib"), err => {
     if (err) {
         throw err;
     }
 
-    require("coffee-script/bin/coffee");
+    require("coffeescript/bin/coffee");
 });

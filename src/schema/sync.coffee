@@ -10,7 +10,7 @@ exports.sync = (options, callback)->
         callback = options
         options = null
 
-    options = guessEscapeOpts(options, @defaults.sync)
+    options = guessEscapeOpts(options, this.defaults.sync)
     {connector, dialect} = options
 
     sync = require('../dialects/' + dialect + '/sync')

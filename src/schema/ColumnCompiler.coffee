@@ -5,19 +5,19 @@ module.exports = class ColumnCompiler
     adapter: require './adapter'
 
     constructor: (options)->
-        options = @options = _.clone options
-        @args = {}
+        options = this.options = _.clone options
+        this.args = {}
 
         if !!options.lower
-            @words = @LOWERWORDS
+            this.words = this.LOWERWORDS
         else
-            @words = @UPPERWORDS
+            this.words = this.UPPERWORDS
 
         for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
-            if 'function' is typeof @adapter[method]
-                @[method] = @adapter[method].bind @adapter
+            if 'function' is typeof this.adapter[method]
+                @[method] = this.adapter[method].bind this.adapter
 
-        @aliases()
+        this.aliases()
 
 LOWERWORDS = ColumnCompiler::LOWERWORDS = {
     add: 'add'
@@ -78,9 +78,9 @@ _.extend LOWERWORDS,
     bigint: 'bigint'
 
 ColumnCompiler::tinyint =
-ColumnCompiler::smallint = -> @words.smallint
-# ColumnCompiler::integer = -> @words.integer
-# ColumnCompiler::bigint = -> @words.bigint
+ColumnCompiler::smallint = -> this.words.smallint
+# ColumnCompiler::integer = -> this.words.integer
+# ColumnCompiler::bigint = -> this.words.bigint
 
 _.extend LOWERWORDS,
     decimal: 'decimal'
@@ -91,12 +91,12 @@ _.extend LOWERWORDS,
 
 # ColumnCompiler::decimal =
 # ColumnCompiler::numeric = (precision, scale) ->
-#     @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+#     this.words.numeric + '(' + this._num(precision, 8) + ', ' + this._num(scale, 2) + ')'
 
 # ColumnCompiler::float = (precision, scale) ->
-#     @words.float + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+#     this.words.float + '(' + this._num(precision, 8) + ', ' + this._num(scale, 2) + ')'
 
-# ColumnCompiler::double = -> @words.double
+# ColumnCompiler::double = -> this.words.double
 
 # ================================================================
 # Character Types
@@ -109,14 +109,14 @@ _.extend LOWERWORDS,
     text: 'text'
 
 # ColumnCompiler::char = (length)->
-#     @words.char + '(' + @_num(length, 255) + ')'
+#     this.words.char + '(' + this._num(length, 255) + ')'
 
 # ColumnCompiler::varchar = (length)->
-#     @words.varchar + '(' + @_num(length, 255) + ')'
+#     this.words.varchar + '(' + this._num(length, 255) + ')'
 
 ColumnCompiler::tinytext =
 ColumnCompiler::mediumtext =
-ColumnCompiler::text = -> @words.text
+ColumnCompiler::text = -> this.words.text
 
 # ================================================================
 # Date/Time Types
@@ -129,10 +129,10 @@ _.extend LOWERWORDS,
     timetz: 'timetz'
     timestamptz: 'timestamptz'
 
-# ColumnCompiler::date = -> @words.date
-# ColumnCompiler::datetime = -> @words.datetime
-# ColumnCompiler::time = -> @words.time
-# ColumnCompiler::timestamp = -> @words.timestamp
+# ColumnCompiler::date = -> this.words.date
+# ColumnCompiler::datetime = -> this.words.datetime
+# ColumnCompiler::time = -> this.words.time
+# ColumnCompiler::timestamp = -> this.words.timestamp
 
 # ================================================================
 # Other Types
@@ -142,7 +142,7 @@ _.extend LOWERWORDS,
     boolean: 'boolean'
     enum: 'enum'
 
-# ColumnCompiler::bool = -> @words.boolean
+# ColumnCompiler::bool = -> this.words.boolean
 # ColumnCompiler::enum = -> throw new Error 'enum type is not defined'
 
 _.extend LOWERWORDS,
@@ -153,13 +153,13 @@ _.extend LOWERWORDS,
 
 # ColumnCompiler::binary =
 # ColumnCompiler::bit = (length)->
-#     length = @_num(length, null)
-#     if length then @words.bit + '(' + length + ')' else @words.bit
+#     length = this._num(length, null)
+#     if length then this.words.bit + '(' + length + ')' else this.words.bit
 
 ColumnCompiler::varbinary =
 ColumnCompiler::varbit = (length)->
-    length = @_num(length, null)
-    if length then @words.bit + '(' + length + ')' else @words.bit
+    length = this._num(length, null)
+    if length then this.words.bit + '(' + length + ')' else this.words.bit
 
 _.extend LOWERWORDS,
     xml: 'xml'
@@ -169,8 +169,8 @@ _.extend LOWERWORDS,
 
 ColumnCompiler::xml =
 ColumnCompiler::json =
-ColumnCompiler::jsonb = -> @words.text
-ColumnCompiler::uuid = -> @words.char + '(63)'
+ColumnCompiler::jsonb = -> this.words.text
+ColumnCompiler::uuid = -> this.words.char + '(63)'
 
 ColumnCompiler::_num = (val, fallback) ->
     if val is undefined or val is null
@@ -195,7 +195,7 @@ ColumnCompiler::ALIASES =
 ColumnCompiler::aliases = ->
     instance = @
 
-    for type, aliases of @ALIASES
+    for type, aliases of this.ALIASES
         for alias in aliases
             if 'function' isnt typeof instance[alias]
                 instance[alias] = instance[type]
@@ -203,13 +203,13 @@ ColumnCompiler::aliases = ->
     instance
 
 ColumnCompiler::pkString = (pkName, columns)->
-    @adapter.escapeId(pkName) + ' ' + @words.primary_key + ' (' + columns.map(@adapter.escapeId).join(', ') + ')'
+    this.adapter.escapeId(pkName) + ' ' + this.words.primary_key + ' (' + columns.map(this.adapter.escapeId).join(', ') + ')'
 
 ColumnCompiler::ukString = (ukName, columns)->
-    @adapter.escapeId(ukName) + ' ' + @words.unique + ' (' + columns.map(@adapter.escapeId).join(', ') + ')'
+    this.adapter.escapeId(ukName) + ' ' + this.words.unique + ' (' + columns.map(this.adapter.escapeId).join(', ') + ')'
 
 ColumnCompiler::indexString = (indexName, columns, tableNameId)->
-    @adapter.escapeId(indexName) + ' ' + @words.on + ' ' + tableNameId + '(' + columns.map(@adapter.escapeId).join(', ') + ')'
+    this.adapter.escapeId(indexName) + ' ' + this.words.on + ' ' + tableNameId + '(' + columns.map(this.adapter.escapeId).join(', ') + ')'
 
 ColumnCompiler::getTypeString = (spec)->
     type = spec.type.toLowerCase()
@@ -227,10 +227,10 @@ ColumnCompiler::getTypeString = (spec)->
 
 ColumnCompiler::getColumnModifier = (spec)->
     if spec.defaultValue isnt undefined and spec.defaultValue isnt null
-        return @words.default + ' ' + spec.defaultValue
+        return this.words.default + ' ' + spec.defaultValue
     else if spec.nullable is false
-        return @words.not_null
+        return this.words.not_null
     else
-        return @words.null
+        return this.words.null
 
 ColumnCompiler::UPPERWORDS = tools.toUpperWords ColumnCompiler::LOWERWORDS

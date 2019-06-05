@@ -11,7 +11,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   DROP [ COLUMN ] [ IF EXISTS ] column_name [ RESTRICT | CASCADE ]
     dropColumn: (tableName, column, options)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, args, indent, LF} = @
 
         args.table = tableName
@@ -39,7 +39,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
     #     => need for oldTableSpec, newTableSpec
     #     => drop all affected indexes. Diff on indexes will recreate it
     diffType: (tableName, column, oldColumnSpec, newColumnSpec)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, escape, columnCompiler, args, indent, LF} = @
 
         args.table = tableName
@@ -100,7 +100,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
         if _.isObject(newName)
             newName = newName.name
 
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId} = @
 
         altersql = [words.alter_table]
@@ -121,7 +121,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
         if _.isObject(tableName)
             tableName = tableName.name
 
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, indent, LF} = @
 
         altersql = [words.alter_table, ' ']
@@ -150,7 +150,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
     # http://www.postgresql.org/docs/9.4/static/sql-alterindex.html
     # ALTER INDEX [ IF EXISTS ] name RENAME TO new_name
     renameIndex: (tableName, oldName, newName, options)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId} = @
 
         altersql = [words.alter_index]
@@ -163,7 +163,7 @@ module.exports = class PgSchemaCompiler extends SchemaCompiler
     # http://www.postgresql.org/docs/9.4/static/sql-dropindex.html
     # DROP INDEX [ CONCURRENTLY ] [ IF EXISTS ] name [, ...] [ CASCADE | RESTRICT ]
     dropIndex: (tableName, indexName, options = {})->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId} = @
 
         altersql = [words.drop_index]

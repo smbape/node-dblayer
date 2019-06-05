@@ -1,10 +1,17 @@
 log4js = require './log4js'
 logger = log4js.getLogger __filename.replace /^(?:.+[\/\\])?([^.\/\\]+)(?:.[^.]+)?$/, '$1'
 
-_ = require 'lodash'
 url = require 'url'
 sysPath = require 'path'
-semLib = require 'sem-lib'
+{Semaphore} = require 'sem-lib'
+
+clone = require('lodash/clone')
+defaults = require('lodash/defaults')
+extend = require('lodash/extend')
+isObject = require('lodash/isObject')
+isPlainObject = require('lodash/isPlainObject')
+
+inherits = require './inherits'
 Connector = require './Connector'
 
 # Based on jQuery 1.11
@@ -20,7 +27,7 @@ internal.getAdapter = (options)->
         if typeof adapter is 'undefined'
             adapter = require './dialects/' + options.adapter + '/adapter'
             internal.adapters[options.adapter] = adapter
-    else if _.isObject options.adapter
+    else if isObject options.adapter
         adapter = options.adapter
 
     if typeof adapter.createConnection isnt 'function'
@@ -42,33 +49,38 @@ levelMap =
     verbose: 'trace'
 
 client_seq_id = 0
-class SemaphorePool extends semLib.Semaphore
-    constructor: (options = {})->
-        @_factory = {}
 
-        for opt in ['name', 'create', 'destroy', 'priority']
-            if options.hasOwnProperty opt
-                @_factory[opt] = options[opt]
+SemaphorePool = (options = {})->
+    this._factory = {}
 
-        for opt in ['min', 'max', 'idle']
-            if options.hasOwnProperty opt
-                @_factory[opt] = parseInt options[opt], 10
-            else
-                @_factory[opt] = 0
+    for opt in ['name', 'create', 'destroy', 'priority']
+        if options.hasOwnProperty opt
+            this._factory[opt] = options[opt]
 
-        super @_max, true, @_priority
-        @_created = {length: 0}
-        @_acquired = {}
-        @_avalaible = []
-        @_timers = {}
-        @_listeners = {}
-        @_ensureMinimum()
+    for opt in ['min', 'max', 'idle']
+        if options.hasOwnProperty opt
+            this._factory[opt] = parseInt options[opt], 10
+        else
+            this._factory[opt] = 0
 
+    SemaphorePool.__super__.constructor.call(this, this._max, true, this._priority)
+
+    this._created = {length: 0}
+    this._acquired = {}
+    this._avalaible = []
+    this._timers = {}
+    this._listeners = {}
+    this._ensureMinimum()
+    return
+
+inherits(SemaphorePool, Semaphore)
+
+Object.assign(SemaphorePool.prototype, {
     getName: ->
-        @_factory.name
+        this._factory.name
 
     acquire: (callback, opts = {})->
-        if @destroyed
+        if this.destroyed
             callback new Error 'pool is destroyed'
             return
         self = @
@@ -95,49 +107,49 @@ class SemaphorePool extends semLib.Semaphore
                 return
 
     _onClientCreate: (client)->
-        if @_destroying or @destroyed
-            @_factory.destroy client
+        if this._destroying or this.destroyed
+            this._factory.destroy client
             return new Error 'pool is destroyed'
 
-        logger.debug '[', @_factory.name, '] [', @id, '] acquire', @_avalaible.length
-        @_created.length++
-        @_created[client.id] = client
-        @_acquired[client.id] = client
-        listener = @_listeners[client.id] = @_removeClient.bind(@, client)
+        logger.debug '[', this._factory.name, '] [', this.id, '] acquire', this._avalaible.length
+        this._created.length++
+        this._created[client.id] = client
+        this._acquired[client.id] = client
+        listener = this._listeners[client.id] = this._removeClient.bind(@, client)
         client.on 'end', listener
         return
 
     release: (client)->
-        if @_acquired.hasOwnProperty client.id
-            logger.debug "[", @_factory.name, "] [", @id, "] release '", client.id, "'. Avalaible", @_avalaible.length
-            @_avalaible.push client.id
-            delete @_acquired[client.id]
-            @_idle client
-            return @semGive()
+        if this._acquired.hasOwnProperty client.id
+            logger.debug "[", this._factory.name, "] [", this.id, "] release '", client.id, "'. Avalaible", this._avalaible.length
+            this._avalaible.push client.id
+            delete this._acquired[client.id]
+            this._idle client
+            return this.semGive()
         return false
 
     _idle: (client)->
-        if @_factory.idle > 0
-            @_removeIdle client
-            @_timers[client.id] = setTimeout @destroy.bind(@, client), @_factory.idle
-            logger.debug "[", @_factory.name, "] [", @id, "] idle [", client.id, "]"
+        if this._factory.idle > 0
+            this._removeIdle client
+            this._timers[client.id] = setTimeout this.destroy.bind(@, client), this._factory.idle
+            logger.debug "[", this._factory.name, "] [", this.id, "] idle [", client.id, "]"
         return
 
     _removeIdle: (client)->
-        if @_timers.hasOwnProperty client.id
-            logger.debug "[", @_factory.name, "] [", @id, "] remove idle [", client.id, "]"
-            clearTimeout @_timers[client.id]
-            delete @_timers[client.id]
+        if this._timers.hasOwnProperty client.id
+            logger.debug "[", this._factory.name, "] [", this.id, "] remove idle [", client.id, "]"
+            clearTimeout this._timers[client.id]
+            delete this._timers[client.id]
         return
 
     destroy: (client, force)->
-        if @_created.hasOwnProperty client.id
-            if force or @_factory.min < @_created.length
-                @_removeClient client
-                @_factory.destroy client
+        if this._created.hasOwnProperty client.id
+            if force or this._factory.min < this._created.length
+                this._removeClient client
+                this._factory.destroy client
                 return true
             else
-                @_idle client
+                this._idle client
         return false
 
     _superDestroy: (safe, _onDestroy)->
@@ -152,33 +164,33 @@ class SemaphorePool extends semLib.Semaphore
         return
 
     _removeClient: (client)->
-        if @_created.hasOwnProperty client.id
-            @_created.length--
-            listener = @_listeners[client.id]
+        if this._created.hasOwnProperty client.id
+            this._created.length--
+            listener = this._listeners[client.id]
             client.removeListener 'end', listener
-            @_removeIdle client
-            @release client
-            index = @_avalaible.indexOf client.id
-            @_avalaible.splice index, 1 if ~index
+            this._removeIdle client
+            this.release client
+            index = this._avalaible.indexOf client.id
+            this._avalaible.splice index, 1 if ~index
 
-            delete @_listeners[client.id]
-            delete @_created[client.id]
-            delete @_acquired[client.id]
+            delete this._listeners[client.id]
+            delete this._created[client.id]
+            delete this._acquired[client.id]
 
-            logger.debug "[", @_factory.name, "] [", @id, "] removed '", client.id, "'. ", @_avalaible.length, "/", @_created.length
+            logger.debug "[", this._factory.name, "] [", this.id, "] removed '", client.id, "'. ", this._avalaible.length, "/", this._created.length
 
-            @_ensureMinimum() if not @_destroying
+            this._ensureMinimum() if not this._destroying
         return
 
     _onDestroy: (safe)->
-        @_avalaible.splice 0, @_avalaible.length
+        this._avalaible.splice 0, this._avalaible.length
 
-        for clientId, client of @_created
+        for clientId, client of this._created
             if clientId isnt 'length'
-                @_removeClient client
-                @_factory.destroy client
+                this._removeClient client
+                this._factory.destroy client
 
-        for clientId, timer of @_timers
+        for clientId, timer of this._timers
             clearTimeout timer if timer
 
         return
@@ -192,9 +204,10 @@ class SemaphorePool extends semLib.Semaphore
                 self._ensureMinimum()
                 return
         return
+})
 
 _delegateAdapterExec = (defaultOptions, script, options, done)->
-    if _.isPlainObject(script)
+    if isPlainObject(script)
         _script = options
         options = script
         script = _script
@@ -203,140 +216,147 @@ _delegateAdapterExec = (defaultOptions, script, options, done)->
         done = options
         options = {}
 
-    if not _.isPlainObject(options)
+    if not isPlainObject(options)
         options = {}
 
-    @exec script, _.defaults({}, options, defaultOptions), done
+    this.exec script, defaults({}, options, defaultOptions), done
 
-module.exports = class AdapterPool extends SemaphorePool
-    constructor: (connectionUrl, options, next)->
-        if arguments.length is 1
-            if connectionUrl isnt null and 'object' is typeof connectionUrl
-                options = connectionUrl
-                connectionUrl = null
+AdapterPool = (connectionUrl, options, next)->
+    if arguments.length is 1
+        if connectionUrl isnt null and 'object' is typeof connectionUrl
+            options = connectionUrl
+            connectionUrl = null
 
-        else if arguments.length is 2
-            if 'function' is typeof options
-                next = options
-                options = null
+    else if arguments.length is 2
+        if 'function' is typeof options
+            next = options
+            options = null
 
-            if connectionUrl isnt null and 'object' is typeof connectionUrl
-                options = connectionUrl
-                connectionUrl = null
+        if connectionUrl isnt null and 'object' is typeof connectionUrl
+            options = connectionUrl
+            connectionUrl = null
 
-        if connectionUrl and typeof connectionUrl isnt 'string'
-            err = new Error "'connectionUrl' must be a String"
-            err.code = 'BAD_CONNECTION_URL'
-            throw err
+    if connectionUrl and typeof connectionUrl isnt 'string'
+        err = new Error "'connectionUrl' must be a String"
+        err.code = 'BAD_CONNECTION_URL'
+        throw err
 
-        if options and 'object' isnt typeof options
-            err = new Error "'options' must be an object"
-            err.code = 'BAD_OPTION'
-            throw err
+    if options and 'object' isnt typeof options
+        err = new Error "'options' must be an object"
+        err.code = 'BAD_OPTION'
+        throw err
 
-        if connectionUrl
-            @connectionUrl = connectionUrl
+    if connectionUrl
+        this.connectionUrl = connectionUrl
 
-            parsed = url.parse connectionUrl, true, true
-            @options = {}
-            @options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
-            @options.database = parsed.pathname and parsed.pathname.substring(1)
-            @options.host = parsed.hostname
-            @options.port = parseInt(parsed.port, 10) if isNumeric parsed.port
-            if parsed.auth
-                # treat the first : as separator since password may contain : as well
-                index = parsed.auth.indexOf ':'
-                @options.user = parsed.auth.substring 0, index
-                @options.password = parsed.auth.substring index + 1
+        parsed = url.parse connectionUrl, true, true
+        this.options = {}
+        this.options.adapter = parsed.protocol and parsed.protocol.substring(0, parsed.protocol.length - 1)
+        this.options.database = parsed.pathname and parsed.pathname.substring(1)
+        this.options.host = parsed.hostname
+        this.options.port = parseInt(parsed.port, 10) if isNumeric parsed.port
+        if parsed.auth
+            # treat the first : as separator since password may contain : as well
+            index = parsed.auth.indexOf ':'
+            this.options.user = parsed.auth.substring 0, index
+            this.options.password = parsed.auth.substring index + 1
 
-            for key of parsed.query
-                @options[key] = parsed.query[key]
+        for key of parsed.query
+            this.options[key] = parsed.query[key]
 
-            _.extend @options, options
-            options or (options = {})
-        else if options
-            @options = _.clone options
-            parsed = query: {}
-            parsed.protocol = @options.adapter + '/'
-            parsed.pathname = '/' + @options.database
-            parsed.hostname = @options.host
-            parsed.port = @options.port if isNumeric @options.port
-            if 'string' is typeof @options.user and @options.user.length > 0
-                if 'string' is typeof @options.password and @options.password.length > 0
-                    parsed.auth = @options.user + ':' + @options.password
-                else
-                    parsed.auth = @options.user
-
-            except = ['adapter', 'database', 'port', 'user', 'password']
-            for key of @options
-                if -1 is except.indexOf key
-                    parsed.query[key] = @options[key]
-            @connectionUrl = url.format parsed
-        else
-            err = new Error "Invalid arguments. Usage: options[, fn]; url[, fn]: url, options[, fn]"
-            err.code = 'INVALID_ARGUMENTS'
-            throw err
-
-        if typeof @options.adapter isnt 'string' or @options.adapter.length is 0
-            err = new Error 'adapter must be a not empty string'
-            err.code = 'BAD_ADAPTER'
-            throw err
-
-        for prop in ['name']
-            @options[prop] = options[prop] if typeof options.hasOwnProperty prop
-
-        for prop in ['minConnection', 'maxConnection', 'idleTimeout']
-            if isNumeric @options[prop]
-                @options[prop] = parseInt @options[prop], 10
+        extend this.options, options
+        options or (options = {})
+    else if options
+        this.options = clone options
+        parsed = query: {}
+        parsed.protocol = this.options.adapter + '/'
+        parsed.pathname = '/' + this.options.database
+        parsed.hostname = this.options.host
+        parsed.port = this.options.port if isNumeric this.options.port
+        if 'string' is typeof this.options.user and this.options.user.length > 0
+            if 'string' is typeof this.options.password and this.options.password.length > 0
+                parsed.auth = this.options.user + ':' + this.options.password
             else
-                @options[prop] = defaultOptions[prop]
+                parsed.auth = this.options.user
 
-        adapter = @adapter = internal.getAdapter @options
-        for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
-            if 'function' is typeof adapter[method]
-                @[method] = adapter[method].bind adapter
+        except = ['adapter', 'database', 'port', 'user', 'password']
+        for key of this.options
+            if -1 is except.indexOf key
+                parsed.query[key] = this.options[key]
+        this.connectionUrl = url.format parsed
+    else
+        err = new Error "Invalid arguments. Usage: options[, fn]; url[, fn]: url, options[, fn]"
+        err.code = 'INVALID_ARGUMENTS'
+        throw err
 
-        @exec = @execute = _delegateAdapterExec.bind adapter, @options
+    if typeof this.options.adapter isnt 'string' or this.options.adapter.length is 0
+        err = new Error 'adapter must be a not empty string'
+        err.code = 'BAD_ADAPTER'
+        throw err
 
-        self = @
-        super
-            name: self.options.name
+    for prop in ['name']
+        this.options[prop] = options[prop] if typeof options.hasOwnProperty prop
 
-            create: (callback)->
-                self.adapter.createConnection self.options, (err, client)->
-                    return callback(err, null) if err
-                    client.id = ++client_seq_id
-                    logger.info "[", self._factory.name, "] [", self.id, "] create [", client_seq_id, "]"
-                    callback null, client
-                    return
+    for prop in ['minConnection', 'maxConnection', 'idleTimeout']
+        if isNumeric this.options[prop]
+            this.options[prop] = parseInt this.options[prop], 10
+        else
+            this.options[prop] = defaultOptions[prop]
+
+    adapter = this.adapter = internal.getAdapter this.options
+    for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
+        if 'function' is typeof adapter[method]
+            @[method] = adapter[method].bind adapter
+
+    this.exec = this.execute = _delegateAdapterExec.bind adapter, this.options
+
+    self = @
+
+    AdapterPool.__super__.constructor.call(this, {
+        name: self.options.name
+
+        create: (callback)->
+            self.adapter.createConnection self.options, (err, client)->
+                return callback(err, null) if err
+                client.id = ++client_seq_id
+                logger.info "[", self._factory.name, "] [", self.id, "] create [", client_seq_id, "]"
+                callback null, client
                 return
+            return
 
-            destroy: (client)->
-                return if client._destroying
-                client._destroying = true
-                client.end()
-                logger.info "[", self._factory.name, "] [", self.id, "] destroy [", client.id, "]"
-                return
+        destroy: (client)->
+            return if client._destroying
+            client._destroying = true
+            client.end()
+            logger.info "[", self._factory.name, "] [", self.id, "] destroy [", client.id, "]"
+            return
 
-            max: self.options.maxConnection
-            min: self.options.minConnection
-            idle: self.options.idleTimeout * 1000
+        max: self.options.maxConnection
+        min: self.options.minConnection
+        idle: self.options.idleTimeout * 1000
+    })
 
-        self.check(next) if typeof next is 'function'
-        return
+    self.check(next) if typeof next is 'function'
+    return
 
+inherits(AdapterPool, SemaphorePool)
+
+Object.assign(AdapterPool.prototype, {
     check: (next)->
         if 'function' isnt typeof next
             next = ->
-        @acquire (err, connection)=>
+        this.acquire (err, connection)=>
             return next err if err
-            @release connection
+            this.release connection
             next()
             return
         return
     getDialect: ->
-        return @options.adapter
+        return this.options.adapter
     createConnector: (options)->
-        new Connector @, _.defaults {}, options, @options
+        new Connector @, defaults {}, options, this.options
     getMaxConnection: ->
-        @options.maxConnection
+        this.options.maxConnection
+})
+
+module.exports = AdapterPool

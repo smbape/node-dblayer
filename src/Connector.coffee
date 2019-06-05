@@ -21,7 +21,7 @@ MAX_ACQUIRE_TIME = 1 * 60 * 1000
 module.exports = class Connector extends EventEmitter
     STATES: STATES
     constructor: (pool, options)->
-        super
+        super()
         if not _.isObject pool
             error = new Error 'pool is not defined'
             error.code = 'POOL_UNDEFINED'
@@ -36,194 +36,195 @@ module.exports = class Connector extends EventEmitter
                 @[method] = pool[method].bind pool
 
         if _.isPlainObject options
-            @options = _.clone options
+            this.options = _.clone options
         else
-            @options = {}
+            this.options = {}
 
-        @timeout = @options.timeout or MAX_ACQUIRE_TIME
-        @resourceSem = semLib.semCreate 1, true
-        @pool = pool
-        @_savepoints = 0
-        @state = STATES.AVAILABLE
-        @acquireTimeout = 0
+        this.timeout = this.options.timeout or MAX_ACQUIRE_TIME
+        this.resourceSem = semLib.semCreate 1, true
+        this.pool = pool
+        this._savepoints = 0
+        this.state = STATES.AVAILABLE
+        this.acquireTimeout = 0
 
-        @resource = 1
-        @waiting = []
+        this.resource = 1
+        this.waiting = []
+        this._savepointsStack = []
 
     clone: ->
-        new Connector @pool, @options
+        new Connector this.pool, this.options
 
     getPool: ->
-        @pool
+        this.pool
 
     getMaxConnection: ->
-        @pool.getMaxConnection()
+        this.pool.getMaxConnection()
 
     _addSavePoint: (client)->
+        this._savepointsStack.push(new Error("_addSavePoint"))
         if client
-            @_client = client
-            @acquireTimeout = setTimeout @_forceRelease, @timeout
-            client.on 'end', @_checkSafeEnd
+            this._client = client
+            this.acquireTimeout = setTimeout this._forceRelease, this.timeout
+            client.on 'end', this._checkSafeEnd
             logger.debug 'acquired client', client.id
-        @_savepoints++
+        this._savepoints++
 
     _forceRelease: =>
-        @_takeResource STATES.FORCE_RELEASE, =>
-            if @_savepoints is 0
-                return @_giveResource()
-            @state = STATES.INVALID
+        this._takeResource STATES.FORCE_RELEASE, =>
+            if this._savepoints is 0
+                return this._giveResource()
+            this.state = STATES.INVALID
             logger.warn 'Force rollback and release cause acquire last longer than acceptable'
-            @_rollback @_giveResource, true
+            this._rollback this._giveResource, true
             return
         , true
         return
 
     _checkSafeEnd: =>
-        if @_savepoints isnt 0
+        if this._savepoints isnt 0
             logger.warn 'client ends in the middle of a transaction'
-            @state = STATES.INVALID
-            @_release(->)
+            this.state = STATES.INVALID
+            this._release(->)
         return
 
     _removeSavepoint: ->
-        if --@_savepoints is 0
-            @_client.removeListener 'end', @_checkSafeEnd
-            logger.debug 'released client', @_client.id
-            @_client = null
+        this._savepointsStack.pop()
+        if --this._savepoints is 0
+            this._client.removeListener 'end', this._checkSafeEnd
+            logger.debug 'released client', this._client.id
+            this._client = null
 
     getState: ->
-        return @state
+        return this.state
 
     getSavepointsSize: ->
-        return @_savepoints
+        return this._savepoints
 
     _hasError: ->
-        if @state is STATES.INVALID
+        if this.state is STATES.INVALID
             error = new Error('Connector is in invalid state.')
             error.code = 'INVALID_STATE'
             return error
 
     _takeResource: (state, callback, prior)->
-        return callback(err) if err = @_hasError()
+        return callback(err) if err = this._hasError()
 
-        if @resource is 1
-            @resource = 0
-            @state = state if state?
+        if this.resource is 1
+            this.resource = 0
+            this.state = state if state?
             callback()
         else if prior
-            @waiting.unshift [state, callback, prior]
+            this.waiting.unshift [state, callback, prior]
         else
-            @waiting.push [state, callback, prior]
+            this.waiting.push [state, callback, prior]
         return
 
     _giveResource: =>
-        @resource = 1
-        @state = STATES.AVAILABLE if @state isnt STATES.INVALID
-        if @waiting.length
-            [state, callback, prior] = @waiting.shift()
-            @_takeResource state, callback, prior
+        this.resource = 1
+        this.state = STATES.AVAILABLE if this.state isnt STATES.INVALID
+        if this.waiting.length
+            [state, callback, prior] = this.waiting.shift()
+            this._takeResource state, callback, prior
         return
 
     acquire: (callback)->
-        logger.trace @pool.options.name, 'acquire'
-        ret = =>
-            @_giveResource()
-            callback.apply null, arguments if typeof callback is 'function'
+        logger.trace this.pool.options.name, 'acquire'
+        ret = (...args) =>
+            this._giveResource()
+            callback(...args) if typeof callback is 'function'
             return
 
-        @_takeResource STATES.ACQUIRE, (err)=>
+        this._takeResource STATES.ACQUIRE, (err)=>
             return ret err if err
-            @_acquire ret
+            this._acquire ret
             return
 
     _acquire: (callback)->
         # check if connection has already been acquired
-        if @_savepoints > 0
-            logger.trace @pool.options.name, 'already acquired'
+        if this._savepoints > 0
+            logger.trace this.pool.options.name, 'already acquired'
             callback null, false
             return
 
-        @pool.acquire (err, client)=>
+        this.pool.acquire (err, client)=>
             return callback err if err
-            logger.trace @pool.options.name, 'acquired'
-            @_addSavePoint client
+            logger.trace this.pool.options.name, 'acquired'
+            this._addSavePoint client
             callback null, true
         return
 
     query: (query, callback, options)->
-        ret = =>
-            @_giveResource()
-            callback.apply null, arguments if typeof callback is 'function'
+        ret = (...args) =>
+            this._giveResource()
+            callback(...args) if typeof callback is 'function'
             return
 
-        @_takeResource STATES.QUERY, (err)=>
+        this._takeResource STATES.QUERY, (err)=>
             return ret err if err
 
-            if @_savepoints is 0
-                logger.trace @pool.options.name, 'automatic acquire for query'
-                return @_acquire (err)=>
+            if this._savepoints is 0
+                logger.trace this.pool.options.name, 'automatic acquire for query'
+                return this._acquire (err)=>
                     return ret err if err
-                    @_query query, (err)=>
-                        args = Array::slice.call arguments, 0
-                        logger.trace @pool.options.name, 'automatic release for query'
-                        @_release (err)=>
+                    this._query query, (...args)=>
+                        logger.trace this.pool.options.name, 'automatic release for query'
+                        this._release (err)=>
                             args[0] = err
                             ret.apply @, args
-                        , err
+                        , args[0]
                     , options
 
-            @_query query, ret, options
+            this._query query, ret, options
             return
         return
 
     _query: (query, callback, options = {})->
-        logger.trace @pool.options.name, '[query] -', query
+        logger.trace this.pool.options.name, '[query] -', query
 
-        @_client.query query, (err, res)=>
+        this._client.query query, (err, res)=>
             if err and options.autoRollback isnt false
-                logger.warn @pool.options.name, 'automatic rollback on query error', err
-                return @_rollback callback, false, err
+                logger.warn this.pool.options.name, 'automatic rollback on query error', err
+                return this._rollback callback, false, err
             callback err, res
 
     stream: (query, callback, done, options = {})->
-        ret = =>
-            @_giveResource()
-            done.apply null, arguments if typeof done is 'function'
+        ret = (...args) =>
+            this._giveResource()
+            done(...args) if typeof done is 'function'
             return
 
-        @_takeResource STATES.STREAM, (err)=>
+        this._takeResource STATES.STREAM, (err)=>
             return ret err if err
 
-            if @_savepoints is 0
-                logger.trace @pool.options.name, 'automatic acquire for stream'
-                return @_acquire (err)=>
+            if this._savepoints is 0
+                logger.trace this.pool.options.name, 'automatic acquire for stream'
+                return this._acquire (err)=>
                     return ret err if err
-                    logger.trace @pool.options.name, 'automatic release for stream'
-                    @_stream query, callback, (err)=>
-                        args = Array::slice.call arguments, 0
-                        @_release (err)=>
+                    logger.trace this.pool.options.name, 'automatic release for stream'
+                    this._stream query, callback, (...args)=>
+                        this._release (err)=>
                             args[0] = err
                             ret.apply @, args
-                        , err
+                        , args[0]
                     , options
-            @_stream query, callback, ret, options
+            this._stream query, callback, ret, options
             return
          return
 
     _stream: (query, callback, done, options = {})->
-        logger.trace @pool.options.name, '[stream] -', query
+        logger.trace this.pool.options.name, '[stream] -', query
 
-        stream = @_client.stream query, (row)->
+        stream = this._client.stream query, (row)->
             callback row, stream
-        , (err)=>
+        , (err, ...args) =>
             if err and options.autoRollback isnt false
-                logger.warn @pool.options.name, 'automatic rollback on stream error', err
-                return @_rollback done, false, err
-            done.apply null, arguments
+                logger.warn this.pool.options.name, 'automatic rollback on stream error', err
+                return this._rollback done, false, err
+            done(err, ...args)
         return
 
     begin: (callback)->
-        if @_savepoints is 0
+        if this._savepoints is 0
             # No automatic acquire because there cannot be an automatic release
             # Programmer may or may not perform a query/stream with the connection.
             # Therefore, there is no way to know when to release connection
@@ -231,16 +232,16 @@ module.exports = class Connector extends EventEmitter
             err.code = 'NO_CONNECTION'
             return callback err
 
-        logger.debug @pool.options.name, 'begin'
-        ret = =>
-            @_giveResource()
-            logger.debug @pool.options.name, 'begun'
-            callback.apply null, arguments if typeof callback is 'function'
+        logger.debug this.pool.options.name, 'begin'
+        ret = (...args) =>
+            this._giveResource()
+            logger.debug this.pool.options.name, 'begun'
+            callback(...args) if typeof callback is 'function'
             return
-        @_takeResource STATES.START_TRANSACTION, (err)=>
+        this._takeResource STATES.START_TRANSACTION, (err)=>
             return ret err if err
 
-            if @_savepoints is 0
+            if this._savepoints is 0
                 # No automatic acquire because there cannot be an automatic release
                 # Programmer may or may not perform a query/stream with the connection.
                 # Therefore, there is no way to know when to release connection
@@ -248,55 +249,55 @@ module.exports = class Connector extends EventEmitter
                 err.code = 'NO_CONNECTION'
                 return ret err
 
-            @_begin ret
+            this._begin ret
 
     _begin: (callback)->
-        if @_savepoints is 1
+        if this._savepoints is 1
             # we have no transaction
             query = 'BEGIN'
-        else if @_savepoints > 0
+        else if this._savepoints > 0
             # we are in a transaction, make a savepoint
-            query = 'SAVEPOINT sp_' + (@_savepoints - 1)
+            query = 'SAVEPOINT sp_' + (this._savepoints - 1)
 
-        logger.trace @pool.options.name, '[query] -', query
+        logger.trace this.pool.options.name, '[query] -', query
 
-        @_client.query query, (err, res)=>
+        this._client.query query, (err, res)=>
             return callback err if err
-            @_addSavePoint()
-            logger.trace @pool.options.name, 'begun'
+            this._addSavePoint()
+            logger.trace this.pool.options.name, 'begun'
             callback null
             return
         return
 
     rollback: (callback, all = false)->
-        logger.debug @pool.options.name, 'rollback'
+        logger.debug this.pool.options.name, 'rollback'
 
-        ret = =>
-            @_giveResource()
-            logger.debug @pool.options.name, 'rollbacked'
-            callback.apply null, arguments if typeof callback is 'function'
+        ret = (...args) =>
+            this._giveResource()
+            logger.debug this.pool.options.name, 'rollbacked'
+            callback(...args) if typeof callback is 'function'
             return
-        @_takeResource STATES.ROLLBACK, (err)=>
+        this._takeResource STATES.ROLLBACK, (err)=>
             return ret err if err
-            return ret null if @_savepoints is 0
-            @_rollback ret, all
+            return ret null if this._savepoints is 0
+            this._rollback ret, all
 
     _rollback: (callback, all, errors)->
-        if @_savepoints is 1
-            return @_release callback, errors if all
+        if this._savepoints is 1
+            return this._release callback, errors if all
             return callback errors
-        else if @_savepoints is 0
+        else if this._savepoints is 0
             return callback errors
-        else if @_savepoints is 2
+        else if this._savepoints is 2
             query = 'ROLLBACK'
         else
-            query = 'ROLLBACK TO sp_' + (@_savepoints - 2)
+            query = 'ROLLBACK TO sp_' + (this._savepoints - 2)
 
-        @_removeSavepoint()
+        this._removeSavepoint()
 
-        logger.trace @pool.options.name, '[query] -', query
+        logger.trace this.pool.options.name, '[query] -', query
 
-        @_client.query query, (err)=>
+        this._client.query query, (err)=>
             if err
                 if typeof errors is 'undefined'
                     errors = err
@@ -306,7 +307,7 @@ module.exports = class Connector extends EventEmitter
                     errors = [errors]
                     errors.push err
 
-            return @_rollback(callback, all, errors) if all
+            return this._rollback(callback, all, errors) if all
             callback errors
 
     commit: (callback, all = false)->
@@ -323,31 +324,31 @@ module.exports = class Connector extends EventEmitter
         callback = _callback
         all = _all
 
-        logger.debug @pool.options.name, 'commit'
-        ret = =>
-            @_giveResource()
-            logger.debug @pool.options.name, 'comitted'
-            callback.apply null, arguments if typeof callback is 'function'
+        logger.debug this.pool.options.name, 'commit'
+        ret = (...args) =>
+            this._giveResource()
+            logger.debug this.pool.options.name, 'comitted'
+            callback(...args) if typeof callback is 'function'
             return
-        @_takeResource STATES.COMMIT, (err)=>
+        this._takeResource STATES.COMMIT, (err)=>
             return ret err if err
-            return ret null if @_savepoints is 0
-            @_commit ret, all
+            return ret null if this._savepoints is 0
+            this._commit ret, all
 
     _commit: (callback, all, errors)->
-        if @_savepoints is 1
-            return @_release callback, errors if all
+        if this._savepoints is 1
+            return this._release callback, errors if all
             return callback errors
-        else if @_savepoints is 0
+        else if this._savepoints is 0
             return callback errors
-        else if @_savepoints is 2
+        else if this._savepoints is 2
             query = 'COMMIT'
         else
-            query = 'RELEASE SAVEPOINT sp_' + (@_savepoints - 2)
+            query = 'RELEASE SAVEPOINT sp_' + (this._savepoints - 2)
 
-        logger.trace @pool.options.name, '[query] -', query
+        logger.trace this.pool.options.name, '[query] -', query
 
-        @_client.query query, (err)=>
+        this._client.query query, (err)=>
             if err
                 if typeof errors is 'undefined'
                     errors = err
@@ -357,33 +358,33 @@ module.exports = class Connector extends EventEmitter
                     errors = [errors]
                     errors.push err
 
-            return @_rollback(callback, all, errors) if err
-            @_removeSavepoint()
-            return @_commit(callback, all, errors) if all
+            return this._rollback(callback, all, errors) if err
+            this._removeSavepoint()
+            return this._commit(callback, all, errors) if all
             callback null
 
     release: (callback)->
-        logger.debug @pool.options.name, 'release'
-        ret = =>
-            @_giveResource()
-            callback.apply null, arguments if typeof callback is 'function'
+        logger.debug this.pool.options.name, 'release'
+        ret = (...args) =>
+            this._giveResource()
+            callback(...args) if typeof callback is 'function'
             return
-        @_takeResource STATES.RELEASE, (err)=>
+        this._takeResource STATES.RELEASE, (err)=>
             return ret err if err
-            if @_savepoints is 0
-                logger.debug @pool.options.name, 'already released'
+            if this._savepoints is 0
+                logger.debug this.pool.options.name, 'already released'
                 return ret null
-            if @_savepoints isnt 1
+            if this._savepoints isnt 1
                 err = new Error 'There is a begining transaction. End it before release'
                 err.code = 'NO_RELEASE'
                 return ret(err)
-            @_release ret
+            this._release ret
             return
 
     _release: (callback, errors)->
-        clearTimeout @acquireTimeout
-        @pool.release @_client
-        logger.debug @pool.options.name, 'released'
-        @_removeSavepoint()
+        clearTimeout this.acquireTimeout
+        this.pool.release this._client
+        logger.debug this.pool.options.name, 'released'
+        this._removeSavepoint()
         callback(errors)
         return

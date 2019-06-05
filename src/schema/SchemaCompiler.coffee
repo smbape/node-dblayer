@@ -1,26 +1,26 @@
 _ = require 'lodash'
 
 module.exports = class SchemaCompiler
-	constructor: (options = {})->
-        columnCompiler = @columnCompiler = new @ColumnCompiler options
+    constructor: (options = {})->
+        columnCompiler = this.columnCompiler = new this.ColumnCompiler options
 
-        @indent = options.indent or '    '
-        @LF = options.LF or '\n'
-        @delimiter = options.delimiter or ';'
+        this.indent = options.indent or '    '
+        this.LF = options.LF or '\n'
+        this.delimiter = options.delimiter or ';'
 
         for prop in ['adapter', 'args', 'words']
             @[prop] = columnCompiler[prop]
 
         for method in ['escape', 'escapeId', 'escapeSearch', 'escapeBeginWith', 'escapeEndWith']
-            if 'function' is typeof @adapter[method]
-                @[method] = @adapter[method].bind @adapter
+            if 'function' is typeof this.adapter[method]
+                @[method] = this.adapter[method].bind this.adapter
 
-        @options = _.clone options
+        this.options = _.clone options
 
 # https://dev.mysql.com/doc/refman/5.7/en/create-table.html
 # http://www.postgresql.org/docs/9.4/static/sql-createtable.html
 SchemaCompiler::createTable = (tableModel, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, columnCompiler, args, indent, LF, delimiter} = @
 
     tableName = tableModel.name
@@ -132,12 +132,12 @@ SchemaCompiler::createTable = (tableModel, options)->
             delete_rule = if delete_rule then delete_rule.toLowerCase() else 'restrict'
             update_rule = if update_rule then update_rule.toLowerCase() else 'restrict'
 
-            if delete_rule not in @validUpdateActions
+            if delete_rule not in this.validUpdateActions
                 err = new Error "unknown delete rule #{delete_rule}"
                 err.code = 'UPDATE RULE'
                 throw err
 
-            if update_rule not in @validUpdateActions
+            if update_rule not in this.validUpdateActions
                 err = new Error "unknown update rule #{update_rule}"
                 err.code = 'UPDATE RULE'
                 throw err
@@ -150,7 +150,7 @@ SchemaCompiler::createTable = (tableModel, options)->
 # https://dev.mysql.com/doc/refman/5.7/en/drop-table.html
 # DROP TABLE [ IF EXISTS ] name [, ...] [ CASCADE | RESTRICT ]
 SchemaCompiler::dropTable = (tableName, options)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId} = @
 
         tablesql = [words.drop_table]
@@ -173,7 +173,7 @@ SchemaCompiler::dropTable = (tableName, options)->
 # ALTER [IGNORE] TABLE tbl_name
 #   ADD [COLUMN] (col_name column_definition,...)
 SchemaCompiler::addColumn = (tableName, column, spec, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, columnCompiler, args, indent, LF} = @
 
     args.table = tableName
@@ -199,7 +199,7 @@ SchemaCompiler::addColumn = (tableName, column, spec, options)->
 # ALTER [IGNORE] TABLE tbl_name
 #   ADD [CONSTRAINT [symbol]] PRIMARY KEY [index_type] (index_col_name,...) [index_option] ...
 SchemaCompiler::addPrimaryKey = (tableName, newPkName, newColumns, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, columnCompiler, indent, LF} = @
 
     altersql = [words.alter_table, ' ']
@@ -228,7 +228,7 @@ SchemaCompiler::addPrimaryKey = (tableName, newPkName, newColumns, options)->
 #         action:
 #             [RESTRICT | CASCADE | SET NULL | NO ACTION]
 SchemaCompiler::addForeignKey = (tableModel, key, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, indent, LF} = @
 
     altersql = [words.alter_table, ' ']
@@ -254,12 +254,12 @@ SchemaCompiler::addForeignKey = (tableModel, key, options)->
     delete_rule = if delete_rule then delete_rule.toLowerCase() else 'restrict'
     update_rule = if update_rule then update_rule.toLowerCase() else 'restrict'
 
-    if delete_rule not in @validUpdateActions
+    if delete_rule not in this.validUpdateActions
         err = new Error "unknown delete rule #{delete_rule}"
         err.code = 'UPDATE RULE'
         throw err
 
-    if update_rule not in @validUpdateActions
+    if update_rule not in this.validUpdateActions
         err = new Error "unknown update rule #{update_rule}"
         err.code = 'UPDATE RULE'
         throw err
@@ -276,7 +276,7 @@ SchemaCompiler::addForeignKey = (tableModel, key, options)->
 # ALTER [IGNORE] TABLE tbl_name
 #     ADD [CONSTRAINT [symbol]] UNIQUE [INDEX|KEY] [index_name] [index_type] (index_col_name,...) [index_option]
 SchemaCompiler::addUniqueIndex = (tableName, indexName, columns, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, indent, LF} = @
 
     altersql = [words.alter_table, ' ']
@@ -297,7 +297,7 @@ SchemaCompiler::addUniqueIndex = (tableName, indexName, columns, options)->
 # CREATE [UNIQUE|FULLTEXT|SPATIAL] INDEX index_name [index_type] ON tbl_name
 #     (index_col_name,...) [index_option] [algorithm_option | lock_option] ...
 SchemaCompiler::addIndex = (tableName, indexName, columns, options)->
-    options = _.defaults {}, options, @options
+    options = _.defaults {}, options, this.options
     {words, escapeId, columnCompiler} = @
 
     [words.create_index, ' ', columnCompiler.indexString(indexName, columns, escapeId(tableName))].join('')
@@ -325,7 +325,7 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
         if definition.id and definition.id.column
             primaryKey = 'PK_' + (definition.id.pk or tableName)
             tableModel.constraints['PRIMARY KEY'][primaryKey] = [definition.id.column]
-            column = tableModel.columns[definition.id.column] = @getSpec definition.id, pMgr
+            column = tableModel.columns[definition.id.column] = this.getSpec definition.id, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for id"
 
@@ -337,7 +337,7 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
             if definition.id.className
                 parentDef = pMgr._getDefinition definition.id.className
                 # a primary key implies unique index and not null, no need for another index
-                @addForeignKeyConstraint 'EXT', tableModel, definition.id, parentDef, _.defaults({fkindex: false}, options)
+                this.addForeignKeyConstraint 'EXT', tableModel, definition.id, parentDef, _.defaults({fkindex: false}, options)
 
         if _.isEmpty tableModel.constraints['PRIMARY KEY']
             delete tableModel.constraints['PRIMARY KEY']
@@ -348,25 +348,25 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
 
             parentDef = pMgr._getDefinition mixin.className
 
-            column = tableModel.columns[mixin.column] = @getSpec mixin, pMgr
+            column = tableModel.columns[mixin.column] = this.getSpec mixin, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for mixin #{mixin.className}"
 
             column.nullable = false
             # a unique index will be added
-            [foreignKey, indexKey] = @addForeignKeyConstraint 'EXT', tableModel, mixin, parentDef, _.defaults({fkindex: false}, options)
+            [foreignKey, indexKey] = this.addForeignKeyConstraint 'EXT', tableModel, mixin, parentDef, _.defaults({fkindex: false}, options)
 
             # enforce unique key
             tableModel.constraints.UNIQUE[indexKey] = [mixin.column]
 
         for prop, propDef of definition.properties
-            column = tableModel.columns[propDef.column] = @getSpec propDef, pMgr
+            column = tableModel.columns[propDef.column] = this.getSpec propDef, pMgr
             if not column.type
                 throw new Error "[#{className}] No type has been defined for property #{prop}"
 
             if propDef.className
                 parentDef = pMgr._getDefinition propDef.className
-                @addForeignKeyConstraint 'HAS', tableModel, propDef, parentDef, options
+                this.addForeignKeyConstraint 'HAS', tableModel, propDef, parentDef, options
 
         if _.isEmpty tableModel.constraints['FOREIGN KEY']
             delete tableModel.constraints['FOREIGN KEY']
@@ -387,7 +387,7 @@ SchemaCompiler::getDatabaseModel = (pMgr, options)->
 SchemaCompiler::getSpec = (model, pMgr)->
     spec = _.pick model, pMgr.specProperties
     if spec.defaultValue
-        spec.defaultValue = @escape spec.defaultValue
+        spec.defaultValue = this.escape spec.defaultValue
     spec
 
 SchemaCompiler::addForeignKeyConstraint = (name, tableModel, propDef, parentDef, options = {})->

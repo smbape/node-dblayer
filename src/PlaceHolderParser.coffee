@@ -30,7 +30,7 @@ module.exports = class PlaceHolderParser
 
         reg.push ')'
 
-        @reg = new RegExp reg.join(''), 'g'
+        this.reg = new RegExp reg.join(''), 'g'
 
     parse: (str)->
         list = []
@@ -38,7 +38,7 @@ module.exports = class PlaceHolderParser
         cursor = 0
 
         quoting = false
-        str.replace @reg, (match, quote, key, end, start, str)->
+        str.replace this.reg, (match, quote, key, end, start, str)->
             if quoting
                 # placeholder match is ignored within a string
                 if quote is quoting
@@ -71,7 +71,7 @@ module.exports = class PlaceHolderParser
 
     replace: (str, callback)->
         quoting = false
-        str.replace @reg, (match, quote, key, end)->
+        str.replace this.reg, (match, quote, key, end)->
             if quoting
                 # placeholder match is ignored within a string
                 if quote is quoting
@@ -87,7 +87,7 @@ module.exports = class PlaceHolderParser
             match
 
     precompile: (str)->
-        [list, indexes] = @parse str
+        [list, indexes] = this.parse str
         except = []
         for key of indexes
             for index in indexes[key]
@@ -106,13 +106,12 @@ module.exports = class PlaceHolderParser
             return '#{list.join('')}';
         }
         """
+
     unsafeCompile: (str)->
-        fn = "#{@precompile str}"
-        eval fn
-        template
+        (new Function(this.precompile(str) + "return template;"))()
 
     safeCompile: (str)->
-        [list, indexes] = @parse str
+        [list, indexes] = this.parse str
         (context)->
             if context is null or 'object' isnt typeof context
                 return list.join ''

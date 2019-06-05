@@ -22,13 +22,13 @@ exports.exprNotEqual = (value, columnId)->
     if value is null
         columnId + ' IS NOT NULL'
     else
-        columnId + ' IS NULL OR ' + columnId + ' <> ' + @escape(value)
+        columnId + ' IS NULL OR ' + columnId + ' <> ' + this.escape(value)
 
 exports.exprEqual = (value, columnId)->
     if value is null
         columnId + ' IS NULL'
     else
-        columnId + ' = ' + @escape(value)
+        columnId + ' = ' + this.escape(value)
 
 eatLineComment = (chunck, len, pos, LF)->
     while pos < len and chunck[pos] isnt LF

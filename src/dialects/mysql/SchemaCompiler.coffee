@@ -17,7 +17,7 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
         words.alter_table + ' ' + escapeId(tableName) + LF + indent + words.drop_column + ' ' + escapeId(column)
 
     diffType: (tableName, column, oldColumnSpec, newColumnSpec)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, columnCompiler, args, indent, LF} = @
 
         args.table = tableName
@@ -63,7 +63,7 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
     # ALTER [IGNORE] TABLE tbl_name
     #   DROP PRIMARY KEY
     dropPrimaryKey: (tableName, oldName, options)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, indent, LF} = @
 
         words.alter_table + ' ' + escapeId(tableName) +
@@ -72,13 +72,13 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
     # Rename foreign key does not exist in MySQL 5.7
     # drop the old one and create a new one
     renameForeignKey: (newTableModel, oldName, newKey, oldTableModel, options)->
-        @dropForeignKey(oldTableModel, oldName, options) + ';\n' + @addForeignKey(newTableModel, newKey, options)
+        this.dropForeignKey(oldTableModel, oldName, options) + ';\n' + this.addForeignKey(newTableModel, newKey, options)
 
     # https://dev.mysql.com/doc/refman/5.7/en/alter-table.html
     # ALTER [IGNORE] TABLE tbl_name
     #   DROP FOREIGN KEY fk_symbol
     dropForeignKey: (oldTableModel, oldName, options)->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, indent, LF} = @
 
         sql = words.alter_table + ' ' + escapeId(oldTableModel.name) +
@@ -105,7 +105,7 @@ module.exports = class MysqlSchemaCompiler extends SchemaCompiler
     # ALTER [IGNORE] TABLE tbl_name
     #   DROP {INDEX|KEY} index_name
     dropIndex: (tableName, indexName, options = {})->
-        options = _.defaults {}, options, @options
+        options = _.defaults {}, options, this.options
         {words, escapeId, indent, LF} = @
 
         words.alter_table + ' ' + escapeId(tableName) +

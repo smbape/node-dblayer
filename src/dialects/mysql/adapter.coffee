@@ -59,11 +59,11 @@ HWM = Math.pow 2, 7
 class MySQLConnection extends MySQLLibConnection
     adapter: adapter
     constructor: (options)->
-        @options = _.clone options
         super config: new ConnectionConfig options
+        this.options = _.clone options
 
     query: (query, params, callback)->
-        stream = @_createQuery query, params, callback
+        stream = this._createQuery query, params, callback
         super stream.query
         stream
 
@@ -129,7 +129,7 @@ class MySQLConnection extends MySQLLibConnection
             stream.on 'error', (err)->
                 emitClose()
                 hasError = true
-                @callback err
+                this.callback err
                 return
             stream.on 'fields', (fields) ->
                 result.fields = fields
@@ -145,11 +145,11 @@ class MySQLConnection extends MySQLLibConnection
                     result.rows.push(row)
                 return
             stream.on 'end', ->
-                @callback null, result unless hasError
+                this.callback null, result unless hasError
                 return
 
         stream.once 'end', ->
-            delete @query
+            delete this.query
             return
 
         stream
@@ -166,7 +166,7 @@ _.extend adapter,
         _toString = insert.toString
         insert.toString = ->
             _toString.call(insert) + ' VALUES()'
-        # insert.set @escapeId(column), '', {dontQuote: true}
+        # insert.set this.escapeId(column), '', {dontQuote: true}
         return insert
 
     createConnection: (options, callback)->

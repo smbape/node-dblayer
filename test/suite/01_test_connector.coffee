@@ -5,7 +5,7 @@ _ = require 'lodash'
 {AdapterPool, Connector} = require '../../'
 {STATES} = Connector::
 
-knex = require('knex') { dialect: globals.config.dialect }
+knex = require('knex') { client: globals.config.dialect }
 
 describe 'test connector', ->
     before (done)->

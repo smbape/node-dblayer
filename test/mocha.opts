@@ -1,4 +1,4 @@
 --full-trace
---require coffee-script/register
+--require coffeescript/register
 --reporter mochawesome
 -O reportDir=test/reports

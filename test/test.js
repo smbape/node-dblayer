@@ -1,81 +1,26 @@
-var fs = require('fs'),
-    cluster = require('cluster'),
-    rimraf = require('rimraf'),
-    program = require('commander'),
-    defaults = require('lodash/defaults'),
-    dialects = ['mysql', 'postgres'],
-    exec = './node_modules/mocha/bin/_mocha',
-    reportDir = './test/reports/',
-    args = [],
-    tasks = [], last, dialect, arg;
+const fs = require("fs");
+const cluster = require("cluster");
+const rimraf = require("rimraf");
+const program = require("commander");
+const defaults = require("lodash/defaults");
+const {fork, spawn} = require("child_process");
+let dialects = ["mysql", "postgres"];
+let exec = "./node_modules/mocha/bin/_mocha";
+const reportDir = "./test/reports/";
 
-const {fork, spawn} = require('child_process');
+let args = [];
+const tasks = [];
+let last;
 
-if (cluster.isMaster) {
-    program
-        .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
-        .usage('[options] [files]')
-        .option('--dialect <dialect>', 'mysql|postgres', /(?:mysql|postgres)/i)
-        .option('--cover', 'add coverage information');
-
-    program.parse(process.argv);
-
-    if (program.dialect) {
-        dialects = [program.dialect];
-    }
-
-    for (var i = 0, len = dialects.length; i < len; i++) {
-        tasks.push(testSuite.bind(null, dialects[i]));
-    }
-
-    if (program.cover) {
-        args = [
-            'cover',
-            '--dir', reportDir + 'coverage',
-            '--report', 'none',
-            // '--print', 'none',
-            '--include-pid',
-            exec,
-            '--'
-        ];
-        exec = './node_modules/istanbul/lib/cli.js';
-
-        tasks.push(function() {
-            spawn('node', [
-                exec, 'report',
-                '--dir', reportDir + 'coverage'
-            ], {
-                stdio: 'inherit'
-            });
-        });
-    }
-
-    for (var i = 2, len = process.argv.length; i < len; i++) {
-        arg = process.argv[i];
-        if (arg === '--dialect') {
-            i++;
-        } else if (!/^--(?:dialect=|cover$)/.test(arg)) {
-            args.push(arg);
-        }
-    }
-
-    args.push.apply(args, ['-O', '']);
-    last = args.length - 1;
-
-    rimraf(reportDir, function() {
-        iterate();
-    });
-}
-
-function iterate(code) {
-    var task = tasks.shift();
+const iterate = code => {
+    const task = tasks.shift();
     if (!code && task) {
         task();
     }
-}
+};
 
-function testSuite(dialect) {
-    args[last] = 'reportDir=' + reportDir + dialect;
+const testSuite = dialect => {
+    args[last] = `reportDir=${ reportDir }${ dialect }`;
 
     const child = fork(exec, args, {
         env: defaults({
@@ -85,4 +30,60 @@ function testSuite(dialect) {
 
     child.on("error", iterate);
     child.on("exit", iterate);
+};
+
+if (cluster.isMaster) {
+    program
+        .version(JSON.parse(fs.readFileSync(`${ __dirname }/../package.json`, "utf8")).version)
+        .usage("[options] [files]")
+        .option("--dialect <dialect>", "mysql|postgres", /(?:mysql|postgres)/i)
+        .option("--cover", "add coverage information");
+
+    program.parse(process.argv);
+
+    if (program.dialect) {
+        dialects = [program.dialect];
+    }
+
+    for (let i = 0, len = dialects.length; i < len; i++) {
+        tasks.push(testSuite.bind(null, dialects[i]));
+    }
+
+    if (program.cover) {
+        args = [
+            "cover",
+            "--dir", `${ reportDir }coverage`,
+            "--report", "none",
+            // '--print', 'none',
+            "--include-pid",
+            exec,
+            "--"
+        ];
+        exec = "./node_modules/nyc/bin/nyc.js";
+
+        tasks.push(() => {
+            spawn("node", [
+                exec, "report",
+                "--dir", `${ reportDir }coverage`
+            ], {
+                stdio: "inherit"
+            });
+        });
+    }
+
+    for (let i = 2, len = process.argv.length, arg; i < len; i++) {
+        arg = process.argv[i];
+        if (arg === "--dialect") {
+            i++;
+        } else if (!/^--(?:dialect=|cover$)/.test(arg)) {
+            args.push(arg);
+        }
+    }
+
+    args.push("-O", "");
+    last = args.length - 1;
+
+    rimraf(reportDir, () => {
+        iterate();
+    });
 }

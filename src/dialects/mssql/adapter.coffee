@@ -54,7 +54,9 @@ class MSSQLClient extends EventEmitter
     adapter: adapter
 
     constructor: (options)->
-        @options = options = _.clone options
+        super()
+
+        this.options = options = _.clone options
 
         options.server = options.host
         delete options.host
@@ -65,22 +67,22 @@ class MSSQLClient extends EventEmitter
         if isNaN(options.port)
             options.instanceName = options.port
             delete options.port
-        @handlers = {}
-        @handlerCount = 0
-        @queue = []
-        @available = true
+        this.handlers = {}
+        this.handlerCount = 0
+        this.queue = []
+        this.available = true
 
     connect: (callback)->
-        connection = @connection = new MSSQLConnection @options
+        connection = this.connection = new MSSQLConnection this.options
         connection.on 'connect', callback
 
         # for evt in ['connect', 'error', 'end', 'debug', 'infoMessage', 'errorMessage', 'databaseChange', 'languageChange', 'charsetCahnge', 'secure']
         for evt in ['error', 'end']
-            @_delegate evt
+            this._delegate evt
         return
 
     end: ->
-        @connection.close()
+        this.connection.close()
         return
 
     query: (query, params, callback)->
@@ -95,7 +97,7 @@ class MSSQLClient extends EventEmitter
                 fieldCount: 0
                 rows: []
 
-            @stream query, (row)->
+            this.stream query, (row)->
                 result.rows.push row
                 return
             , (err, res)->
@@ -121,14 +123,14 @@ class MSSQLClient extends EventEmitter
             fieldCount: 0
 
         request = new MSSQLRequest query, (err, rowCount)=>
-            @_release()
+            this._release()
             result.rowCount = rowCount
             done err, result
             return
 
-        connection = @connection
+        connection = this.connection
 
-        @_acquire ->
+        this._acquire ->
             request.on 'columnMetadata', (fields)->
                 result.fields = fields
                 for field in fields
@@ -174,22 +176,22 @@ class MSSQLClient extends EventEmitter
         return
 
     _acquire: (callback)->
-        if @available
-            @available = false
+        if this.available
+            this.available = false
             callback()
             return
 
-        @queue.push callback
+        this.queue.push callback
         return
 
     _release: ->
-        return if @available
-        if @queue.length
-            callback = @queue.unshift()
+        return if this.available
+        if this.queue.length
+            callback = this.queue.unshift()
             setImmediate callback
             return
 
-        @available = true
+        this.available = true
         return
 
 _.extend adapter,
@@ -201,11 +203,11 @@ _.extend adapter,
         tableAliasQuoteCharacter: '"'
 
     decorateInsert: (insert, column)->
-        insert.output @escapeId(column)
+        insert.output this.escapeId(column)
         return insert
 
     insertDefaultValue: (insert, column)->
-        insert.set @escapeId(column), 'DEFAULT', {dontQuote: true}
+        insert.set this.escapeId(column), 'DEFAULT', {dontQuote: true}
         return insert
 
     createConnection: (options, callback) ->
@@ -272,7 +274,7 @@ adapter.exec = adapter.execute = (script, options, done)->
             error = err
             return
 
-        @split script, (query)->
+        this.split script, (query)->
             if not error
                 cmd.query query, callback
             return

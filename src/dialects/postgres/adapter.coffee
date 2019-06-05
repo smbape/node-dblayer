@@ -59,7 +59,7 @@ class PgClient extends pg.Client
         done = (->) if typeof done isnt 'function'
 
         query = new PgQueryStream query
-        stream = @query query, params
+        stream = this.query query, params
         hasError = false
         result = rowCount: 0
         stream.once 'error', (err)->
@@ -81,11 +81,11 @@ class PgClient extends pg.Client
 class PgQueryStream extends QueryStream
     handleRowDescription: (message) ->
         QueryStream::handleRowDescription.call this, message
-        @emit 'fields', message.fields
+        this.emit 'fields', message.fields
         return
-    handleError: ->
-        @push null
-        super
+    handleError: (...args)->
+        this.push null
+        super.handleError(...args)
 
 _.extend adapter,
     name: 'postgres'
@@ -96,11 +96,11 @@ _.extend adapter,
         tableAliasQuoteCharacter: '"'
 
     decorateInsert: (insert, column)->
-        insert.returning @escapeId(column)
+        insert.returning this.escapeId(column)
         return insert
 
     insertDefaultValue: (insert, column)->
-        insert.set @escapeId(column), 'DEFAULT', {dontQuote: true}
+        insert.set this.escapeId(column), 'DEFAULT', {dontQuote: true}
         return insert
 
     createConnection: (options, callback) ->

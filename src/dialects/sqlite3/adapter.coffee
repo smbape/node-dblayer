@@ -112,62 +112,63 @@ class SQLite3Connection extends EventEmitter
         # mkdirp.sync path.dirname filename
 
         logger.debug 'SQLite3Connection', filename
-        @db = new sqlite3.Database filename, mode
+        this.db = new sqlite3.Database filename, mode
 
         # always perform series write
         # parallel read write may lead to errors if not well controlled
-        @db.serialize()
+        this.db.serialize()
 
-        @db.on 'error', (err)=>
-            @emit 'error', err
+        this.db.on 'error', (err)=>
+            this.emit 'error', err
             return
 
-        @db.once 'error', callback
+        this.db.once 'error', callback
 
-        @db.once 'open', =>
-            @db.removeListener 'error', callback
+        this.db.once 'open', =>
+            this.db.removeListener 'error', callback
             callback null, @
             return
-        @db.on 'close', =>
-            @emit 'end'
+        this.db.on 'close', =>
+            this.emit 'end'
             return
 
         return
 
     query: ->
         query = new SQLite3Query arguments
-        query.execute @db
+        query.execute this.db
         query
 
     stream: ->
         stream = new SQLite3Stream arguments
-        stream.execute @db
+        stream.execute this.db
         stream
 
     end:->
         logger.debug 'close connection'
-        @db.close()
+        this.db.close()
         return
 
 class SQLite3Query extends EventEmitter
-    constructor: (args)->
-        @init.apply @, args
+    constructor: (...args)->
+        super()
+        this.init(...args)
 
     init: (@text, values, callback)->
         if Array.isArray values
-            @values = values
+            this.values = values
         else
-            @values = []
+            this.values = []
             if arguments.length is 2 and 'function' is typeof values
                 callback = values
 
-        @callback = if 'function' is typeof callback then callback else ->
+        this.callback = if 'function' is typeof callback then callback else ->
         return
 
     execute: (db)->
-        query = @text
-        values = @values
-        callback = @callback
+        query = this.text
+        values = this.values
+        callback = this.callback
 
         # Quick falsy test to determine if insert|update|delete or else
         # falsy because (insert toto ...) will not be recognise as insert because of bracket
@@ -176,14 +177,14 @@ class SQLite3Query extends EventEmitter
         if query.match /^\s*insert\s+/i
             db.run query, values, (err)->
                 return callback(err) if err
-                callback err, lastInsertId: @lastID
+                callback err, lastInsertId: this.lastID
                 return
             return
 
         if query.match /^\s*(?:update|delete)\s+/i
             db.run query, values, (err)->
                 return callback(err) if err
-                callback err, {changedRows: @changes, affectedRows: @changes}
+                callback err, {changedRows: this.changes, affectedRows: this.changes}
                 return
             return
 
@@ -215,39 +216,39 @@ ArrayStream = require 'duplex-arraystream'
 class SQLite3Stream extends ArrayStream
     constructor: (args)->
         super [], duplex: true
-        @init.apply @, args
+        this.init.apply @, args
 
     init: (@text, values, callback, done)->
         if Array.isArray values
-            @values = values
+            this.values = values
         else
-            @values = []
+            this.values = []
             if arguments.length is 2
                 done = values if 'function' is typeof values
             else if arguments.length is 3
                 done = callback if 'function' is typeof callback
                 callback = values if 'function' is typeof values
 
-        @callback = if 'function' is typeof callback then callback else ->
-        @done = if 'function' is typeof done then done else ->
+        this.callback = if 'function' is typeof callback then callback else ->
+        this.done = if 'function' is typeof done then done else ->
         return
 
     execute: (db)->
-        query = @text
-        values = @values
-        done = @done
+        query = this.text
+        values = this.values
+        done = this.done
 
         result = {}
         hasError = false
 
-        @on 'data', @callback
-        @once 'error', (err)->
+        this.on 'data', this.callback
+        this.once 'error', (err)->
             hasError = true
             done err
             return
 
-        @once 'end', =>
-            @removeListener 'data', @callback
+        this.once 'end', =>
+            this.removeListener 'data', this.callback
             return if hasError
             # return done(err) if err
             if not result.fields
@@ -257,19 +258,19 @@ class SQLite3Stream extends ArrayStream
 
         db.each query, values, (err, row)=>
             if err
-                @emit 'error', err
+                this.emit 'error', err
                 return
 
             if not result.fields
                 result.fields = Object.keys(row).map (name)-> name: name
-                @emit 'fields', result.fields
+                this.emit 'fields', result.fields
 
-            @write row, 'item'
+            this.write row, 'item'
             return
         , (err)=>
-            @end()
+            this.end()
             if err
-                @emit 'error', err
+                this.emit 'error', err
             return
         return
 
@@ -311,7 +312,7 @@ adapter.exec = adapter.execute = (script, options, done)->
             error = err
             return
 
-        @split script, (query)->
+        this.split script, (query)->
             if not error
                 cmd.query query, callback
             return

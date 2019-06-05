@@ -3,13 +3,19 @@
   "version": "0.2.12",
   "description": "Database layer",
   "main": "index.js",
+  "engines": {
+    "node": ">=6.0.0"
+  },
   "directories": {
     "test": "test"
   },
   "scripts": {
+    "lib-lint": "eslint --fix \"lib/**/*.js\"",
+    "lint": "npm run prepublishOnly && eslint --fix \"lib/**/*.js\" \"scripts/*.js\" \"test/*.js\"",
+    "scripts-lint": "eslint --fix \"scripts/*.js\"",
+    "test-lint": "eslint --fix \"test/*.js\"",
     "prepublishOnly": "node scripts/prepublish.js --no-header -bo lib/ src/",
-    "test": "node ./test/test.js ./test/prepare.coffee ./test/suite/*",
-    "lint": "npm run prepublishOnly && node node_modules/jshint/bin/jshint ./lib"
+    "test": "node ./test/test.js ./test/prepare.coffee ./test/suite/*"
   },
   "repository": {
     "type": "git",
@@ -25,7 +31,6 @@
   "dependencies": {
     "anyspawn": "^1.0.8",
     "async": "^2.2.0",
-    "coffee-script": "^1.12.4",
     "duplex-arraystream": "^0.0.1",
     "lodash": "^4.17.11",
     "log4js": "^3.0.6",
@@ -46,17 +51,17 @@
     "temp": "^0.8.3"
   },
   "devDependencies": {
-    "backbone": "^1.3.3",
-    "chai": "^3.5.0",
-    "chalk": "^1.1.3",
-    "coffee-script": "^1.10.0",
-    "commander": "^2.8.1",
-    "istanbul": "^0.4.3",
-    "jshint": "^2.9.2",
-    "knex": "^0.11.3",
-    "mocha": "^5.2.0",
+    "babel-eslint": "^10.0.1",
+    "backbone": "^1.4.0",
+    "chai": "^4.2.0",
+    "chalk": "^2.4.2",
+    "coffeescript": "^2.3.2",
+    "commander": "^2.19.0",
+    "eslint": "^5.14.1",
+    "jshint": "^2.10.1",
+    "knex": "^0.16.3",
+    "mocha": "^6.0.2",
     "mochawesome": "^3.1.1",
-    "nodeunit": "^0.11.3",
-    "sql": "^0.78.0"
+    "nyc": "^13.3.0"
   }
 }

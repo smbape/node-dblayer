@@ -1,5 +1,5 @@
 sysPath = require 'path'
-_ = require 'lodash'
+defaults = require 'lodash/defaults'
 mkdirp = require 'mkdirp'
 temp = require 'temp'
 rimraf = require 'rimraf'
@@ -10,10 +10,9 @@ exports.getExports = (name, dialect)->
 for method in ['adapter', 'sync', 'schema']
     exports[method] = exports.getExports.bind exports, method
 
-exports.guessEscapeOpts = ->
-    args = Array::slice.call(arguments)
+exports.guessEscapeOpts = (...args)->
     args.unshift {}
-    options = _.defaults.apply _, args
+    options = defaults(...args)
     {connector, dialect} = options
 
     if 'string' isnt options.dialect and connector and 'function' is typeof connector.getDialect

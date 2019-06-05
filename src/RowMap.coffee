@@ -27,8 +27,8 @@ _handleRead = (value, model, propDef)->
         value = propDef.read value, model
     value
 
-_createModel = (className = @className)->
-    definition = @manager.getDefinition className
+_createModel = (className = this.className)->
+    definition = this.manager.getDefinition className
     Ctor = definition.ctor
     new Ctor()
 _setModelValue = (model, prop, value, propDef)->
@@ -48,7 +48,7 @@ module.exports = class RowMap
 
     # Class that do the mapping between className, queries to execute and properties of className
     constructor: (@className, @manager, options, skip)->
-        @options = guessEscapeOpts(options)
+        this.options = guessEscapeOpts(options)
         return if skip
 
         _.extend @,
@@ -61,63 +61,63 @@ module.exports = class RowMap
             _mixins: {}
             _joining: {}
 
-        @select = options.select
-        @values = options.values
-        delete @options.select
-        delete @options.values
+        this.select = options.select
+        this.values = options.values
+        delete this.options.select
+        delete this.options.values
 
-        @_initialize()
-        @_initRootElement @className, @_getUniqueId()
+        this._initialize()
+        this._initRootElement this.className, this._getUniqueId()
 
-        @_processJoins()
-        @_processFields()
-        @_processColumns()
-        @_processBlocks()
+        this._processJoins()
+        this._processFields()
+        this._processColumns()
+        this._processBlocks()
 
     setValues: (@values)->
 
     setValue: (key, value)->
-        @values[key] = value
+        this.values[key] = value
 
     _initialize: ->
-        options = @options
+        options = this.options
         if options.type is 'json' or options.count
-            @_setValue = _setPlainObjectValue
-            @_getValue = _getPlainObjectValue
-            @_create = _createPlainObject
+            this._setValue = _setPlainObjectValue
+            this._getValue = _getPlainObjectValue
+            this._create = _createPlainObject
         else
-            @_setValue = _setModelValue
-            @_getValue = _getModelValue
-            @_create = _createModel
+            this._setValue = _setModelValue
+            this._getValue = _getModelValue
+            this._create = _createModel
 
         return
 
     _initRootElement: (className, id, options = {})->
-        if @_tables.hasOwnProperty id
+        if this._tables.hasOwnProperty id
             return
 
         if not className
-            if not @options.hasOwnProperty('join') or not @options.join.hasOwnProperty id
+            if not this.options.hasOwnProperty('join') or not this.options.join.hasOwnProperty id
                 err = new Error "#{id} was not found in any join definitions"
                 err.code = 'TABLE_UNDEF'
                 throw err
-            className = @options.join[id].entity
-            options = @options.join[id]
+            className = this.options.join[id].entity
+            options = this.options.join[id]
 
-        definition = @manager.getDefinition className
+        definition = this.manager.getDefinition className
         table = definition.table
-        tableAlias = @_uniqTabAlias()
+        tableAlias = this._uniqTabAlias()
 
-        select = @select
+        select = this.select
         if options.hasOwnProperty 'condition'
-            @_tables[id] = tableAlias
-            @_infos[id] = className: className
-            if @_joining.hasOwnProperty id
+            this._tables[id] = tableAlias
+            this._infos[id] = className: className
+            if this._joining.hasOwnProperty id
                 err = new Error "#{id} has already been joined. Look at stack to find the circular reference"
                 err.code = 'CIRCULAR_REF'
                 throw err
 
-            @_joining[id] = true
+            this._joining[id] = true
 
             if JOIN_FUNC.hasOwnProperty options.type
                 hasJoin = JOIN_FUNC[options.type]
@@ -134,20 +134,20 @@ module.exports = class RowMap
             # make necessary joins
             condition = _coerce.call @, options.condition
 
-            select[hasJoin] @options.escapeId(table), tableAlias, condition, type
+            select[hasJoin] this.options.escapeId(table), tableAlias, condition, type
 
             # make necessary joins
             # condition = _coerce.call @, options.condition
 
-            delete @_joining[id]
-            @_infos[id].hasJoin = hasJoin
-        else if _.isEmpty @_tables
-            select.from @options.escapeId(table), tableAlias
-            @_tables[id] = tableAlias
-            @_infos[id] =
+            delete this._joining[id]
+            this._infos[id].hasJoin = hasJoin
+        else if _.isEmpty this._tables
+            select.from this.options.escapeId(table), tableAlias
+            this._tables[id] = tableAlias
+            this._infos[id] =
                 className: className
                 hasJoin: JOIN_FUNC.default
-            @_rootInfo = @_infos[id]
+            this._rootInfo = this._infos[id]
         else
             err = new Error "#{id} has no joining condition"
             err.code = 'JOIN_COND'
@@ -156,48 +156,48 @@ module.exports = class RowMap
         return
 
     _processJoins: ->
-        join = @options.join
+        join = this.options.join
         if _.isEmpty join
             return
         for alias, joinDef of join
-            @_initRootElement joinDef.entity, alias, joinDef
-            fields = @_sanitizeFields joinDef.fields
+            this._initRootElement joinDef.entity, alias, joinDef
+            fields = this._sanitizeFields joinDef.fields
             if fields.length > 0
-                @_rootInfo.properties = @_rootInfo.properties or {}
-                @_rootInfo.properties[alias] = true
-                @_infos[alias].attribute = alias
+                this._rootInfo.properties = this._rootInfo.properties or {}
+                this._rootInfo.properties[alias] = true
+                this._infos[alias].attribute = alias
 
-                if not @options.count
+                if not this.options.count
                     for field in fields
-                        @_setField @_getUniqueId(field, alias), true
+                        this._setField this._getUniqueId(field, alias), true
         return
 
     _processFields: ->
-        if @options.count
-            @_selectCount()
+        if this.options.count
+            this._selectCount()
             return
 
-        fields = @_sanitizeFields @options.fields, ['*']
+        fields = this._sanitizeFields this.options.fields, ['*']
         for field in fields
-            @_setField field
+            this._setField field
 
         return
 
     _processColumns: ->
-        columns = @options.columns
+        columns = this.options.columns
         if _.isEmpty columns
             return
 
         for prop, field of columns
-            @_selectCustomField prop, field
+            this._selectCustomField prop, field
 
         return
 
     _processBlocks: ->
-        select = @select
+        select = this.select
 
         for block in ['where', 'group', 'having', 'order', 'limit', 'offset']
-            option = @options[block]
+            option = this.options[block]
 
             if  /^(?:string|boolean|number)$/.test typeof option
                 option = [option]
@@ -205,7 +205,7 @@ module.exports = class RowMap
                 continue
 
             if not (option instanceof Array)
-                err = new Error "[#{@className}]: #{block} can only be a string or an array"
+                err = new Error "[#{this.className}]: #{block} can only be a string or an array"
                 err.code = block.toUpperCase()
                 throw err
 
@@ -215,35 +215,35 @@ module.exports = class RowMap
             for opt in option
                 _readFields.call @, opt, select, block
 
-        if @options.distinct
+        if this.options.distinct
             select.distinct()
 
         return
 
     _getSetColumn: (field)->
-        allAncestors = @_getAncestors field
+        allAncestors = this._getAncestors field
         ancestors = []
 
         for prop, index in allAncestors
             ancestors.push prop
             if index is 0
-                @_initRootElement null, prop
+                this._initRootElement null, prop
                 continue
 
-            id = @_getUniqueId null, ancestors
-            @_getSetInfo id
+            id = this._getUniqueId null, ancestors
+            this._getSetInfo id
 
             if index is allAncestors.length - 1
                 continue
 
             parentInfo = info
-            @_joinProp id, parentInfo
-            info = @_getInfo id
+            this._joinProp id, parentInfo
+            info = this._getInfo id
             if info.hasOwnProperty('properties') and not info.setted
                 for prop of info.properties
-                    @_setField prop, true
+                    this._setField prop, true
                 info.setted = true
-        @_getColumn id
+        this._getColumn id
 
     _sanitizeFields: (fields, defaultValue)->
         if typeof fields is 'undefined'
@@ -253,7 +253,7 @@ module.exports = class RowMap
             fields = [fields]
 
         if not (fields instanceof Array)
-            err = new Error "[#{@className}]: fields can only be a string or an array"
+            err = new Error "[#{this.className}]: fields can only be a string or an array"
             err.code = 'FIELDS'
             throw err
 
@@ -264,28 +264,28 @@ module.exports = class RowMap
 
     # field: full field name
     _setField: (field, isFull)->
-        allAncestors = @_getAncestors field, isFull
+        allAncestors = this._getAncestors field, isFull
         ancestors = []
 
         for prop, index in allAncestors
             if index is allAncestors.length - 1
-                @_selectProp prop, ancestors
+                this._selectProp prop, ancestors
                 continue
 
             parentInfo = info
             ancestors.push prop
-            id = @_getUniqueId null, ancestors
-            info = @_getSetInfo id
+            id = this._getUniqueId null, ancestors
+            info = this._getSetInfo id
             if parentInfo
                 parentInfo.properties = parentInfo.properties or {}
-                @_set parentInfo.properties, id, true
+                this._set parentInfo.properties, id, true
 
-            @_joinProp id, parentInfo
+            this._joinProp id, parentInfo
 
         return
 
     _selectCount: ->
-        @_selectCustomField 'count',
+        this._selectCustomField 'count',
             column: 'count(1)'
             read: (value)->
                 parseInt value, 10
@@ -303,60 +303,60 @@ module.exports = class RowMap
             column = field.column
             handlerRead = field.read
 
-        id = @_getUniqueId prop, ancestors
-        info = @_getSetInfo id, true
+        id = this._getUniqueId prop, ancestors
+        info = this._getSetInfo id, true
 
-        @_set info, 'read', handlerRead if 'function' is typeof handlerRead
+        this._set info, 'read', handlerRead if 'function' is typeof handlerRead
 
         if info.hasOwnProperty 'field'
             # this property has already been selected
             return
 
-        columnAlias = @_uniqColAlias()
+        columnAlias = this._uniqColAlias()
         column = _coerce.call @, column
-        @select.field column, columnAlias
+        this.select.field column, columnAlias
 
         # map columnAlias to prop
-        @_set info, 'field', columnAlias
+        this._set info, 'field', columnAlias
 
-        parentInfo = @_getInfo @_getUniqueId null, ancestors
+        parentInfo = this._getInfo this._getUniqueId null, ancestors
         parentInfo.properties = parentInfo.properties or {}
 
         # mark current prop as field of parent prop
-        @_set parentInfo.properties, id, true
+        this._set parentInfo.properties, id, true
         return
 
     # set column alias as field of prop
     # must be called step by step
     _selectProp: (prop, ancestors)->
-        parentId = @_getUniqueId null, ancestors
-        parentInfo = @_getInfo parentId
-        parentDef = @manager.getDefinition parentInfo.className
+        parentId = this._getUniqueId null, ancestors
+        parentInfo = this._getInfo parentId
+        parentDef = this.manager.getDefinition parentInfo.className
 
         if prop is '*'
-            if @options.depth < ancestors.length
+            if this.options.depth < ancestors.length
                 logger.warn 'max depth reached'
                 return
-            @_set parentInfo, 'selectAll', true
+            this._set parentInfo, 'selectAll', true
             for prop of parentDef.availableProperties
-                @_setField @_getUniqueId(prop, ancestors), true
+                this._setField this._getUniqueId(prop, ancestors), true
             return
 
-        id = @_getUniqueId prop, ancestors
-        info = @_getSetInfo id
+        id = this._getUniqueId prop, ancestors
+        info = this._getSetInfo id
 
         if info.hasOwnProperty 'field'
             # this property has already been selected
             return
 
-        column = @_getColumn id
-        columnAlias = @_uniqColAlias()
-        @select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
-        @_set info, 'field', columnAlias
-        parentInfo = @_getInfo @_getUniqueId null, ancestors
+        column = this._getColumn id
+        columnAlias = this._uniqColAlias()
+        this.select.field column, columnAlias #, ignorePeriodsForFieldNameQuotes: true
+        this._set info, 'field', columnAlias
+        parentInfo = this._getInfo this._getUniqueId null, ancestors
         parentInfo.properties = parentInfo.properties or {}
-        @_set parentInfo.properties, id, true
-        @_set info, 'selectAll', parentInfo.selectAll
+        this._set parentInfo.properties, id, true
+        this._set info, 'selectAll', parentInfo.selectAll
 
         if info.selectAll and info.hasOwnProperty('className') and not info.hasOwnProperty 'selectedAll'
             if parentDef.availableProperties[prop].definition.nullable is false
@@ -366,20 +366,20 @@ module.exports = class RowMap
                 isNullable = true
 
             parentProp = prop
-            properties = @manager.getDefinition(info.className).availableProperties
+            properties = this.manager.getDefinition(info.className).availableProperties
             info.properties = {}
             for prop of properties
                 if isNullable
-                    @_set info.properties, @_getUniqueId(prop, parentProp, ancestors), true
+                    this._set info.properties, this._getUniqueId(prop, parentProp, ancestors), true
                 else
                     # not nullable => select all fields
-                    @_setField @_getUniqueId(prop, ancestors), true
-            @_set info, 'selectedAll', true
+                    this._setField this._getUniqueId(prop, ancestors), true
+            this._set info, 'selectedAll', true
         return
 
     # Is called step by step .i.e. parent is supposed to be defined
     _joinProp: (id, parentInfo)->
-        info = @_getInfo id
+        info = this._getInfo id
 
         if info.hasOwnProperty 'hasJoin'
             return
@@ -389,17 +389,17 @@ module.exports = class RowMap
             err.code = 'FIELDS'
             throw err
 
-        connector = @options.connector
+        connector = this.options.connector
 
-        column = @_getColumn id
-        propDef = @manager.getDefinition info.className
-        idColumn = @options.escapeId propDef.id.column
+        column = this._getColumn id
+        propDef = this.manager.getDefinition info.className
+        idColumn = this.options.escapeId propDef.id.column
         table = propDef.table
-        tableAlias = @_uniqTabAlias()
-        select = @select
+        tableAlias = this._uniqTabAlias()
+        select = this.select
 
         if parentInfo
-            parentDef = @manager.getDefinition parentInfo.className
+            parentDef = this.manager.getDefinition parentInfo.className
             prop = info.attribute
             if (parentDef.availableProperties[prop].definition.nullable is false) and parentInfo.hasJoin is JOIN_FUNC.default
                 hasJoin = JOIN_FUNC.default
@@ -407,10 +407,10 @@ module.exports = class RowMap
         if typeof hasJoin is 'undefined'
             hasJoin = JOIN_FUNC.left
 
-        select[hasJoin] @options.escapeId(table), tableAlias, @options.escapeId(tableAlias) + '.' + idColumn + ' = ' + column
+        select[hasJoin] this.options.escapeId(table), tableAlias, this.options.escapeId(tableAlias) + '.' + idColumn + ' = ' + column
 
-        @_tables[id] = tableAlias
-        @_set info, 'hasJoin', hasJoin
+        this._tables[id] = tableAlias
+        this._set info, 'hasJoin', hasJoin
         # info.hasJoin = true
         return
 
@@ -420,62 +420,62 @@ module.exports = class RowMap
         return [prop, ancestors]
 
     _updateInfos: ->
-        for id, info of @_infos
-            [prop, ancestors] = @_getPropAncestors id
-            @_updateInfo info, prop, ancestors if ancestors.length > 0
+        for id, info of this._infos
+            [prop, ancestors] = this._getPropAncestors id
+            this._updateInfo info, prop, ancestors if ancestors.length > 0
         return
 
     _updateInfo: (info, prop, ancestors)->
         return if info.asIs
 
-        parentInfo = @_getInfo @_getUniqueId null, ancestors
-        definition = @manager.getDefinition parentInfo.className
+        parentInfo = this._getInfo this._getUniqueId null, ancestors
+        definition = this.manager.getDefinition parentInfo.className
         availableProperty = definition.availableProperties[prop]
         if 'undefined' is typeof availableProperty
             throw new Error "Property '#{prop}' is not defined for class '#{parentInfo.className}'"
         propDef = availableProperty.definition
 
         if propDef.hasOwnProperty('className') and propDef isnt definition.id
-            @_set info, 'className', propDef.className
+            this._set info, 'className', propDef.className
 
         if propDef.hasOwnProperty('handlers') and propDef.handlers.hasOwnProperty 'read'
-            @_set info, 'read', propDef.handlers.read
+            this._set info, 'read', propDef.handlers.read
 
-        # if _.isObject(overrides = @options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
-        #     @_set info, 'read', handlers.read
+        # if _.isObject(overrides = this.options.overrides) and _.isObject(overrides = overrides[definition.className]) and _.isObject(overrides = overrides.properties) and _.isObject(overrides = overrides[prop]) and _.isObject(handlers = overrides.handlers) and 'function' is typeof handlers.read
+        #     this._set info, 'read', handlers.read
 
         return
 
     # Is called step by step .i.e. parent is supposed to be defined
     _getSetInfo: (id, asIs)->
-        info = @_getInfo id
+        info = this._getInfo id
         return info if info
 
-        [prop, ancestors] = @_getPropAncestors id
+        [prop, ancestors] = this._getPropAncestors id
 
-        return @_setInfo id, attribute: prop, asIs: asIs if asIs
+        return this._setInfo id, attribute: prop, asIs: asIs if asIs
 
         # info = _.extend {attribute: prop}, extra
         info = attribute: prop
-        @_updateInfo info, prop, ancestors
-        @_setInfo id, info
+        this._updateInfo info, prop, ancestors
+        this._setInfo id, info
 
     # Get parent prop column alias, mixins join
     # Must be called step by step
     _getColumn: (id)->
-        info = @_getInfo id
+        info = this._getInfo id
         return info.column if info.hasOwnProperty 'column'
 
-        [prop, ancestors] = @_getPropAncestors id
+        [prop, ancestors] = this._getPropAncestors id
 
-        parentId = @_getUniqueId null, ancestors
-        availableProperty = @_getAvailableProperty prop, ancestors, id
-        connector = @options.connector
-        select = @select
-        tableAlias = @_tables[parentId]
+        parentId = this._getUniqueId null, ancestors
+        availableProperty = this._getAvailableProperty prop, ancestors, id
+        connector = this.options.connector
+        select = this.select
+        tableAlias = this._tables[parentId]
 
         if availableProperty.mixin
-            parentInfo = @_getInfo parentId
+            parentInfo = this._getInfo parentId
             if parentInfo.hasJoin is JOIN_FUNC.left
                 joinFunc = JOIN_FUNC.left
             else
@@ -484,47 +484,47 @@ module.exports = class RowMap
         # join while mixin prop
         while mixin = availableProperty.mixin
             className = mixin.className
-            mixinDef = @manager.getDefinition className
+            mixinDef = this.manager.getDefinition className
             mixinId = parentId + STATIC.PROP_SEP + className
 
             # check if it has already been joined
             # join mixin only once even if multiple field of this mixin
-            if typeof @_mixins[mixinId] is 'undefined'
-                idColumn = @options.escapeId mixinDef.id.column
-                joinColumn = @options.escapeId(tableAlias) + '.' + @options.escapeId(mixin.column)
+            if typeof this._mixins[mixinId] is 'undefined'
+                idColumn = this.options.escapeId mixinDef.id.column
+                joinColumn = this.options.escapeId(tableAlias) + '.' + this.options.escapeId(mixin.column)
                 table = mixinDef.table
-                tableAlias = @_uniqTabAlias()
-                select[joinFunc] @options.escapeId(table), tableAlias, @options.escapeId(tableAlias) + '.' + idColumn + ' = ' + joinColumn
-                @_mixins[mixinId] = tableAlias: tableAlias
+                tableAlias = this._uniqTabAlias()
+                select[joinFunc] this.options.escapeId(table), tableAlias, this.options.escapeId(tableAlias) + '.' + idColumn + ' = ' + joinColumn
+                this._mixins[mixinId] = tableAlias: tableAlias
             else
-                tableAlias = @_mixins[mixinId].tableAlias
+                tableAlias = this._mixins[mixinId].tableAlias
 
             availableProperty = mixinDef.availableProperties[prop]
 
         propDef = availableProperty.definition
 
-        @_set info, 'column', @options.escapeId(tableAlias) + '.' + @options.escapeId(propDef.column)
-        # info.column = @options.escapeId(tableAlias) + '.' + @options.escapeId(propDef.column)
+        this._set info, 'column', this.options.escapeId(tableAlias) + '.' + this.options.escapeId(propDef.column)
+        # info.column = this.options.escapeId(tableAlias) + '.' + this.options.escapeId(propDef.column)
 
         info.column
 
     # Return the model initialized using row,
     initModel: (row, model, tasks = [])->
         if not model
-            model = @_create()
+            model = this._create()
 
-        id = @_getUniqueId()
-        info = @_getInfo id
+        id = this._getUniqueId()
+        info = this._getInfo id
 
         # init prop model with this row
         for prop of info.properties
-            @_initValue prop, row, model, tasks
+            this._initValue prop, row, model, tasks
 
         return model
 
     # prop: full info name
     _initValue: (id, row, model, tasks)->
-        info = @_getInfo id
+        info = this._getInfo id
 
         value = row[info.field]
         prop = info.attribute
@@ -532,35 +532,35 @@ module.exports = class RowMap
         # if value is null, no futher processing is needed
         # if Property has no sub-elements, no futher processing is needed
         if value is null or not info.hasOwnProperty 'className'
-            @_setValue model, prop, value, info
+            this._setValue model, prop, value, info
             return model
 
         propClassName = info.className
-        childModel = @_getValue model, prop
+        childModel = this._getValue model, prop
         if childModel is null or 'object' isnt typeof childModel
-            childModel = @_create propClassName
-            @_setValue model, prop, childModel, info
+            childModel = this._create propClassName
+            this._setValue model, prop, childModel, info
 
         if info.hasOwnProperty 'hasJoin'
             # this row contains needed data
             # init prop model with this row
             for childProp of info.properties
-                @_initValue childProp, row, childModel, tasks
+                this._initValue childProp, row, childModel, tasks
 
             # id is null, it means that value is null
-            childIdProp = @manager.getIdName propClassName
-            if null is @_getValue childModel, childIdProp
-                @_setValue model, prop, null, info
+            childIdProp = this.manager.getIdName propClassName
+            if null is this._getValue childModel, childIdProp
+                this._setValue model, prop, null, info
         else
             # a new request is needed to get properties value
             # that avoids stack overflow in case of "circular" reference with a property
             tasks.push
                 className: propClassName
                 options:
-                    type: @options.type
+                    type: this.options.type
                     models: [childModel]
                     # for nested element, value is the id
-                    where: STATIC.FIELD_CHAR_BEGIN + @manager.getIdName(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
+                    where: STATIC.FIELD_CHAR_BEGIN + this.manager.getIdName(propClassName) + STATIC.FIELD_CHAR_END + ' = ' + value
                     # expect only one result. limit 2 is for unique checking without returning all rows
                     limit: 2
 
@@ -579,17 +579,17 @@ module.exports = class RowMap
         return res.join STATIC.PROP_SEP
 
     _uniqTabAlias: ->
-        tableAlias = 'TBL_' + @_tabId++
-        # while @_tableAliases.hasOwnProperty tableAlias
-        #     tableAlias = 'TBL_' + @_tabId++
-        @_tableAliases[tableAlias] = true
+        tableAlias = 'TBL_' + this._tabId++
+        # while this._tableAliases.hasOwnProperty tableAlias
+        #     tableAlias = 'TBL_' + this._tabId++
+        this._tableAliases[tableAlias] = true
         tableAlias
 
     _uniqColAlias: ->
-        columnAlias = 'COL_' + @_colId++
-        # while @_columnAliases.hasOwnProperty columnAlias
-        #     columnAlias = 'COL_' + @_colId++
-        @_columnAliases[columnAlias] = true
+        columnAlias = 'COL_' + this._colId++
+        # while this._columnAliases.hasOwnProperty columnAlias
+        #     columnAlias = 'COL_' + this._colId++
+        this._columnAliases[columnAlias] = true
         columnAlias
 
     # for debugging purpose
@@ -600,22 +600,22 @@ module.exports = class RowMap
     # Return info of a property
     # id: full property name
     _getInfo: (id)->
-        @_infos[id]
+        this._infos[id]
 
     _setInfo: (id, extra)->
-        info = @_infos[id]
+        info = this._infos[id]
         if info
             _.extend info, extra
         else
-            @_infos[id] = extra
+            this._infos[id] = extra
 
-        @_infos[id]
+        this._infos[id]
 
     _getAvailableProperty: (prop, ancestors)->
-        id = @_getUniqueId null, ancestors
-        info = @_getInfo id
+        id = this._getUniqueId null, ancestors
+        info = this._getInfo id
 
-        definition = @manager.getDefinition info.className
+        definition = this.manager.getDefinition info.className
         if prop
             definition.availableProperties[prop]
         else
@@ -640,17 +640,17 @@ module.exports = class RowMap
         ancestors or []
 
     toQueryString: ->
-        fieldHolderParser.replace @select.toString(), (field)=>
-            @_getSetColumn field
+        fieldHolderParser.replace this.select.toString(), (field)=>
+            this._getSetColumn field
 
     getTemplate: (force)->
-        return @template if force isnt true and @template
-        @template = placeHolderParser.unsafeCompile @toQueryString()
-        # @template = placeHolderParser.safeCompile @toQueryString()
+        return this.template if force isnt true and this.template
+        this.template = placeHolderParser.unsafeCompile this.toQueryString()
+        # this.template = placeHolderParser.safeCompile this.toQueryString()
 
     # replace fields by corresponding column
     toString: ->
-        @getTemplate() @values
+        this.getTemplate() this.values
 
 _readFields = (values, select, block)->
     if values instanceof Array
@@ -671,10 +671,10 @@ _readFields = (values, select, block)->
 _coerce = (str)->
     if 'string' is typeof str
         return fieldHolderParser.replace str, (field)=>
-            @_getSetColumn field
+            this._getSetColumn field
     else if _.isObject(str) and not Array.isArray str
         return fieldHolderParser.replace str.toString(), (field)=>
-            @_getSetColumn field
+            this._getSetColumn field
 
     return str
         

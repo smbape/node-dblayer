@@ -25,41 +25,41 @@ module.exports = class PgColumnCompiler extends ColumnCompiler
 PgColumnCompiler::adapter = require './adapter'
 
 # https://www.postgresql.org/docs/9.4/static/datatype-numeric.html
-PgColumnCompiler::smallincrements = -> @words.smallserial
-PgColumnCompiler::increments = -> @words.serial
-PgColumnCompiler::bigincrements = -> @words.bigserial
+PgColumnCompiler::smallincrements = -> this.words.smallserial
+PgColumnCompiler::increments = -> this.words.serial
+PgColumnCompiler::bigincrements = -> this.words.bigserial
 
-PgColumnCompiler::smallint = -> @words.smallint
-PgColumnCompiler::integer = -> @words.integer
-PgColumnCompiler::bigint = -> @words.bigint
+PgColumnCompiler::smallint = -> this.words.smallint
+PgColumnCompiler::integer = -> this.words.integer
+PgColumnCompiler::bigint = -> this.words.bigint
 
 PgColumnCompiler::numeric = (precision, scale)->
-    @words.numeric + '(' + @_num(precision, 8) + ', ' + @_num(scale, 2) + ')'
+    this.words.numeric + '(' + this._num(precision, 8) + ', ' + this._num(scale, 2) + ')'
 
-PgColumnCompiler::float = -> @words.real
-PgColumnCompiler::double = -> @words.double
+PgColumnCompiler::float = -> this.words.real
+PgColumnCompiler::double = -> this.words.double
 
 # https://www.postgresql.org/docs/9.4/static/datatype-character.html
 PgColumnCompiler::char = (length)->
-    @words.char + '(' + @_num(length, 255) + ')'
+    this.words.char + '(' + this._num(length, 255) + ')'
 
 PgColumnCompiler::varchar = (length)->
-    @words.varchar + '(' + @_num(length, 255) + ')'
+    this.words.varchar + '(' + this._num(length, 255) + ')'
 
 # https://www.postgresql.org/docs/9.4/static/datatype-datetime.html
-PgColumnCompiler::date = -> @words.date
+PgColumnCompiler::date = -> this.words.date
 PgColumnCompiler::time = (tz, precision)->
     if 'number' is typeof tz
         precision = tz
         tz = precision is true
 
     if tz
-        type = @words.timetz
+        type = this.words.timetz
     else
-        type = @words.time
+        type = this.words.time
 
     # 6 is the default precision
-    precision = @_num(precision, 6)
+    precision = this._num(precision, 6)
     "#{type}(#{precision})"
 
 PgColumnCompiler::timestamp = (tz, precision)->
@@ -68,16 +68,16 @@ PgColumnCompiler::timestamp = (tz, precision)->
         tz = precision is true
 
     if tz
-        type = @words.timestamptz
+        type = this.words.timestamptz
     else
-        type = @words.timestamp
+        type = this.words.timestamp
 
-    precision = @_num(precision, 6)
+    precision = this._num(precision, 6)
     "#{type}(#{precision})"
 
 PgColumnCompiler::interval = (precision)->
-    precision = @_num(precision, null)
-    type = @words.interval
+    precision = this._num(precision, null)
+    type = this.words.interval
 
     if precision
         return "#{type}(#{precision})"
@@ -92,33 +92,33 @@ PgColumnCompiler::interval = (precision)->
 
 PgColumnCompiler::binary =
 PgColumnCompiler::varbinary =
-PgColumnCompiler::bytea = -> @words.bytea
+PgColumnCompiler::bytea = -> this.words.bytea
 
-PgColumnCompiler::bool = -> @words.boolean
+PgColumnCompiler::bool = -> this.words.boolean
 
 PgColumnCompiler::enum = ->
     # http://stackoverflow.com/questions/10923213/postgres-enum-data-type-or-check-constraint#10984951
-    @words.text_check + ' (' + @adapter.escapeId(@args.column) + ' ' + @words.in + ' (' + map.call(arguments, @adapter.escape).join(',') + '))'
+    this.words.text_check + ' (' + this.adapter.escapeId(this.args.column) + ' ' + this.words.in + ' (' + map.call(arguments, this.adapter.escape).join(',') + '))'
 
 PgColumnCompiler::bit = (length) ->
-    length = @_num(length, null)
-    if length and length isnt 1 then @words.bit + '(' + length + ')' else @words.bit
+    length = this._num(length, null)
+    if length and length isnt 1 then this.words.bit + '(' + length + ')' else this.words.bit
 
 PgColumnCompiler::varbit = (length) ->
-    length = @_num(length, null)
-    if length then @words.varbit + '(' + length + ')' else @words.varbit
+    length = this._num(length, null)
+    if length then this.words.varbit + '(' + length + ')' else this.words.varbit
 
-PgColumnCompiler::uuid = -> @words.uuid
-PgColumnCompiler::xml = -> @words.xml
-PgColumnCompiler::json = -> @words.json
-PgColumnCompiler::jsonb = -> @words.jsonb
+PgColumnCompiler::uuid = -> this.words.uuid
+PgColumnCompiler::xml = -> this.words.xml
+PgColumnCompiler::json = -> this.words.json
+PgColumnCompiler::jsonb = -> this.words.jsonb
 
 PgColumnCompiler::LOWERWORDS = _.defaults LOWERWORDS, ColumnCompiler::LOWERWORDS
 PgColumnCompiler::UPPERWORDS = _.defaults tools.toUpperWords(LOWERWORDS), ColumnCompiler::UPPERWORDS
 PgColumnCompiler::datetime = PgColumnCompiler::timestamp
 
 PgColumnCompiler::aliases = ->
-    instance = super
+    instance = ColumnCompiler.prototype.aliases.apply(this, arguments)
 
     for method in ['time', 'timestamp']
         alias = method + 'tz'

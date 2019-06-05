@@ -55,20 +55,21 @@ module.exports = class PersistenceManager extends CompiledMapping
         delete: {}
         sync: {}
 
-    constructor: (mapping, options)->
-        super
-        @defaults = _.cloneDeep @defaults
+    constructor: (...args)->
+        super(...args)
+        [mapping, options] = args
+        this.defaults = _.cloneDeep this.defaults
 
-        for className of @classes
+        for className of this.classes
             for method in ['insert', 'update', 'save', 'delete']
                 delegateMethod @, className, method
 
             delegateMethod @, className, 'new'
-            @['list' + className] = @list.bind @, className
+            @['list' + className] = this.list.bind @, className
             @['remove' + className] = @['delete' + className]
 
-        pools = @pools = {}
-        connectors = @connectors = {}
+        pools = this.pools = {}
+        connectors = this.connectors = {}
 
         if options and _.isObject(users = options.users)
             for name in ['admin', 'writer', 'reader']
@@ -76,24 +77,24 @@ module.exports = class PersistenceManager extends CompiledMapping
                     pool = pools[name] = new AdapterPool(users[name])
                     connectors[name] = pool.createConnector()
 
-            @defaults.sync = _.defaults {connector: connectors.admin}, @defaults.sync
-            @defaults.insert = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.insert
-            @defaults.update = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.update
-            @defaults.delete = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.delete
-            @defaults.save = _.defaults {connector: connectors.writer or connectors.admin}, @defaults.save
-            @defaults.list = _.defaults {connector: connectors.reader or connectors.writer or connectors.admin}, @defaults.list
+            this.defaults.sync = _.defaults {connector: connectors.admin}, this.defaults.sync
+            this.defaults.insert = _.defaults {connector: connectors.writer or connectors.admin}, this.defaults.insert
+            this.defaults.update = _.defaults {connector: connectors.writer or connectors.admin}, this.defaults.update
+            this.defaults.delete = _.defaults {connector: connectors.writer or connectors.admin}, this.defaults.delete
+            this.defaults.save = _.defaults {connector: connectors.writer or connectors.admin}, this.defaults.save
+            this.defaults.list = _.defaults {connector: connectors.reader or connectors.writer or connectors.admin}, this.defaults.list
 
     destroyPools: (safe = true, done)->
         if 'function' is typeof safe
             done = safe
             safe = true
 
-        count = Object.keys(@pools).length
+        count = Object.keys(this.pools).length
         if count is 0
             done() if 'function' is typeof done
             return
 
-        for name, pool of @pools
+        for name, pool of this.pools
             do (name, pool)->
                 pool.destroyAll safe, (err)->
                     console.error(err) if err
@@ -147,9 +148,9 @@ PersistenceManager.insertDefaultValue = PersistenceManager::insertDefaultValue =
 
 PersistenceManager::insert = (model, options, callback, guess = true)->
     if guess
-        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.insert)
+        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, this.defaults.insert)
     try
-        query = @getInsertQuery model, options, false
+        query = this.getInsertQuery model, options, false
     catch err
         return callback err
 
@@ -165,13 +166,9 @@ PersistenceManager::insert = (model, options, callback, guess = true)->
                     return
                 callback err
                 return
-            query.execute connector, (err)->
-                if err
-                    method = 'rollback'
-                else
-                    method = 'commit'
+            query.execute connector, (...args)->
+                method = if args[0] then 'rollback' else 'commit'
 
-                args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
                         if args[0]
@@ -193,7 +190,7 @@ PersistenceManager::insert = (model, options, callback, guess = true)->
 
 PersistenceManager::getInsertQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.insert)
+        options = guessEscapeOpts(options, this.defaults.insert)
     new InsertQuery @, model, options, false
 
 PersistenceManager::list = (className, options, callback, guess = true)->
@@ -202,9 +199,9 @@ PersistenceManager::list = (className, options, callback, guess = true)->
         options = {}
 
     if guess
-        options = guessEscapeOpts(options, @defaults.list)
+        options = guessEscapeOpts(options, this.defaults.list)
     try
-        query = @getSelectQuery className, options, false
+        query = this.getSelectQuery className, options, false
     catch err
         return callback err
 
@@ -212,9 +209,9 @@ PersistenceManager::list = (className, options, callback, guess = true)->
     query.list connector, callback
 
 PersistenceManager::stream = (className, options, callback, done)->
-    options = guessEscapeOpts(options, @defaults.list)
+    options = guessEscapeOpts(options, this.defaults.list)
     try
-        query = @getSelectQuery className, options, false
+        query = this.getSelectQuery className, options, false
     catch err
         return done err
 
@@ -224,23 +221,23 @@ PersistenceManager::stream = (className, options, callback, done)->
 
 PersistenceManager::getSelectQuery = (className, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.list)
+        options = guessEscapeOpts(options, this.defaults.list)
 
     if _.isPlainObject options.where
         options.attributes = options.where
         options.where = undefined
 
     if not options.where and _.isPlainObject options.attributes
-        definition = @_getDefinition className
+        definition = this._getDefinition className
         {where: options.where} = _getInitializeCondition @, null, definition, _.defaults({useDefinitionColumn: false}, options)
 
     new SelectQuery @, className, options, false
 
 PersistenceManager::update = (model, options, callback, guess = true)->
     if guess
-        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.update, PersistenceManager::defaults.update)
+        options = _.defaults {autoRollback: false}, guessEscapeOpts(options, this.defaults.update, PersistenceManager::defaults.update)
     try
-        query = @getUpdateQuery model, options, false
+        query = this.getUpdateQuery model, options, false
     catch err
         return callback err
 
@@ -256,13 +253,9 @@ PersistenceManager::update = (model, options, callback, guess = true)->
                     return
                 callback err
                 return
-            query.execute connector, (err)->
-                if err
-                    method = 'rollback'
-                else
-                    method = 'commit'
+            query.execute connector, (...args)->
+                method = if args[0] then 'rollback' else 'commit'
 
-                args = Array::slice.call arguments, 0
                 connector[method] (err)->
                     if err
                         if args[0]
@@ -284,7 +277,7 @@ PersistenceManager::update = (model, options, callback, guess = true)->
 
 PersistenceManager::getUpdateQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.update, PersistenceManager::defaults.update)
+        options = guessEscapeOpts(options, this.defaults.update, PersistenceManager::defaults.update)
     new UpdateQuery @, model, options, false
 
 PersistenceManager::delete = PersistenceManager::remove = (model, options, callback)->
@@ -292,9 +285,9 @@ PersistenceManager::delete = PersistenceManager::remove = (model, options, callb
         callback = options
         options = {}
 
-    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, @defaults.delete, PersistenceManager::defaults.delete)
+    options = _.defaults {autoRollback: false}, guessEscapeOpts(options, this.defaults.delete, PersistenceManager::defaults.delete)
     try
-        query = @getDeleteQuery model, options, false
+        query = this.getDeleteQuery model, options, false
     catch err
         return callback err
 
@@ -304,12 +297,12 @@ PersistenceManager::delete = PersistenceManager::remove = (model, options, callb
 
 PersistenceManager::getDeleteQuery = (model, options, guess = true)->
     if guess
-        options = guessEscapeOpts(options, @defaults.delete, PersistenceManager::defaults.delete)
+        options = guessEscapeOpts(options, this.defaults.delete, PersistenceManager::defaults.delete)
     new DeleteQuery @, model, options, false
 
 PersistenceManager::save = (model, options, callback)->
     return callback err if (err = isValidModelInstance model) instanceof Error
-    options = guessEscapeOpts(options, @defaults.save, PersistenceManager::defaults.save)
+    options = guessEscapeOpts(options, this.defaults.save, PersistenceManager::defaults.save)
 
     # if arguments.length is 2 and 'function' is typeof options
     #     callback = options
@@ -317,7 +310,7 @@ PersistenceManager::save = (model, options, callback)->
     (callback = ->) if 'function' isnt typeof callback
 
     className = options.className or model.className
-    definition = @_getDefinition className
+    definition = this._getDefinition className
 
     try
         {fields, where} = _getInitializeCondition @, model, definition, _.defaults(
@@ -329,7 +322,7 @@ PersistenceManager::save = (model, options, callback)->
         return
 
     if where.length is 0
-        @insert model, _.defaults({reflect: true}, options), (err, id)->
+        this.insert model, _.defaults({reflect: true}, options), (err, id)->
             callback(err, id, 'insert')
             return
         , false
@@ -340,14 +333,14 @@ PersistenceManager::save = (model, options, callback)->
             where: where
             limit: 2 # Expecting one result. Limit is for unique checking without getting all results
         , options
-        @list className, options, (err, models)=>
+        this.list className, options, (err, models)=>
             return callback(err) if err
             if models.length is 1
                 # update properties
                 model.set _.defaults model.toJSON(), models[0].toJSON()
-                @update model, backup, callback, false
+                this.update model, backup, callback, false
             else
-                @insert model, _.defaults({reflect: true}, backup), (err, id)->
+                this.insert model, _.defaults({reflect: true}, backup), (err, id)->
                     callback(err, id, 'insert')
                     return
                 , false
@@ -369,7 +362,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
         return callback err
 
     className = options.className or model.className
-    definition = @_getDefinition className
+    definition = this._getDefinition className
     options = _.extend {}, options,
         models: [model]
 
@@ -379,7 +372,7 @@ PersistenceManager::initialize = (model, options, callback, guess = true)->
         callback err
         return
 
-    @list className, options, callback, false
+    this.list className, options, callback, false
 
 # return where condition to be parsed by RowMap
 _getInitializeCondition = (pMgr, model, definition, options)->
@@ -475,33 +468,33 @@ PersistenceManager.InsertQuery = class InsertQuery
         assertValidModelInstance model
         if guess
             options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
-        @options = options
+        this.options = options
 
-        @model = model
-        @pMgr = pMgr
-        @options = options
+        this.model = model
+        this.pMgr = pMgr
+        this.options = options
         root = options.root or @
 
         #  for mysql when lastInsertId is not available because there is no autoincrement
-        fields = @fields = {}
+        fields = this.fields = {}
 
-        @set = (column, value)->
-            insert.set @options.escapeId(column), value
+        this.set = (column, value)->
+            insert.set this.options.escapeId(column), value
             fields[column] = value
-        @toString = @oriToString = -> insert.toString()
-        @toParam = -> insert.toParam()
-        @toQuery = -> insert
+        this.toString = this.oriToString = -> insert.toString()
+        this.toParam = -> insert.toParam()
+        this.toQuery = -> insert
 
-        @className = className = options.className or model.className
-        definition = @definition = pMgr._getDefinition className
+        this.className = className = options.className or model.className
+        definition = this.definition = pMgr._getDefinition className
         table = definition.table
-        insert = pMgr.getSquelQuery('insert', options.dialect).into @options.escapeId(table)
+        insert = pMgr.getSquelQuery('insert', options.dialect).into this.options.escapeId(table)
 
         # ids of mixins will be setted at execution
         if definition.mixins.length > 0
-            @toString = -> insert.toParam().text
+            this.toString = -> insert.toParam().text
 
-            @toParam = ->
+            this.toParam = ->
                 param = insert.toParam()
                 for value, index in values
                     param.values[index] = values[index]
@@ -519,15 +512,15 @@ PersistenceManager.InsertQuery = class InsertQuery
                 }, options) , false
 
             for mixin in definition.mixins
-                insert.set @options.escapeId(mixin.column), '$id'
+                insert.set this.options.escapeId(mixin.column), '$id'
 
         idName = pMgr.getIdName className
         id = model.get idName if idName isnt null
         props = Object.keys(definition.properties)
 
         if id
-            insert.set @options.escapeId(definition.id.column), id
-            @hasData = true if props.length is 0
+            insert.set this.options.escapeId(definition.id.column), id
+            this.hasData = true if props.length is 0
 
         for prop in props
             propDef = definition.properties[prop]
@@ -587,21 +580,21 @@ PersistenceManager.InsertQuery = class InsertQuery
             if typeof value is 'undefined'
                 continue
 
-            root.hasData = @hasData = true
+            root.hasData = this.hasData = true
 
-            insert.set @options.escapeId(column), value
+            insert.set this.options.escapeId(column), value
 
         # check
-        @toString()
+        this.toString()
 
     execute: (connector, callback)->
-        if @toString is @oriToString
-            @_execute connector, callback
+        if this.toString is this.oriToString
+            this._execute connector, callback
             return
 
         self = @
-        definition = @definition
-        params = @toParam()
+        definition = this.definition
+        params = this.toParam()
         tasks = []
 
         _addTask = (query, connector, index)->
@@ -632,15 +625,15 @@ PersistenceManager.InsertQuery = class InsertQuery
         return
 
     _execute: (connector, callback)->
-        pMgr = @pMgr
-        query = @toQuery()
-        definition = @definition
-        model = @model
-        fields = @fields
-        options = @options
+        pMgr = this.pMgr
+        query = this.toQuery()
+        definition = this.definition
+        model = this.model
+        fields = this.fields
+        options = this.options
 
         # empty objects are not inserted by default
-        if not @hasData 
+        if not this.hasData 
             if not options.allowEmpty
                 callback(new Error('no data to insert'))
                 return
@@ -708,19 +701,19 @@ _toInsertLine = (level, withs)->
     else
         indent = ''
 
-    definition = @definition
-    blocks = @toQuery().blocks
-    {values} = @toParam()
+    definition = this.definition
+    {blocks} = this.toQuery()
+    {values} = this.toParam()
 
     if definition.id?.column
-        returning = "#{indent}RETURNING #{@options.escapeId definition.id.column}"
+        returning = "#{indent}RETURNING #{this.options.escapeId definition.id.column}"
     else
         returning = ''
 
-    if @toString is @oriToString
+    if this.toString is this.oriToString
         return """
         #{indent}INSERT INTO #{blocks[1].table} (#{blocks[2].fields.join(', ')})
-        #{indent}VALUES (#{_.map(values, @options.escape).join(', ')})
+        #{indent}VALUES (#{_.map(values, this.options.escape).join(', ')})
         #{returning}
         """
 
@@ -731,10 +724,10 @@ _toInsertLine = (level, withs)->
             line = _toInsertLine.call value, ++level, withs
             column = definition.mixins[index].column
             tables.push "insert_#{withs.length}"
-            values[index] = "insert_#{withs.length}.#{@options.escapeId column}"
+            values[index] = "insert_#{withs.length}.#{this.options.escapeId column}"
             withs.push [column, line]
         else
-            values[index] = @options.escape value
+            values[index] = this.options.escape value
 
     """
     #{indent}INSERT INTO #{blocks[1].table} (#{blocks[2].fields.join(', ')})
@@ -774,11 +767,11 @@ PersistenceManager::addCachedRowMap = (cacheId, className, rowMap)->
         template: rowMap.getTemplate()
         select: JSON.stringify rowMap.select
 
-    @classes[className].cache.set cacheId, value
+    this.classes[className].cache.set cacheId, value
     value
 
 PersistenceManager::getCachedRowMap = (cacheId, className, options)->
-    cached = @classes[className].cache.get cacheId
+    cached = this.classes[className].cache.get cacheId
     return if not cached
     logger.trace 'read cache', className, cacheId
     rowMap = new RowMap className, @, options, true
@@ -800,7 +793,7 @@ PersistenceManager.SelectQuery = class SelectQuery
     constructor: (pMgr, className, options, guess = true)->
         if arguments.length is 1
             if arguments[0] instanceof RowMap
-                @rowMap = arguments[0]
+                this.rowMap = arguments[0]
                 return @
             else
                 throw new Error 'Given parameter do not resolve to a RowMap'
@@ -819,20 +812,20 @@ PersistenceManager.SelectQuery = class SelectQuery
             select.toParam()
             select.toString()
             if useCache
-                @cacheId = cacheId
+                this.cacheId = cacheId
                 pMgr.addCachedRowMap cacheId, className, rowMap
 
-        @rowMap = rowMap
+        this.rowMap = rowMap
         return @
 
     toString: ->
-        @rowMap.toString()
+        this.rowMap.toString()
 
     stream: (streamConnector, listConnector, callback, done)->
         (callback = ->) if 'function' isnt typeof callback
         (done = ->) if 'function' isnt typeof done
 
-        rowMap = @rowMap
+        rowMap = this.rowMap
         query = rowMap.toString()
         pMgr = rowMap.manager
         options = rowMap.options
@@ -906,12 +899,12 @@ PersistenceManager.SelectQuery = class SelectQuery
         , ret, options.executeOptions
 
     toQueryString: ->
-        @toString()
+        this.toString()
 
     list: (connector, callback)->
         (callback = ->) if 'function' isnt typeof callback
 
-        rowMap = @rowMap
+        rowMap = this.rowMap
         query = rowMap.toString()
         pMgr = rowMap.manager
         options = rowMap.options
@@ -993,22 +986,22 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         assertValidModelInstance model
         if guess
             options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
-        @options = options
+        this.options = options
 
-        @model = model
-        @pMgr = pMgr
+        this.model = model
+        this.pMgr = pMgr
 
-        @toQuery = -> update
-        @toParam = -> update.toParam()
-        @toString = @oriToString = -> update.toString()
-        # @getClassName = -> className
-        @getDefinition = -> definition
-        @setChangeCondition = ->
+        this.toQuery = -> update
+        this.toParam = -> update.toParam()
+        this.toString = this.oriToString = -> update.toString()
+        # this.getClassName = -> className
+        this.getDefinition = -> definition
+        this.setChangeCondition = ->
             update.where changeCondition
             @
 
         className = options.className or model.className
-        definition = @definition = pMgr._getDefinition className
+        definition = this.definition = pMgr._getDefinition className
         table = definition.table
         update = pMgr.getSquelQuery('update', options.dialect).table options.escapeId(table)
 
@@ -1016,7 +1009,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
         # condition to track changes
         changeCondition = squel.expr()
-        @lockCondition = lockCondition = squel.expr()
+        this.lockCondition = lockCondition = squel.expr()
 
         # update owned properties
         for prop, propDef of definition.properties
@@ -1086,7 +1079,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 continue
 
             update.set options.escapeId(column), value, {dontQuote: !!dontQuote}
-            @hasData = true
+            this.hasData = true
 
             if not dontLock and not propDef.lock
                 changeCondition.or options.exprNotEqual value, options.escapeId column
@@ -1095,15 +1088,15 @@ PersistenceManager.UpdateQuery = class UpdateQuery
 
         # update mixin properties
         if definition.mixins.length is 0
-            @setChangeCondition()
+            this.setChangeCondition()
         else
-            if @hasData
-                @toString = -> update.toString()
+            if this.hasData
+                this.toString = -> update.toString()
             else
-                @toString = -> ''
+                this.toString = -> ''
 
-            @toParam = ->
-                if @hasData
+            this.toParam = ->
+                if this.hasData
                     params = update.toParam()
                 else
                     params = values: []
@@ -1117,13 +1110,13 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                     }, options) , false
                 return params
 
-        @toString() if @hasData
+        this.toString() if this.hasData
 
     execute: (connector, callback)->
-        if @toString is @oriToString
-            return @_execute connector, callback
+        if this.toString is this.oriToString
+            return this._execute connector, callback
 
-        params = @toParam()
+        params = this.toParam()
         idIndex = 0
         tasks = []
 
@@ -1139,7 +1132,7 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 break
 
         hasUpdate = false
-        definition = @definition
+        definition = this.definition
         async.series tasks, (err, results)=>
             return callback(err) if err
 
@@ -1155,16 +1148,16 @@ PersistenceManager.UpdateQuery = class UpdateQuery
                 if Array.isArray results[results.length - 1]
                     id = results[results.length - 1][0]
 
-            if not @hasData
+            if not this.hasData
                 callback err, id, not hasUpdate
                 return
 
             # If parent mixin has been update, child must be considered as being updated
             if not hasUpdate
                 logger.debug '[', definition.className, '] - UPDATE: has no update', id
-                @setChangeCondition()
+                this.setChangeCondition()
 
-            @_execute connector, (err, id, msg)->
+            this._execute connector, (err, id, msg)->
                 hasUpdate = hasUpdate or msg is 'update'
                 callback err, id, if hasUpdate then 'update' else 'no-update'
                 return
@@ -1172,11 +1165,11 @@ PersistenceManager.UpdateQuery = class UpdateQuery
         return
 
     _execute: (connector, callback)->
-        pMgr = @pMgr
-        query = @toQuery()
-        definition = @definition
-        model = @model
-        options = @options
+        pMgr = this.pMgr
+        query = this.toQuery()
+        definition = this.definition
+        model = this.model
+        options = this.options
 
         if definition.id.column
             query = pMgr.decorateInsert options.dialect, query, definition.id.column
@@ -1244,16 +1237,16 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         assertValidModelInstance model
         if guess
             options = guessEscapeOpts(options, pMgr.defaults.insert, PersistenceManager::defaults.insert)
-        @options = options
+        this.options = options
 
-        @toParam = ->
+        this.toParam = ->
             remove.toParam()
-        @toString = @oriToString = ->
+        this.toString = this.oriToString = ->
             remove.toString()
-        @options = options
+        this.options = options
 
         className = options.className or model.className
-        definition = @definition = pMgr._getDefinition className
+        definition = this.definition = pMgr._getDefinition className
         remove = pMgr.getSquelQuery('delete', options.dialect).from options.escapeId definition.table
 
         _addUpdateOrDeleteCondition remove, 'delete', pMgr, model, className, definition, options
@@ -1282,10 +1275,10 @@ PersistenceManager.DeleteQuery = class DeleteQuery
 
         # delete mixins lines
         if definition.mixins.length > 0
-            @toString = ->
+            this.toString = ->
                 remove.toString()
 
-            @toParam = ->
+            this.toParam = ->
                 params = remove.toParam()
                 for mixin, index in definition.mixins
                     nested = options.nested or 0
@@ -1297,7 +1290,7 @@ PersistenceManager.DeleteQuery = class DeleteQuery
                 return params
 
         # check
-        @toString()
+        this.toString()
 
     execute: (connector, callback)->
         next = (err, res)->
@@ -1309,10 +1302,10 @@ PersistenceManager.DeleteQuery = class DeleteQuery
             callback err, res
             return
 
-        if @toString is @oriToString
-            return @_execute connector, next
+        if this.toString is this.oriToString
+            return this._execute connector, next
 
-        params = @toParam()
+        params = this.toParam()
         _addTask = (query, connector)->
             tasks.push (next)-> query.execute connector, next
             return
@@ -1325,7 +1318,7 @@ PersistenceManager.DeleteQuery = class DeleteQuery
             else
                 break
 
-        @_execute connector, (err, res)->
+        this._execute connector, (err, res)->
             return next(err) if err
             async.series tasks, (err, results)->
                 return next(err) if err
@@ -1338,24 +1331,25 @@ PersistenceManager.DeleteQuery = class DeleteQuery
         return
 
     _execute: (connector, callback)->
-        query = @oriToString()
-        connector.query query, callback, @options.executeOptions
+        query = this.oriToString()
+        connector.query query, callback, this.options.executeOptions
         return
 
 PersistenceManager::getInsertQueryString = (className, entries, options)->
-    table = @getTable className
+    table = this.getTable className
     rows = []
 
     for attributes in entries
         row = {}
-        query = @getInsertQuery @newInstance(className, attributes), options
-        {fields: columns, values: [values]} = query.toQuery().blocks[2]
+        query = this.getInsertQuery this.newInstance(className, attributes), options
+        {blocks} = query.toQuery()
+        {fields: columns, values: [values]} = blocks[2]
         for column, i in columns
             row[column] = values[i]
         rows.push row
 
-    @getSquelQuery('insert', query.options.dialect)
-        .into query.options.escapeId @getTable className
+    this.getSquelQuery('insert', query.options.dialect)
+        .into query.options.escapeId this.getTable className
         .setFieldsRows rows
         .toString()
 
